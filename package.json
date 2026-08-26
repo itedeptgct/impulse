@@ -1,0 +1,65 @@
+{
+	"name": "impulse",
+	"version": "1.0.0",
+	"private": true,
+	"main": "expo-router/entry",
+	"scripts": {
+		"start": "expo start",
+		"start:tunnel": "EXPO_TUNNEL_SUBDOMAIN='sussy-baka-jnlghmz-8080' expo start -c --tunnel",
+		"android": "expo start --android",
+		"ios": "expo start --ios",
+		"web": "expo start --web",
+		"lint": "oxlint",
+		"fmt": "oxfmt",
+		"prepare": "husky"
+	},
+	"dependencies": {
+		"@gorhom/bottom-sheet": "^5.2.14",
+		"@hookform/resolvers": "^5.9.1",
+		"@react-native-async-storage/async-storage": "2.2.0",
+		"@shopify/flash-list": "2.0.2",
+		"@supabase/supabase-js": "^2.112.4",
+		"@tanstack/react-query": "^5.102.4",
+		"expo": "~57.0.16",
+		"expo-av": "^16.0.8",
+		"expo-constants": "~57.0.14",
+		"expo-device": "~57.0.1",
+		"expo-image": "~57.0.3",
+		"expo-image-picker": "~57.0.13",
+		"expo-linking": "~57.0.7",
+		"expo-notifications": "~57.0.14",
+		"expo-router": "~57.0.16",
+		"expo-status-bar": "~57.0.1",
+		"react": "19.2.3",
+		"react-dom": "19.2.3",
+		"react-hook-form": "^7.86.0",
+		"react-native": "0.86.2",
+		"react-native-gesture-handler": "~2.32.0",
+		"react-native-reanimated": "4.5.1",
+		"react-native-safe-area-context": "~5.7.0",
+		"react-native-screens": "~4.26.0",
+		"react-native-url-polyfill": "^4.0.0",
+		"react-native-web": "^0.21.2",
+		"tailwindcss": "^4.3.3",
+		"uniwind": "^1.11.0",
+		"zod": "^4.4.3",
+		"zustand": "^5.0.15"
+	},
+	"devDependencies": {
+		"@commitlint/cli": "^21.2.2",
+		"@commitlint/config-conventional": "^21.2.2",
+		"@types/react": "~19.2.2",
+		"husky": "^9.1.7",
+		"lint-staged": "^17.3.0",
+		"oxfmt": "^0.65.0",
+		"oxlint": "^1.80.0",
+		"oxlint-tsgolint": "^7.0.2001",
+		"typescript": "~6.0.3"
+	},
+	"lint-staged": {
+		"*.{js,jsx,ts,tsx}": [
+			"oxlint",
+			"oxfmt"
+		]
+	}
+}
