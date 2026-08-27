@@ -1,7 +1,15 @@
-import { Tabs } from "expo-router";
-import { StyleSheet, Text } from "react-native";
+import { useAuthStore } from "@auth/store";
+import { Redirect, Tabs } from "expo-router";
+import { Text } from "react-native";
 
 export default function TabsLayout() {
+	const session = useAuthStore((state) => state.session);
+
+	// Comment me to check the main app layout
+	if (!session) {
+		return <Redirect href="/(auth)/sign-in" />;
+	}
+
 	return (
 		<Tabs screenOptions={{ headerShown: false }}>
 			<Tabs.Screen
