@@ -8,5 +8,6 @@
 			"@lib/*": ["./src/lib/*"],
 			"@theme/*": ["./src/theme/*"]
 		}
-	}
+	},
+	"include": ["app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", "src/**/*.tsx", "src/types/global.d.ts"]
 }

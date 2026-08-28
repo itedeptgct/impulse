@@ -7,7 +7,7 @@ export default function TabsLayout() {
 
 	// Comment me to check the main app layout
 	if (!session) {
-		return <Redirect href="/(auth)/sign-up" />;
+		return <Redirect href="/onboarding" />;
 	}
 
 	return (
