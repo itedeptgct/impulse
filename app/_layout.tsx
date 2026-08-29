@@ -3,7 +3,7 @@ import { Stack } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import "@theme/global.css";
+import "../src/theme/global.css";
 
 const queryClient = new QueryClient({
 	defaultOptions: {

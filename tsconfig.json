@@ -7,7 +7,14 @@
 			"@auth/*": ["./src/features/auth/*"],
 			"@lib/*": ["./src/lib/*"],
 			"@theme/*": ["./src/theme/*"]
-		}
+		},
+		"noUncheckedSideEffectImports": false
 	},
-	"include": ["app/**/*.ts", "app/**/*.tsx", "src/**/*.ts", "src/**/*.tsx", "src/types/global.d.ts"]
+	"include": [
+		"app/**/*.ts",
+		"app/**/*.tsx",
+		"src/**/*.ts",
+		"src/**/*.tsx",
+		"global.d.ts"
+	]
 }
