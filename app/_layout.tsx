@@ -1,3 +1,5 @@
+import { fetchUserProfile, fetchUserVerification } from "@auth/api";
+import { useAuthStore } from "@auth/store";
 import {
 	DMSans_400Regular,
 	DMSans_500Medium,
@@ -10,6 +12,7 @@ import {
 	IBMPlexMono_600SemiBold,
 	IBMPlexMono_700Bold,
 } from "@expo-google-fonts/ibm-plex-mono";
+import { supabase } from "@lib/supabase";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
@@ -56,6 +59,32 @@ export default function RootLayout() {
 		} catch {
 			// handled
 		}
+
+		const syncUserData = (userId: string | undefined) => {
+			if (!userId) return;
+			void fetchUserProfile(userId).then((profile) => {
+				if (profile) useAuthStore.getState().setProfile(profile);
+			});
+			void fetchUserVerification(userId).then((verification) => {
+				if (verification) useAuthStore.getState().setVerification(verification);
+			});
+		};
+
+		void supabase.auth.getSession().then(({ data: { session } }) => {
+			useAuthStore.getState().setSession(session);
+			syncUserData(session?.user?.id);
+		});
+
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((_event, session) => {
+			useAuthStore.getState().setSession(session);
+			syncUserData(session?.user?.id);
+		});
+
+		return () => {
+			subscription.unsubscribe();
+		};
 	}, []);
 
 	if (!fontsLoaded) {

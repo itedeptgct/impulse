@@ -1,13 +1,21 @@
 import { useAuthStore } from "@auth/store";
 import { Redirect, Tabs } from "expo-router";
-import { Text } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 
 export default function TabsLayout() {
 	const session = useAuthStore((state) => state.session);
+	const isLoading = useAuthStore((state) => state.isLoading);
 
-	// Comment me to check the main app layout
+	if (isLoading) {
+		return (
+			<View className="flex-1 items-center justify-center bg-background">
+				<ActivityIndicator color="#5e6ad2" />
+			</View>
+		);
+	}
+
 	if (!session) {
-		return <Redirect href="/onboarding" />;
+		return <Redirect href="/(onboarding)/onboarding" />;
 	}
 
 	return (
