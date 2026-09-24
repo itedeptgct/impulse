@@ -1,7 +1,8 @@
-import { createIdVerification, uploadIdDocument } from "@auth/api";
+import { createIdVerification, signOut, uploadIdDocument } from "@auth/api";
 import { useGoogleSignIn } from "@auth/hooks/useGoogleSignIn";
 import { useSignUp } from "@auth/hooks/useSignUp";
 import { idDocumentSchema, signUpCredentialsSchema } from "@auth/schemas";
+import { useAuthStore } from "@auth/store";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -10,11 +11,10 @@ import {
 	AlertCircle,
 	ArrowLeft,
 	Camera,
+	Check,
 	CheckCircle2,
 	ChevronRight,
 	Clock,
-	Eye,
-	EyeOff,
 	FileText,
 	ImageIcon,
 	Lock,
@@ -50,6 +50,9 @@ export default function SignUpScreen() {
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
+	const [isValidatingStep1, setIsValidatingStep1] = useState(false);
+	const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
+	const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<{
 		username?: string;
@@ -91,16 +94,21 @@ export default function SignUpScreen() {
 		}
 	};
 
-	// validate credentials with zod
-	const handleContinueToId = () => {
+	// validate credentials with zod and check if email exists
+	const handleContinueToId = async () => {
 		setErrorMessage(null);
 		setFieldErrors({});
 
+		const trimmedEmail = email.trim();
+		const trimmedUsername = username.trim();
+		const trimmedPassword = password.trim();
+		const trimmedConfirmPassword = confirmPassword.trim();
+
 		const validation = signUpCredentialsSchema.safeParse({
-			username,
-			email,
-			password,
-			confirmPassword,
+			username: trimmedUsername,
+			email: trimmedEmail,
+			password: trimmedPassword,
+			confirmPassword: trimmedConfirmPassword,
 		});
 
 		if (!validation.success) {
@@ -117,7 +125,67 @@ export default function SignUpScreen() {
 			return;
 		}
 
-		setStep("id_upload");
+		// If user was already successfully registered with this email in this session, proceed
+		if (registeredUserId && registeredEmail === trimmedEmail) {
+			setStep("id_upload");
+			return;
+		}
+
+		setIsValidatingStep1(true);
+		try {
+			const signUpData = await signUpMutation.mutateAsync({
+				username: trimmedUsername,
+				email: trimmedEmail,
+				password: trimmedPassword,
+			});
+
+			// If Supabase has email confirmation enabled, existing accounts return empty identities
+			if (
+				signUpData?.user &&
+				signUpData.user.identities &&
+				signUpData.user.identities.length === 0
+			) {
+				setFieldErrors({
+					email: "An account with this email already exists.",
+				});
+				setErrorMessage(
+					"An account with this email already exists. Please log in or use another email.",
+				);
+				return;
+			}
+
+			const newUserId = signUpData?.user?.id;
+			if (!newUserId) {
+				throw new Error("Unable to create account. Please try again.");
+			}
+
+			setRegisteredUserId(newUserId);
+			setRegisteredEmail(trimmedEmail);
+			setStep("id_upload");
+		} catch (err: unknown) {
+			const error = err as Error & { code?: string; status?: number };
+			const msg = error?.message || "";
+			const isDuplicate =
+				error?.code === "user_already_exists" ||
+				error?.status === 422 ||
+				msg.toLowerCase().includes("already registered") ||
+				msg.toLowerCase().includes("already exists");
+
+			if (isDuplicate) {
+				setFieldErrors({
+					email: "An account with this email already exists.",
+				});
+				setErrorMessage(
+					"An account with this email already exists. Please log in or use another email.",
+				);
+			} else {
+				setErrorMessage(
+					msg || "Failed to verify account credentials. Please try again.",
+				);
+			}
+		} finally {
+			setIsValidatingStep1(false);
+		}
 	};
 
 	// camera option
@@ -210,25 +278,37 @@ export default function SignUpScreen() {
 		setErrorMessage(null);
 
 		try {
-			// trigger supabase sign up
-			const signUpData = await signUpMutation.mutateAsync({
-				username: username.trim(),
-				email: email.trim(),
-				password,
-			});
+			let currentUserId = registeredUserId;
 
-			const newUserId = signUpData?.user?.id;
-			if (newUserId && idAsset) {
+			// Fallback: If user was not yet registered, perform sign up
+			if (!currentUserId) {
+				const signUpData = await signUpMutation.mutateAsync({
+					username: username.trim(),
+					email: email.trim(),
+					password,
+				});
+				currentUserId = signUpData?.user?.id ?? null;
+			}
+
+			if (currentUserId && idAsset) {
 				try {
 					const documentPath = await uploadIdDocument(
-						newUserId,
+						currentUserId,
 						idAsset.uri,
 						idAsset.fileName,
 					);
-					await createIdVerification(newUserId, documentPath);
+					await createIdVerification(currentUserId, documentPath);
 				} catch {
 					// Proceed to pending review state even if initial upload has a network issue
 				}
+			}
+
+			// Ensure user is not auto-logged in; account awaits admin review
+			try {
+				await signOut();
+				useAuthStore.getState().clearSession();
+			} catch {
+				// Continue to pending state
 			}
 
 			// advance to admin approval pending state
@@ -420,6 +500,10 @@ export default function SignUpScreen() {
 											value={email}
 											onChangeText={(text) => {
 												setEmail(text);
+												if (registeredUserId) {
+													setRegisteredUserId(null);
+													setRegisteredEmail(null);
+												}
 												if (fieldErrors.email) {
 													setFieldErrors((prev) => ({
 														...prev,
@@ -458,16 +542,27 @@ export default function SignUpScreen() {
 										/>
 										<TextInput
 											className="flex-1 text-base text-foreground"
-											placeholder="At least 6 characters"
+											placeholder="At least 8 characters"
 											placeholderTextColor="#686868"
 											value={password}
 											onChangeText={(text) => {
 												setPassword(text);
-												if (fieldErrors.password) {
+												if (
+													fieldErrors.password ||
+													fieldErrors.confirmPassword ===
+														"Passwords do not match."
+												) {
 													setFieldErrors((prev) => ({
 														...prev,
 														password: undefined,
+														...(prev.confirmPassword ===
+														"Passwords do not match."
+															? { confirmPassword: undefined }
+															: {}),
 													}));
+												}
+												if (errorMessage === "Passwords do not match.") {
+													setErrorMessage(null);
 												}
 											}}
 											secureTextEntry={!showPassword}
@@ -475,24 +570,6 @@ export default function SignUpScreen() {
 											autoCorrect={false}
 											returnKeyType="next"
 										/>
-										<Pressable
-											onPress={() => setShowPassword(!showPassword)}
-											hitSlop={14}
-											className="ml-2 h-7 w-7 items-center justify-center active:opacity-70">
-											{showPassword ? (
-												<EyeOff
-													size={18}
-													strokeWidth={1.75}
-													className="text-muted-foreground"
-												/>
-											) : (
-												<Eye
-													size={18}
-													strokeWidth={1.75}
-													className="text-muted-foreground"
-												/>
-											)}
-										</Pressable>
 									</View>
 									{fieldErrors.password && (
 										<Text className="text-xs text-destructive">
@@ -530,6 +607,9 @@ export default function SignUpScreen() {
 														confirmPassword: undefined,
 													}));
 												}
+												if (errorMessage === "Passwords do not match.") {
+													setErrorMessage(null);
+												}
 											}}
 											secureTextEntry={!showPassword}
 											autoCapitalize="none"
@@ -544,16 +624,47 @@ export default function SignUpScreen() {
 										</Text>
 									)}
 								</View>
+								{/* Reveal Password Checkbox */}
+								<Pressable
+									onPress={() => setShowPassword(!showPassword)}
+									hitSlop={8}
+									accessibilityRole="checkbox"
+									accessibilityState={{ checked: showPassword }}
+									className="flex-row items-center gap-2 self-start active:opacity-70">
+									<View
+										className={`h-4 w-4 items-center justify-center rounded border transition-colors ${
+											showPassword
+												? "border-primary bg-primary"
+												: "border-border bg-card"
+										}`}>
+										{showPassword && (
+											<Check
+												size={11}
+												strokeWidth={2.5}
+												className="text-primary-foreground"
+											/>
+										)}
+									</View>
+									<Text
+										weight="medium"
+										className="text-xs text-muted-foreground select-none">
+										Reveal password
+									</Text>
+								</Pressable>
 								<View className="pt-3">
 									<Button
 										size="xl"
 										fullWidth
 										variant="primary"
+										disabled={isValidatingStep1}
+										loading={isValidatingStep1}
 										endContent={
-											<ChevronRight
-												size={18}
-												className="text-primary-foreground"
-											/>
+											!isValidatingStep1 ? (
+												<ChevronRight
+													size={18}
+													className="text-primary-foreground"
+												/>
+											) : undefined
 										}
 										onPress={handleContinueToId}>
 										Continue to Verification

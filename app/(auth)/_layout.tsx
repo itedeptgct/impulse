@@ -1,10 +1,11 @@
 import { useAuthStore } from "@auth/store";
-import { Redirect, Stack } from "expo-router";
+import { Redirect, Stack, usePathname } from "expo-router";
 import { ActivityIndicator, View } from "react-native";
 
 export default function AuthLayout() {
 	const session = useAuthStore((state) => state.session);
 	const isLoading = useAuthStore((state) => state.isLoading);
+	const pathname = usePathname();
 
 	if (isLoading) {
 		return (
@@ -14,7 +15,7 @@ export default function AuthLayout() {
 		);
 	}
 
-	if (session) {
+	if (session && !pathname?.includes("sign-up")) {
 		return <Redirect href="/(tabs)" />;
 	}
 

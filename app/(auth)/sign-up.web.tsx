@@ -1,7 +1,8 @@
-import { createIdVerification, uploadIdDocument } from "@auth/api";
+import { createIdVerification, signOut, uploadIdDocument } from "@auth/api";
 import { useGoogleSignIn } from "@auth/hooks/useGoogleSignIn";
 import { useSignUp } from "@auth/hooks/useSignUp";
 import { idDocumentSchema, signUpCredentialsSchema } from "@auth/schemas";
+import { useAuthStore } from "@auth/store";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -13,16 +14,12 @@ import {
 	CheckCircle2,
 	ChevronRight,
 	Clock,
-	Eye,
-	EyeOff,
 	FileText,
 	ImageIcon,
 	Lock,
 	Mail,
 	RotateCcw,
-	Shield,
 	ShieldCheck,
-	Sparkles,
 	UploadCloud,
 	User,
 } from "lucide-react-native";
@@ -42,6 +39,9 @@ export default function SignUpWebScreen() {
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
+	const [isValidatingStep1, setIsValidatingStep1] = useState(false);
+	const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
+	const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<{
 		username?: string;
@@ -85,16 +85,21 @@ export default function SignUpWebScreen() {
 		}
 	};
 
-	// validate credentials with zod
-	const handleContinueToId = () => {
+	// validate credentials with zod and check if email exists
+	const handleContinueToId = async () => {
 		setErrorMessage(null);
 		setFieldErrors({});
 
+		const trimmedEmail = email.trim();
+		const trimmedUsername = username.trim();
+		const trimmedPassword = password.trim();
+		const trimmedConfirmPassword = confirmPassword.trim();
+
 		const validation = signUpCredentialsSchema.safeParse({
-			username,
-			email,
-			password,
-			confirmPassword,
+			username: trimmedUsername,
+			email: trimmedEmail,
+			password: trimmedPassword,
+			confirmPassword: trimmedConfirmPassword,
 		});
 
 		if (!validation.success) {
@@ -111,7 +116,67 @@ export default function SignUpWebScreen() {
 			return;
 		}
 
-		setStep("id_upload");
+		// If user was already successfully registered with this email in this session, proceed
+		if (registeredUserId && registeredEmail === trimmedEmail) {
+			setStep("id_upload");
+			return;
+		}
+
+		setIsValidatingStep1(true);
+		try {
+			const signUpData = await signUpMutation.mutateAsync({
+				username: trimmedUsername,
+				email: trimmedEmail,
+				password: trimmedPassword,
+			});
+
+			// If Supabase has email confirmation enabled, existing accounts return empty identities
+			if (
+				signUpData?.user &&
+				signUpData.user.identities &&
+				signUpData.user.identities.length === 0
+			) {
+				setFieldErrors({
+					email: "An account with this email already exists.",
+				});
+				setErrorMessage(
+					"An account with this email already exists. Please log in or use another email.",
+				);
+				return;
+			}
+
+			const newUserId = signUpData?.user?.id;
+			if (!newUserId) {
+				throw new Error("Unable to create account. Please try again.");
+			}
+
+			setRegisteredUserId(newUserId);
+			setRegisteredEmail(trimmedEmail);
+			setStep("id_upload");
+		} catch (err: unknown) {
+			const error = err as Error & { code?: string; status?: number };
+			const msg = error?.message || "";
+			const isDuplicate =
+				error?.code === "user_already_exists" ||
+				error?.status === 422 ||
+				msg.toLowerCase().includes("already registered") ||
+				msg.toLowerCase().includes("already exists");
+
+			if (isDuplicate) {
+				setFieldErrors({
+					email: "An account with this email already exists.",
+				});
+				setErrorMessage(
+					"An account with this email already exists. Please log in or use another email.",
+				);
+			} else {
+				setErrorMessage(
+					msg || "Failed to verify account credentials. Please try again.",
+				);
+			}
+		} finally {
+			setIsValidatingStep1(false);
+		}
 	};
 
 	// pick image via Expo ImagePicker or web file input
@@ -231,25 +296,37 @@ export default function SignUpWebScreen() {
 		setErrorMessage(null);
 
 		try {
-			// Trigger Supabase sign up
-			const signUpData = await signUpMutation.mutateAsync({
-				username: username.trim(),
-				email: email.trim(),
-				password,
-			});
+			let currentUserId = registeredUserId;
 
-			const newUserId = signUpData?.user?.id;
-			if (newUserId && idAsset) {
+			// Fallback: If user was not yet registered, perform sign up
+			if (!currentUserId) {
+				const signUpData = await signUpMutation.mutateAsync({
+					username: username.trim(),
+					email: email.trim(),
+					password,
+				});
+				currentUserId = signUpData?.user?.id ?? null;
+			}
+
+			if (currentUserId && idAsset) {
 				try {
 					const documentPath = await uploadIdDocument(
-						newUserId,
+						currentUserId,
 						idAsset.uri,
 						idAsset.fileName,
 					);
-					await createIdVerification(newUserId, documentPath);
+					await createIdVerification(currentUserId, documentPath);
 				} catch {
 					// Proceed to pending review state even if initial upload has a transient issue
 				}
+			}
+
+			// Ensure user is not auto-logged in; account awaits admin review
+			try {
+				await signOut();
+				useAuthStore.getState().clearSession();
+			} catch {
+				// Continue to pending state
 			}
 
 			// Advance to admin approval pending state
@@ -283,32 +360,32 @@ export default function SignUpWebScreen() {
 			)}
 			{/* Top Navbar */}
 			<header className="border-b border-border bg-background/80 backdrop-blur-md">
-				<View className="mx-auto flex-row items-center justify-between px-6 py-4 lg:max-w-7xl lg:px-10">
+				<View className="mx-auto flex-row items-center justify-between px-6 py-2.5 lg:max-w-7xl lg:px-8">
 					<Pressable
 						onPress={() => router.replace("/(onboarding)/onboarding")}
 						className="cursor-pointer flex-row items-center gap-2.5">
 						<Text
 							weight="bold"
-							className="text-xl tracking-tight text-foreground">
+							className="text-lg tracking-tight text-foreground">
 							impulse
 						</Text>
 					</Pressable>
 					{/* Step Progress Tracker */}
-					<View className="flex-row items-center gap-2">
+					<View className="flex-row items-center gap-1.5 sm:gap-2">
 						<View
-							className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1 ${
+							className={`flex-row items-center gap-1.5 rounded-full border px-2.5 py-0.5 sm:px-3 sm:py-1 ${
 								step === "credentials"
 									? "border-primary bg-primary/10"
 									: "border-border bg-card"
 							}`}>
 							{step !== "credentials" ? (
-								<Check size={12} className="text-primary" />
+								<Check size={11} className="text-primary" />
 							) : (
 								<View className="h-1.5 w-1.5 rounded-full bg-primary" />
 							)}
 							<Text
 								weight="medium"
-								className={`text-xs ${
+								className={`text-[11px] sm:text-xs ${
 									step === "credentials"
 										? "text-primary"
 										: "text-muted-foreground"
@@ -316,15 +393,15 @@ export default function SignUpWebScreen() {
 								1. Account
 							</Text>
 						</View>
-						<View className="h-px w-4 bg-border" />
+						<View className="h-px w-2.5 bg-border sm:w-4" />
 						<View
-							className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1 ${
+							className={`flex-row items-center gap-1.5 rounded-full border px-2.5 py-0.5 sm:px-3 sm:py-1 ${
 								step === "id_upload"
 									? "border-primary bg-primary/10"
 									: "border-border bg-card"
 							}`}>
 							{step === "pending_approval" ? (
-								<Check size={12} className="text-primary" />
+								<Check size={11} className="text-primary" />
 							) : (
 								<View
 									className={`h-1.5 w-1.5 rounded-full ${
@@ -334,7 +411,7 @@ export default function SignUpWebScreen() {
 							)}
 							<Text
 								weight="medium"
-								className={`text-xs ${
+								className={`text-[11px] sm:text-xs ${
 									step === "id_upload"
 										? "text-primary"
 										: "text-muted-foreground"
@@ -342,9 +419,9 @@ export default function SignUpWebScreen() {
 								2. Verification
 							</Text>
 						</View>
-						<View className="h-px w-4 bg-border" />
+						<View className="h-px w-2.5 bg-border sm:w-4" />
 						<View
-							className={`flex-row items-center gap-1.5 rounded-full border px-3 py-1 ${
+							className={`flex-row items-center gap-1.5 rounded-full border px-2.5 py-0.5 sm:px-3 sm:py-1 ${
 								step === "pending_approval"
 									? "border-primary bg-primary/10"
 									: "border-border bg-card"
@@ -358,7 +435,7 @@ export default function SignUpWebScreen() {
 							/>
 							<Text
 								weight="medium"
-								className={`text-xs ${
+								className={`text-[11px] sm:text-xs ${
 									step === "pending_approval"
 										? "text-primary"
 										: "text-muted-foreground"
@@ -367,7 +444,7 @@ export default function SignUpWebScreen() {
 							</Text>
 						</View>
 					</View>
-					<View className="flex-row items-center gap-3">
+					<View className="flex-row items-center gap-2.5">
 						<Text className="hidden text-xs text-muted-foreground md:inline">
 							Already registered?
 						</Text>
@@ -380,396 +457,196 @@ export default function SignUpWebScreen() {
 					</View>
 				</View>
 			</header>
-			{/* Main Split Layout */}
+			{/* Main Content Area */}
 			<ScrollView
-				contentContainerStyle={{ flexGrow: 1 }}
+				contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
 				showsVerticalScrollIndicator={false}
 				className="flex-1">
-				<View className="mx-auto w-full flex-1 flex-col justify-center px-6 py-12 lg:max-w-7xl lg:flex-row lg:items-center lg:gap-16 lg:px-10 lg:py-16">
-					{/* Left Column: Context & Guidelines based on current step */}
-					<View className="hidden flex-1 flex-col justify-center lg:flex">
-						{step === "credentials" && (
-							<>
-								<View className="mb-4 flex-row items-center gap-2">
-									<Badge
-										variant="outline"
-										className="border-primary/30 bg-primary/10">
-										<View className="flex-row items-center gap-1.5">
-											<Sparkles size={12} className="text-primary" />
-											<Text className="text-xs text-primary">
-												Step 1: Student Profile
-											</Text>
-										</View>
-									</Badge>
-								</View>
+				<View className="mx-auto w-full max-w-lg flex-1 justify-center px-4 py-4 md:py-6">
+					{/* STEP 1: CREDENTIALS */}
+					{step === "credentials" && (
+						<View className="rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
+							<View className="pb-3">
+								<Pressable
+									onPress={() => router.replace("/(onboarding)/onboarding")}
+									className="mb-2 inline-flex cursor-pointer flex-row items-center gap-1.5 self-start rounded-lg border border-border bg-popover px-2 py-0.5 active:opacity-70">
+									<ArrowLeft size={13} className="text-muted-foreground" />
+									<Text className="text-xs text-muted-foreground">Back</Text>
+								</Pressable>
 								<Text
 									weight="bold"
-									className="text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
-									Create your verified campus identity.
+									className="text-xl tracking-tight text-foreground sm:text-2xl">
+									Create Account
 								</Text>
-								<Text className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground">
-									Set up your account credentials to begin student onboarding.
-									Once registered, you'll upload your student ID for instant
-									peer verification.
+								<Text className="mt-0.5 text-xs text-muted-foreground">
+									Enter your information to begin your verification
 								</Text>
-								<View className="mt-8 max-w-lg gap-3">
-									<View className="flex-row items-center gap-3 rounded-2xl border border-border bg-card/60 p-4">
-										<ShieldCheck size={20} className="shrink-0 text-primary" />
-										<View className="flex-1">
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Official GCT Student ID Required
-											</Text>
-											<Text className="text-xs text-muted-foreground">
-												Verification ensures all interactions are with enrolled
-												classmates.
-											</Text>
-										</View>
-									</View>
-									<View className="flex-row items-center gap-3 rounded-2xl border border-border bg-card/60 p-4">
-										<Lock
-											size={20}
-											className="shrink-0 text-muted-foreground"
-										/>
-										<View className="flex-1">
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Privacy Guaranteed
-											</Text>
-											<Text className="text-xs text-muted-foreground">
-												Your document is encrypted and never displayed publicly
-												on your profile.
-											</Text>
-										</View>
-									</View>
-								</View>
-							</>
-						)}
-						{step === "id_upload" && (
-							<>
-								<View className="mb-4 flex-row items-center gap-2">
-									<Badge
-										variant="outline"
-										className="border-primary/30 bg-primary/10">
-										<View className="flex-row items-center gap-1.5">
-											<Shield size={12} className="text-primary" />
-											<Text className="text-xs text-primary">
-												Step 2: ID Verification
-											</Text>
-										</View>
-									</Badge>
-								</View>
-								<Text
-									weight="bold"
-									className="text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
-									Guidelines for fast verification.
-								</Text>
-								<Text className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground">
-									Our student administrative team verifies each ID card manually
-									to preserve the integrity of the campus network.
-								</Text>
-								{/* Checklist */}
-								<View className="mt-8 max-w-lg gap-3">
-									<View className="flex-row items-start gap-3 rounded-2xl border border-border bg-card/60 p-4">
-										<CheckCircle2 size={18} className="mt-0.5 text-primary" />
-										<View className="flex-1">
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												All 4 Corners Visible
-											</Text>
-											<Text className="text-xs text-muted-foreground">
-												Place your card on a flat surface and ensure the full
-												card outline is in frame.
-											</Text>
-										</View>
-									</View>
-									<View className="flex-row items-start gap-3 rounded-2xl border border-border bg-card/60 p-4">
-										<CheckCircle2 size={18} className="mt-0.5 text-primary" />
-										<View className="flex-1">
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Readable Student Number & Name
-											</Text>
-											<Text className="text-xs text-muted-foreground">
-												Ensure good lighting and avoid reflections or blur over
-												your name and ID number.
-											</Text>
-										</View>
-									</View>
-									<View className="flex-row items-start gap-3 rounded-2xl border border-border bg-card/60 p-4">
-										<CheckCircle2 size={18} className="mt-0.5 text-primary" />
-										<View className="flex-1">
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Valid GCT ID Card
-											</Text>
-											<Text className="text-xs text-muted-foreground">
-												Must be a current, official student ID from the
-												institution.
-											</Text>
-										</View>
-									</View>
-								</View>
-							</>
-						)}
-						{step === "pending_approval" && (
-							<>
-								<View className="mb-4 flex-row items-center gap-2">
-									<Badge
-										variant="outline"
-										className="border-amber-500/30 bg-amber-500/10">
-										<View className="flex-row items-center gap-1.5">
-											<Clock size={12} className="text-amber-400" />
-											<Text className="text-xs text-amber-400">
-												Under Review
-											</Text>
-										</View>
-									</Badge>
-								</View>
-								<Text
-									weight="bold"
-									className="text-4xl leading-tight tracking-tight text-foreground lg:text-5xl">
-									What happens next?
-								</Text>
-								<Text className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground">
-									Your student document has been securely submitted to the
-									administrative queue.
-								</Text>
-								<View className="mt-8 max-w-lg gap-4">
-									<View className="flex-row items-center gap-4 rounded-2xl border border-border bg-card/60 p-4">
-										<View className="h-8 w-8 items-center justify-center rounded-xl bg-primary/20">
-											<Text weight="bold" className="text-xs text-primary">
-												1
-											</Text>
-										</View>
-										<View className="flex-1">
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Document Checked
-											</Text>
-											<Text className="text-xs text-muted-foreground">
-												Admins check enrollment status against the institution
-												registrar.
-											</Text>
-										</View>
-									</View>
-									<View className="flex-row items-center gap-4 rounded-2xl border border-border bg-card/60 p-4">
-										<View className="h-8 w-8 items-center justify-center rounded-xl bg-primary/20">
-											<Text weight="bold" className="text-xs text-primary">
-												2
-											</Text>
-										</View>
-										<View className="flex-1">
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Email Notification
-											</Text>
-											<Text className="text-xs text-muted-foreground">
-												You will receive an activation confirmation as soon as
-												approved.
-											</Text>
-										</View>
-									</View>
-									<View className="flex-row items-center gap-4 rounded-2xl border border-border bg-card/60 p-4">
-										<View className="h-8 w-8 items-center justify-center rounded-xl bg-primary/20">
-											<Text weight="bold" className="text-xs text-primary">
-												3
-											</Text>
-										</View>
-										<View className="flex-1">
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Immediate Access
-											</Text>
-											<Text className="text-xs text-muted-foreground">
-												Unlock all feeds, discussions, and student channels
-												right away.
-											</Text>
-										</View>
-									</View>
-								</View>
-							</>
-						)}
-					</View>
-					{/* Right Column: Multi-Step Interactive Form Card */}
-					<View className="w-full lg:max-w-lg">
-						{/* STEP 1: CREDENTIALS */}
-						{step === "credentials" && (
-							<View className="rounded-3xl border border-border bg-card p-8 shadow-2xl">
-								<View className="pb-5">
-									<Pressable
-										onPress={() => router.replace("/(onboarding)/onboarding")}
-										className="mb-4 inline-flex cursor-pointer flex-row items-center gap-1.5 self-start rounded-lg border border-border bg-popover px-2.5 py-1 active:opacity-70">
-										<ArrowLeft size={14} className="text-muted-foreground" />
-										<Text className="text-xs text-muted-foreground">Back</Text>
-									</Pressable>
-									<Text
-										weight="bold"
-										className="text-2xl tracking-tight text-foreground">
-										Create Account
-									</Text>
-									<Text className="mt-1 text-sm text-muted-foreground">
-										Enter your information to begin your verification
+							</View>
+							{errorMessage && (
+								<View className="mb-3.5 flex-row items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
+									<AlertCircle
+										size={16}
+										className="shrink-0 text-destructive"
+									/>
+									<Text className="flex-1 text-xs text-destructive">
+										{errorMessage}
 									</Text>
 								</View>
-								{errorMessage && (
-									<View className="mb-5 flex-row items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5">
-										<AlertCircle
-											size={18}
-											className="shrink-0 text-destructive"
-										/>
-										<Text className="flex-1 text-xs text-destructive">
-											{errorMessage}
-										</Text>
-									</View>
-								)}
-								{/* Google SSO */}
-								<Button
-									size="xl"
-									fullWidth
-									variant="social"
-									disabled={true}
-									loading={googleSignInMutation.isPending}
-									startContent={<GoogleIcon size={20} />}
-									onPress={handleGoogleSignIn}>
-									Sign up with Google
-								</Button>
-								<View className="my-5 flex-row items-center gap-3">
-									<View className="h-px flex-1 bg-border" />
+							)}
+							{/* Google SSO */}
+							<Button
+								size="md"
+								fullWidth
+								variant="social"
+								disabled={true}
+								loading={googleSignInMutation.isPending}
+								startContent={<GoogleIcon size={18} />}
+								onPress={handleGoogleSignIn}>
+								Sign up with Google
+							</Button>
+							<View className="my-2 flex-row items-center gap-2.5">
+								<View className="h-px flex-1 bg-border" />
+								<Text
+									weight="medium"
+									className="text-[10px] text-muted-foreground uppercase">
+									or register with email
+								</Text>
+								<View className="h-px flex-1 bg-border" />
+							</View>
+							{/* Form Fields */}
+							<View className="gap-2.5">
+								{/* Name Field */}
+								<View className="gap-1">
 									<Text
 										weight="medium"
-										className="text-xs text-muted-foreground uppercase">
-										or register with email
+										className="text-xs text-muted-foreground">
+										Full Name / Username
 									</Text>
-									<View className="h-px flex-1 bg-border" />
+									<View
+										className={`h-10.5 flex-row items-center rounded-xl border ${
+											fieldErrors.username
+												? "border-destructive"
+												: "border-border"
+										} bg-popover px-3 focus:border-primary`}>
+										<User
+											size={15}
+											strokeWidth={1.75}
+											className="mr-2.5 text-muted-foreground"
+										/>
+										<TextInput
+											className="flex-1 text-sm text-foreground outline-none"
+											placeholder="Jane Doe"
+											placeholderTextColor="#686868"
+											value={username}
+											onChangeText={(text) => {
+												setUsername(text);
+												if (fieldErrors.username) {
+													setFieldErrors((prev) => ({
+														...prev,
+														username: undefined,
+													}));
+												}
+											}}
+											autoCapitalize="words"
+											autoCorrect={false}
+											returnKeyType="next"
+										/>
+									</View>
+									{fieldErrors.username && (
+										<Text className="text-[11px] text-destructive">
+											{fieldErrors.username}
+										</Text>
+									)}
 								</View>
-								{/* Form Fields */}
-								<View className="gap-3.5">
-									{/* Name Field */}
-									<View className="gap-1.5">
-										<Text
-											weight="medium"
-											className="text-xs text-muted-foreground">
-											Full Name / Username
-										</Text>
-										<View
-											className={`flex-row items-center rounded-xl border ${
-												fieldErrors.username
-													? "border-destructive"
-													: "border-border"
-											} bg-popover px-3.5 py-3 focus:border-primary`}>
-											<User
-												size={16}
-												strokeWidth={1.75}
-												className="mr-3 text-muted-foreground"
-											/>
-											<TextInput
-												className="flex-1 text-sm text-foreground outline-none"
-												placeholder="Jane Doe"
-												placeholderTextColor="#686868"
-												value={username}
-												onChangeText={(text) => {
-													setUsername(text);
-													if (fieldErrors.username) {
-														setFieldErrors((prev) => ({
-															...prev,
-															username: undefined,
-														}));
-													}
-												}}
-												autoCapitalize="words"
-												autoCorrect={false}
-												returnKeyType="next"
-											/>
-										</View>
-										{fieldErrors.username && (
-											<Text className="text-xs text-destructive">
-												{fieldErrors.username}
-											</Text>
-										)}
+								{/* Email Field */}
+								<View className="gap-1">
+									<Text
+										weight="medium"
+										className="text-xs text-muted-foreground">
+										Email Address
+									</Text>
+									<View
+										className={`h-10.5 flex-row items-center rounded-xl border ${
+											fieldErrors.email ? "border-destructive" : "border-border"
+										} bg-popover px-3 focus:border-primary`}>
+										<Mail
+											size={15}
+											strokeWidth={1.75}
+											className="mr-2.5 text-muted-foreground"
+										/>
+										<TextInput
+											className="flex-1 text-sm text-foreground outline-none"
+											placeholder="name@example.com"
+											placeholderTextColor="#686868"
+											value={email}
+											onChangeText={(text) => {
+												setEmail(text);
+												if (registeredUserId) {
+													setRegisteredUserId(null);
+													setRegisteredEmail(null);
+												}
+												if (fieldErrors.email) {
+													setFieldErrors((prev) => ({
+														...prev,
+														email: undefined,
+													}));
+												}
+											}}
+											autoCapitalize="none"
+											autoCorrect={false}
+											keyboardType="email-address"
+											returnKeyType="next"
+										/>
 									</View>
-									{/* Email Field */}
-									<View className="gap-1.5">
-										<Text
-											weight="medium"
-											className="text-xs text-muted-foreground">
-											Email Address
+									{fieldErrors.email && (
+										<Text className="text-[11px] text-destructive">
+											{fieldErrors.email}
 										</Text>
-										<View
-											className={`flex-row items-center rounded-xl border ${
-												fieldErrors.email
-													? "border-destructive"
-													: "border-border"
-											} bg-popover px-3.5 py-3 focus:border-primary`}>
-											<Mail
-												size={16}
-												strokeWidth={1.75}
-												className="mr-3 text-muted-foreground"
-											/>
-											<TextInput
-												className="flex-1 text-sm text-foreground outline-none"
-												placeholder="name@example.com"
-												placeholderTextColor="#686868"
-												value={email}
-												onChangeText={(text) => {
-													setEmail(text);
-													if (fieldErrors.email) {
-														setFieldErrors((prev) => ({
-															...prev,
-															email: undefined,
-														}));
-													}
-												}}
-												autoCapitalize="none"
-												autoCorrect={false}
-												keyboardType="email-address"
-												returnKeyType="next"
-											/>
-										</View>
-										{fieldErrors.email && (
-											<Text className="text-xs text-destructive">
-												{fieldErrors.email}
-											</Text>
-										)}
-									</View>
+									)}
+								</View>
+								{/* Passwords in 2-column on desktop / tablet */}
+								<View className="flex-col gap-2.5 sm:flex-row">
 									{/* Password Field */}
-									<View className="gap-1.5">
+									<View className="flex-1 gap-1">
 										<Text
 											weight="medium"
 											className="text-xs text-muted-foreground">
 											Password
 										</Text>
 										<View
-											className={`flex-row items-center rounded-xl border ${
+											className={`h-10.5 flex-row items-center rounded-xl border ${
 												fieldErrors.password
 													? "border-destructive"
 													: "border-border"
-											} bg-popover px-3.5 py-3 focus:border-primary`}>
+											} bg-popover px-3 focus:border-primary`}>
 											<Lock
-												size={16}
+												size={15}
 												strokeWidth={1.75}
-												className="mr-3 text-muted-foreground"
+												className="mr-2.5 text-muted-foreground"
 											/>
 											<TextInput
-												className="flex-1 text-sm text-foreground outline-none"
-												placeholder="At least 6 characters"
+												className="min-w-0 flex-1 text-sm text-foreground outline-none"
+												placeholder="••••••••"
 												placeholderTextColor="#686868"
 												value={password}
 												onChangeText={(text) => {
 													setPassword(text);
-													if (fieldErrors.password) {
+													if (
+														fieldErrors.password ||
+														fieldErrors.confirmPassword ===
+															"Passwords do not match."
+													) {
 														setFieldErrors((prev) => ({
 															...prev,
 															password: undefined,
+															...(prev.confirmPassword ===
+															"Passwords do not match."
+																? { confirmPassword: undefined }
+																: {}),
 														}));
+													}
+													if (errorMessage === "Passwords do not match.") {
+														setErrorMessage(null);
 													}
 												}}
 												secureTextEntry={!showPassword}
@@ -777,44 +654,34 @@ export default function SignUpWebScreen() {
 												autoCorrect={false}
 												returnKeyType="next"
 											/>
-											<Pressable
-												onPress={() => setShowPassword(!showPassword)}
-												hitSlop={12}
-												className="ml-2 h-7 w-7 cursor-pointer items-center justify-center active:opacity-70">
-												{showPassword ? (
-													<EyeOff size={16} className="text-muted-foreground" />
-												) : (
-													<Eye size={16} className="text-muted-foreground" />
-												)}
-											</Pressable>
 										</View>
 										{fieldErrors.password && (
-											<Text className="text-xs text-destructive">
+											<Text className="text-[11px] text-destructive">
 												{fieldErrors.password}
 											</Text>
 										)}
 									</View>
 									{/* Confirm Password Field */}
-									<View className="gap-1.5">
+									<View className="flex-1 gap-1">
 										<Text
 											weight="medium"
 											className="text-xs text-muted-foreground">
 											Confirm Password
 										</Text>
 										<View
-											className={`flex-row items-center rounded-xl border ${
+											className={`h-10.5 flex-row items-center rounded-xl border ${
 												fieldErrors.confirmPassword
 													? "border-destructive"
 													: "border-border"
-											} bg-popover px-3.5 py-3 focus:border-primary`}>
+											} bg-popover px-3 focus:border-primary`}>
 											<Lock
-												size={16}
+												size={15}
 												strokeWidth={1.75}
-												className="mr-3 text-muted-foreground"
+												className="mr-2.5 text-muted-foreground"
 											/>
 											<TextInput
-												className="flex-1 text-sm text-foreground outline-none"
-												placeholder="Re-enter password"
+												className="min-w-0 flex-1 text-sm text-foreground outline-none"
+												placeholder="••••••••"
 												placeholderTextColor="#686868"
 												value={confirmPassword}
 												onChangeText={(text) => {
@@ -825,6 +692,9 @@ export default function SignUpWebScreen() {
 															confirmPassword: undefined,
 														}));
 													}
+													if (errorMessage === "Passwords do not match.") {
+														setErrorMessage(null);
+													}
 												}}
 												secureTextEntry={!showPassword}
 												autoCapitalize="none"
@@ -834,268 +704,283 @@ export default function SignUpWebScreen() {
 											/>
 										</View>
 										{fieldErrors.confirmPassword && (
-											<Text className="text-xs text-destructive">
+											<Text className="text-[11px] text-destructive">
 												{fieldErrors.confirmPassword}
 											</Text>
 										)}
 									</View>
-									<View className="pt-2">
-										<Button
-											size="xl"
-											fullWidth
-											variant="primary"
-											endContent={
+								</View>
+								{/* Reveal Password Checkbox */}
+								<Pressable
+									onPress={() => setShowPassword(!showPassword)}
+									hitSlop={8}
+									accessibilityRole="checkbox"
+									accessibilityState={{ checked: showPassword }}
+									className="cursor-pointer flex-row items-center gap-2 self-start active:opacity-70">
+									<View
+										className={`h-4 w-4 items-center justify-center rounded border transition-colors ${
+											showPassword
+												? "border-primary bg-primary"
+												: "border-border bg-popover"
+										}`}>
+										{showPassword && (
+											<Check
+												size={11}
+												strokeWidth={2.5}
+												className="text-primary-foreground"
+											/>
+										)}
+									</View>
+									<Text
+										weight="medium"
+										className="text-xs text-muted-foreground select-none">
+										Reveal password
+									</Text>
+								</Pressable>
+								<View className="pt-1">
+									<Button
+										size="md"
+										fullWidth
+										variant="primary"
+										disabled={isValidatingStep1}
+										loading={isValidatingStep1}
+										endContent={
+											!isValidatingStep1 ? (
 												<ChevronRight
-													size={18}
+													size={16}
 													className="text-primary-foreground"
 												/>
-											}
-											onPress={handleContinueToId}>
-											Continue to Verification
-										</Button>
-									</View>
-								</View>
-								<View className="mt-6 flex-row items-center justify-center border-t border-border pt-4">
-									<Text className="text-xs text-muted-foreground">
-										Already have an account?{" "}
-									</Text>
-									<Pressable
-										onPress={() => router.push("/(auth)/sign-in")}
-										className="cursor-pointer">
-										<Text weight="semibold" className="text-xs text-primary">
-											Log In
-										</Text>
-									</Pressable>
+											) : undefined
+										}
+										onPress={handleContinueToId}>
+										Continue to Verification
+									</Button>
 								</View>
 							</View>
-						)}
-						{/* STEP 2: ID DOCUMENT UPLOAD */}
-						{step === "id_upload" && (
-							<View className="rounded-3xl border border-border bg-card p-8 shadow-2xl">
-								<View className="pb-5">
-									<Pressable
-										onPress={() => setStep("credentials")}
-										className="mb-4 inline-flex cursor-pointer flex-row items-center gap-1.5 self-start rounded-lg border border-border bg-popover px-2.5 py-1 active:opacity-70">
-										<ArrowLeft size={14} className="text-muted-foreground" />
-										<Text className="text-xs text-muted-foreground">
-											Back to Credentials
+							<View className="mt-3.5 flex-row items-center justify-center border-t border-border pt-3">
+								<Text className="text-xs text-muted-foreground">
+									Already have an account?{" "}
+								</Text>
+								<Pressable
+									onPress={() => router.push("/(auth)/sign-in")}
+									className="cursor-pointer">
+									<Text weight="semibold" className="text-xs text-primary">
+										Log In
+									</Text>
+								</Pressable>
+							</View>
+						</View>
+					)}
+					{/* STEP 2: ID DOCUMENT UPLOAD */}
+					{step === "id_upload" && (
+						<View className="rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
+							<View className="pb-3">
+								<Pressable
+									onPress={() => setStep("credentials")}
+									className="mb-2 inline-flex cursor-pointer flex-row items-center gap-1.5 self-start rounded-lg border border-border bg-popover px-2 py-0.5 active:opacity-70">
+									<ArrowLeft size={13} className="text-muted-foreground" />
+									<Text className="text-xs text-muted-foreground">
+										Back to Credentials
+									</Text>
+								</Pressable>
+								<Text
+									weight="bold"
+									className="text-xl tracking-tight text-foreground sm:text-2xl">
+									Verify Student Identity
+								</Text>
+								<Text className="mt-0.5 text-xs text-muted-foreground">
+									Upload your GCT Student ID card to complete registration
+								</Text>
+							</View>
+							{/* Drag & Drop Zone */}
+							{!idAsset ? (
+								<div
+									onDragOver={handleDragOver}
+									onDragLeave={handleDragLeave}
+									onDrop={handleDrop}
+									className={`mb-3.5 cursor-pointer rounded-xl border-2 border-dashed p-4 transition-colors sm:p-5 ${
+										isDragging
+											? "border-primary bg-primary/10"
+											: "border-border bg-card/60 hover:border-primary/50 hover:bg-card/80"
+									}`}>
+									<View className="items-center justify-center">
+										<View className="mb-2 h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
+											<UploadCloud size={20} className="text-primary" />
+										</View>
+										<Text weight="semibold" className="text-sm text-foreground">
+											Drag & drop your student ID here
 										</Text>
-									</Pressable>
-									<Text
-										weight="bold"
-										className="text-2xl tracking-tight text-foreground">
-										Verify Student Identity
-									</Text>
-									<Text className="mt-1 text-sm text-muted-foreground">
-										Upload your GCT Student ID card to complete registration
-									</Text>
-								</View>
-								{/* Drag & Drop Zone */}
-								{!idAsset ? (
-									<div
-										onDragOver={handleDragOver}
-										onDragLeave={handleDragLeave}
-										onDrop={handleDrop}
-										className={`mb-5 cursor-pointer rounded-2xl border-2 border-dashed p-8 transition-colors ${
-											isDragging
-												? "border-primary bg-primary/10"
-												: "border-border bg-card/60 hover:border-primary/50 hover:bg-card/80"
-										}`}>
-										<View className="items-center justify-center">
-											<View className="mb-4 h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
-												<UploadCloud size={32} className="text-primary" />
-											</View>
-											<Text
-												weight="semibold"
-												className="text-base text-foreground">
-												Drag & drop your student ID here
-											</Text>
-											<Text className="mt-1.5 text-center text-xs text-muted-foreground">
-												Supported formats: PNG, JPG, or WebP up to 10MB
-											</Text>
-											{/* Desktop Action Buttons */}
-											<View className="mt-6 w-full flex-row gap-3">
-												<Pressable
-													onPress={handlePickImage}
-													className="min-h-11 flex-1 cursor-pointer flex-row items-center justify-center gap-2 rounded-xl border border-border bg-card py-2.5 hover:bg-popover active:scale-[0.98]">
-													<ImageIcon size={16} className="text-foreground" />
-													<Text
-														weight="semibold"
-														className="text-xs text-foreground">
-														Browse Files
-													</Text>
-												</Pressable>
-											</View>
-										</View>
-									</div>
-								) : (
-									<View className="mb-5 rounded-2xl border border-border bg-popover p-4">
-										{/* Document Preview */}
-										<View className="overflow-hidden rounded-xl border border-border bg-background">
-											<Image
-												source={{ uri: idAsset.uri }}
-												style={{ width: "100%", height: 220 }}
-												contentFit="cover"
-												transition={200}
-											/>
-										</View>
-										{/* Asset Metadata */}
-										<View className="mt-3.5 flex-row items-center justify-between px-1">
-											<View className="flex-row items-center gap-2">
-												<FileText size={16} className="text-muted-foreground" />
-												<Text
-													weight="medium"
-													className="text-xs text-foreground">
-													{idAsset.fileName || "GCT_Student_ID.jpg"}
-												</Text>
-											</View>
-											<View className="flex-row items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5">
-												<CheckCircle2 size={12} className="text-emerald-400" />
-												<Text className="font-medium text-[11px] text-emerald-400">
-													Ready to upload
-												</Text>
-											</View>
-										</View>
-										{/* Replacement Options */}
-										<View className="mt-3.5 flex-row gap-2.5 border-t border-border pt-3">
+										<Text className="mt-0.5 text-center text-[11px] text-muted-foreground">
+											Supported formats: PNG, JPG, or WebP up to 10MB
+										</Text>
+										{/* Desktop Action Buttons */}
+										<View className="mt-2.5 w-full flex-row gap-2">
 											<Pressable
 												onPress={handlePickImage}
-												className="min-h-10 flex-1 cursor-pointer flex-row items-center justify-center gap-1.5 rounded-xl border border-border bg-card py-2 hover:bg-popover active:scale-[0.98]">
-												<RotateCcw
-													size={14}
-													className="text-muted-foreground"
-												/>
+												className="min-h-9 flex-1 cursor-pointer flex-row items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2 hover:bg-popover active:scale-[0.98]">
+												<ImageIcon size={14} className="text-foreground" />
 												<Text
-													weight="medium"
+													weight="semibold"
 													className="text-xs text-foreground">
-													Choose Different File
+													Browse Files
 												</Text>
 											</Pressable>
 										</View>
 									</View>
-								)}
-								{/* Compact Guidelines Box */}
-								<View className="mb-6 rounded-2xl border border-border bg-card/60 p-4">
-									<Text
-										weight="medium"
-										className="mb-2 text-xs tracking-wider text-muted-foreground uppercase">
-										Fast Approval Checklist
-									</Text>
-									<View className="gap-2">
-										<View className="flex-row items-center gap-2">
-											<CheckCircle2 size={14} className="text-primary" />
-											<Text className="text-xs text-muted-foreground">
-												All four corners of the ID card are visible
-											</Text>
-										</View>
-										<View className="flex-row items-center gap-2">
-											<CheckCircle2 size={14} className="text-primary" />
-											<Text className="text-xs text-muted-foreground">
-												No flash glare covering name or student ID number
-											</Text>
-										</View>
-									</View>
-								</View>
-								{/* Submit CTA */}
-								<Button
-									size="xl"
-									fullWidth
-									variant="primary"
-									disabled={!idAsset}
-									loading={isSubmitting}
-									onPress={handleSubmitVerification}>
-									Submit for Verification
-								</Button>
-							</View>
-						)}
-						{/* STEP 3: PENDING APPROVAL */}
-						{step === "pending_approval" && (
-							<View className="rounded-3xl border border-border bg-card p-8 shadow-2xl">
-								<View className="items-center justify-center py-4">
-									<View className="mb-4 h-20 w-20 items-center justify-center rounded-3xl border border-primary/30 bg-primary/10">
-										<Clock
-											size={40}
-											className="text-primary"
-											strokeWidth={1.75}
+								</div>
+							) : (
+								<View className="mb-3.5 rounded-xl border border-border bg-popover p-3">
+									{/* Document Preview */}
+									<View className="overflow-hidden rounded-lg border border-border bg-background">
+										<Image
+											source={{ uri: idAsset.uri }}
+											style={{ width: "100%", height: 140 }}
+											contentFit="cover"
+											transition={200}
 										/>
 									</View>
-									<Text
-										weight="bold"
-										className="text-center text-2xl tracking-tight text-foreground">
-										Verification Pending
-									</Text>
-									<Badge
-										variant="outline"
-										className="mt-2 border-amber-500/30 bg-amber-500/10">
-										<Text className="font-medium text-xs text-amber-400">
-											Application Under Review
-										</Text>
-									</Badge>
-									<Text className="mt-3 text-center text-sm leading-relaxed text-muted-foreground">
-										Thank you for submitting your ID. Our administrative team
-										manually reviews all documentation to protect account safety
-										and platform integrity.
-									</Text>
-								</View>
-								{/* Application Details Summary */}
-								<View className="my-5 w-full gap-3 rounded-2xl border border-border bg-popover p-4">
-									<View className="flex-row items-center justify-between border-b border-border pb-2.5">
-										<Text className="text-xs text-muted-foreground">
-											Registered Account
-										</Text>
-										<Text weight="medium" className="text-xs text-foreground">
-											{email || "student@institution.edu"}
-										</Text>
-									</View>
-									<View className="flex-row items-center justify-between border-b border-border pb-2.5">
-										<Text className="text-xs text-muted-foreground">
-											Typical Turnaround
-										</Text>
-										<Text weight="medium" className="text-xs text-foreground">
-											Within 24 hours
-										</Text>
-									</View>
-									<View className="flex-row items-center justify-between pt-0.5">
-										<Text className="text-xs text-muted-foreground">
-											Review Status
-										</Text>
-										<View className="flex-row items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5">
-											<View className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-											<Text className="font-medium text-[11px] text-amber-400">
-												Queued for Admin Review
+									{/* Asset Metadata */}
+									<View className="mt-2.5 flex-row items-center justify-between px-0.5">
+										<View className="flex-row items-center gap-1.5">
+											<FileText size={14} className="text-muted-foreground" />
+											<Text weight="medium" className="text-xs text-foreground">
+												{idAsset.fileName || "GCT_Student_ID.jpg"}
+											</Text>
+										</View>
+										<View className="flex-row items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5">
+											<CheckCircle2 size={11} className="text-emerald-400" />
+											<Text className="font-medium text-[10px] text-emerald-400">
+												Ready to upload
 											</Text>
 										</View>
 									</View>
+									{/* Replacement Options */}
+									<View className="mt-2.5 flex-row gap-2 border-t border-border pt-2">
+										<Pressable
+											onPress={handlePickImage}
+											className="min-h-8 flex-1 cursor-pointer flex-row items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-1.5 hover:bg-popover active:scale-[0.98]">
+											<RotateCcw size={13} className="text-muted-foreground" />
+											<Text weight="medium" className="text-xs text-foreground">
+												Choose Different File
+											</Text>
+										</Pressable>
+									</View>
 								</View>
-								<View className="mb-6 flex-row items-center gap-2.5 px-2">
-									<ShieldCheck
-										size={16}
-										className="shrink-0 text-muted-foreground"
-									/>
-									<Text className="text-xs text-muted-foreground">
-										You'll receive an email notification as soon as an
-										administrator activates your account.
-									</Text>
-								</View>
-								<View className="w-full gap-3">
-									<Button
-										size="xl"
-										fullWidth
-										variant="primary"
-										onPress={() => router.replace("/(onboarding)/onboarding")}>
-										Back to Home
-									</Button>
-									<Button
-										size="xl"
-										fullWidth
-										variant="outline"
-										onPress={() => router.replace("/(auth)/sign-in")}>
-										Log In to Existing Account
-									</Button>
+							)}
+							{/* Compact Guidelines Box */}
+							<View className="mb-3.5 rounded-xl border border-border bg-card/60 p-3">
+								<Text
+									weight="medium"
+									className="mb-1.5 text-[10px] tracking-wider text-muted-foreground uppercase">
+									Fast Approval Checklist
+								</Text>
+								<View className="gap-1.5">
+									<View className="flex-row items-center gap-1.5">
+										<CheckCircle2 size={13} className="text-primary" />
+										<Text className="text-[11px] text-muted-foreground">
+											All four corners of the ID card are visible
+										</Text>
+									</View>
+									<View className="flex-row items-center gap-1.5">
+										<CheckCircle2 size={13} className="text-primary" />
+										<Text className="text-[11px] text-muted-foreground">
+											No flash glare covering name or student ID number
+										</Text>
+									</View>
 								</View>
 							</View>
-						)}
-					</View>
+							{/* Submit CTA */}
+							<Button
+								size="md"
+								fullWidth
+								variant="primary"
+								disabled={!idAsset}
+								loading={isSubmitting}
+								onPress={handleSubmitVerification}>
+								Submit for Verification
+							</Button>
+						</View>
+					)}
+					{/* STEP 3: PENDING APPROVAL */}
+					{step === "pending_approval" && (
+						<View className="rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
+							<View className="items-center justify-center py-2">
+								<View className="mb-2.5 h-12 w-12 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10">
+									<Clock
+										size={24}
+										className="text-primary"
+										strokeWidth={1.75}
+									/>
+								</View>
+								<Text
+									weight="bold"
+									className="text-center text-xl tracking-tight text-foreground">
+									Verification Pending
+								</Text>
+								<Text className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
+									Thank you for submitting your ID. Our administrative team
+									manually reviews all documentation to protect account safety
+									and platform integrity.
+								</Text>
+							</View>
+							{/* Application Details Summary */}
+							<View className="my-3 w-full gap-2 rounded-xl border border-border bg-popover p-3">
+								<View className="flex-row items-center justify-between border-b border-border pb-1.5">
+									<Text className="text-xs text-muted-foreground">
+										Registered Account
+									</Text>
+									<Text weight="medium" className="text-xs text-foreground">
+										{email || "student@institution.edu"}
+									</Text>
+								</View>
+								<View className="flex-row items-center justify-between border-b border-border pb-1.5">
+									<Text className="text-xs text-muted-foreground">
+										Typical Turnaround
+									</Text>
+									<Text weight="medium" className="text-xs text-foreground">
+										Within 24 hours
+									</Text>
+								</View>
+								<View className="flex-row items-center justify-between pt-0.5">
+									<Text className="text-xs text-muted-foreground">
+										Review Status
+									</Text>
+									<View className="flex-row items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5">
+										<View className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+										<Text className="font-medium text-[10px] text-amber-400">
+											Queued for Admin Review
+										</Text>
+									</View>
+								</View>
+							</View>
+							<View className="mb-3.5 flex-row items-center gap-2 px-1">
+								<ShieldCheck
+									size={14}
+									className="shrink-0 text-muted-foreground"
+								/>
+								<Text className="text-[11px] text-muted-foreground">
+									You'll receive an email notification as soon as an
+									administrator activates your account.
+								</Text>
+							</View>
+							<View className="w-full gap-2">
+								<Button
+									size="md"
+									fullWidth
+									variant="primary"
+									onPress={() => router.replace("/(onboarding)/onboarding")}>
+									Back to Home
+								</Button>
+								<Button
+									size="md"
+									fullWidth
+									variant="outline"
+									onPress={() => router.replace("/(auth)/sign-in")}>
+									Log In to Existing Account
+								</Button>
+							</View>
+						</View>
+					)}
 				</View>
 			</ScrollView>
 			{/* Dialog Alert Modal */}

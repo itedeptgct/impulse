@@ -55,7 +55,7 @@ export default function RootLayout() {
 
 	useEffect(() => {
 		try {
-			Uniwind.setTheme("moon-dark");
+			Uniwind.setTheme("grass-dark");
 		} catch {
 			// handled
 		}
