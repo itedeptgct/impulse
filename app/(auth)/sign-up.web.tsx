@@ -23,7 +23,7 @@ import {
 	UploadCloud,
 	User,
 } from "lucide-react-native";
-import { Badge, Button, Dialog, Text } from "panelui-native";
+import { Button, Dialog, Text } from "panelui-native";
 import { GoogleIcon } from "panelui-native/icons";
 import { useRef, useState } from "react";
 import { Platform, Pressable, ScrollView, TextInput, View } from "react-native";
@@ -116,7 +116,7 @@ export default function SignUpWebScreen() {
 			return;
 		}
 
-		// If user was already successfully registered with this email in this session, proceed
+		// if user was already successfully registered with this email in this session, proceed
 		if (registeredUserId && registeredEmail === trimmedEmail) {
 			setStep("id_upload");
 			return;
@@ -130,7 +130,7 @@ export default function SignUpWebScreen() {
 				password: trimmedPassword,
 			});
 
-			// If Supabase has email confirmation enabled, existing accounts return empty identities
+			// if supabase has email confirmation enabled, existing accounts return empty identities
 			if (
 				signUpData?.user &&
 				signUpData.user.identities &&
@@ -215,7 +215,7 @@ export default function SignUpWebScreen() {
 		}
 	};
 
-	// Web file input change handler
+	// web file input change handler
 	const handleWebFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
@@ -298,7 +298,7 @@ export default function SignUpWebScreen() {
 		try {
 			let currentUserId = registeredUserId;
 
-			// Fallback: If user was not yet registered, perform sign up
+			// fallback: If user was not yet registered, perform sign up
 			if (!currentUserId) {
 				const signUpData = await signUpMutation.mutateAsync({
 					username: username.trim(),
@@ -317,11 +317,11 @@ export default function SignUpWebScreen() {
 					);
 					await createIdVerification(currentUserId, documentPath);
 				} catch {
-					// Proceed to pending review state even if initial upload has a transient issue
+					// proceed to pending review state even if initial upload has a transient issue
 				}
 			}
 
-			// Ensure user is not auto-logged in; account awaits admin review
+			// ensure user is not auto-logged in; account awaits admin review
 			try {
 				await signOut();
 				useAuthStore.getState().clearSession();

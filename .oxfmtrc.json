@@ -10,5 +10,6 @@
 		"stylesheet": "./src/theme/global.css",
 		"functions": ["clsx", "cn"],
 		"preserveWhitespace": true
-	}
+	},
+	"@stylistic/no-multiple-empty-lines": "error"
 }

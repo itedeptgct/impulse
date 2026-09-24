@@ -4,6 +4,7 @@
 		"strict": true,
 		"paths": {
 			"@/*": ["./src/*"],
+			"@admin/*": ["./src/features/admin/*"],
 			"@auth/*": ["./src/features/auth/*"],
 			"@lib/*": ["./src/lib/*"],
 			"@theme/*": ["./src/theme/*"]

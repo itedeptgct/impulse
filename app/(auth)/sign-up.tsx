@@ -20,7 +20,6 @@ import {
 	Lock,
 	Mail,
 	RotateCcw,
-	ShieldCheck,
 	UploadCloud,
 	User,
 } from "lucide-react-native";
@@ -50,7 +49,6 @@ export default function SignUpScreen() {
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
-	const [isValidatingStep1, setIsValidatingStep1] = useState(false);
 	const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
 	const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -94,8 +92,8 @@ export default function SignUpScreen() {
 		}
 	};
 
-	// validate credentials with zod and check if email exists
-	const handleContinueToId = async () => {
+	// validate credentials with zod
+	const handleContinueToId = () => {
 		setErrorMessage(null);
 		setFieldErrors({});
 
@@ -125,67 +123,7 @@ export default function SignUpScreen() {
 			return;
 		}
 
-		// If user was already successfully registered with this email in this session, proceed
-		if (registeredUserId && registeredEmail === trimmedEmail) {
-			setStep("id_upload");
-			return;
-		}
-
-		setIsValidatingStep1(true);
-		try {
-			const signUpData = await signUpMutation.mutateAsync({
-				username: trimmedUsername,
-				email: trimmedEmail,
-				password: trimmedPassword,
-			});
-
-			// If Supabase has email confirmation enabled, existing accounts return empty identities
-			if (
-				signUpData?.user &&
-				signUpData.user.identities &&
-				signUpData.user.identities.length === 0
-			) {
-				setFieldErrors({
-					email: "An account with this email already exists.",
-				});
-				setErrorMessage(
-					"An account with this email already exists. Please log in or use another email.",
-				);
-				return;
-			}
-
-			const newUserId = signUpData?.user?.id;
-			if (!newUserId) {
-				throw new Error("Unable to create account. Please try again.");
-			}
-
-			setRegisteredUserId(newUserId);
-			setRegisteredEmail(trimmedEmail);
-			setStep("id_upload");
-		} catch (err: unknown) {
-			const error = err as Error & { code?: string; status?: number };
-			const msg = error?.message || "";
-			const isDuplicate =
-				error?.code === "user_already_exists" ||
-				error?.status === 422 ||
-				msg.toLowerCase().includes("already registered") ||
-				msg.toLowerCase().includes("already exists");
-
-			if (isDuplicate) {
-				setFieldErrors({
-					email: "An account with this email already exists.",
-				});
-				setErrorMessage(
-					"An account with this email already exists. Please log in or use another email.",
-				);
-			} else {
-				setErrorMessage(
-					msg || "Failed to verify account credentials. Please try again.",
-				);
-			}
-		} finally {
-			setIsValidatingStep1(false);
-		}
+		setStep("id_upload");
 	};
 
 	// camera option
@@ -274,36 +212,86 @@ export default function SignUpScreen() {
 			return;
 		}
 
+		const trimmedEmail = email.trim();
+		const trimmedUsername = username.trim();
+		const trimmedPassword = password.trim();
+		const trimmedConfirmPassword = confirmPassword.trim();
+
+		const credValidation = signUpCredentialsSchema.safeParse({
+			username: trimmedUsername,
+			email: trimmedEmail,
+			password: trimmedPassword,
+			confirmPassword: trimmedConfirmPassword,
+		});
+
+		if (!credValidation.success) {
+			setStep("credentials");
+			const formatted = credValidation.error.flatten().fieldErrors;
+			setFieldErrors({
+				username: formatted.username?.[0],
+				email: formatted.email?.[0],
+				password: formatted.password?.[0],
+				confirmPassword: formatted.confirmPassword?.[0],
+			});
+			setErrorMessage(
+				credValidation.error.issues[0]?.message || "Please check your inputs.",
+			);
+			return;
+		}
+
 		setIsSubmitting(true);
 		setErrorMessage(null);
 
 		try {
 			let currentUserId = registeredUserId;
 
-			// Fallback: If user was not yet registered, perform sign up
-			if (!currentUserId) {
+			// if user was not yet registered in this session, perform sign up
+			if (!currentUserId || registeredEmail !== trimmedEmail) {
 				const signUpData = await signUpMutation.mutateAsync({
-					username: username.trim(),
-					email: email.trim(),
-					password,
+					username: trimmedUsername,
+					email: trimmedEmail,
+					password: trimmedPassword,
 				});
+
+				// if supabase has email confirmation enabled, existing accounts return empty identities
+				if (
+					signUpData?.user &&
+					signUpData.user.identities &&
+					signUpData.user.identities.length === 0
+				) {
+					setStep("credentials");
+					setFieldErrors({
+						email: "An account with this email already exists.",
+					});
+					setErrorMessage(
+						"An account with this email already exists. Please log in or use another email.",
+					);
+					showDialog(
+						"Account Exists",
+						"An account with this email already exists. Please log in or use another email.",
+					);
+					return;
+				}
+
 				currentUserId = signUpData?.user?.id ?? null;
+				if (!currentUserId) {
+					throw new Error("Unable to create account. Please try again.");
+				}
+
+				setRegisteredUserId(currentUserId);
+				setRegisteredEmail(trimmedEmail);
 			}
 
 			if (currentUserId && idAsset) {
-				try {
-					const documentPath = await uploadIdDocument(
-						currentUserId,
-						idAsset.uri,
-						idAsset.fileName,
-					);
-					await createIdVerification(currentUserId, documentPath);
-				} catch {
-					// Proceed to pending review state even if initial upload has a network issue
-				}
+				const documentPath = await uploadIdDocument(
+					currentUserId,
+					idAsset.uri,
+					idAsset.fileName,
+				);
+				await createIdVerification(currentUserId, documentPath);
 			}
 
-			// Ensure user is not auto-logged in; account awaits admin review
+			// ensure user is not auto-logged in; account awaits admin review
 			try {
 				await signOut();
 				useAuthStore.getState().clearSession();
@@ -314,14 +302,33 @@ export default function SignUpScreen() {
 			// advance to admin approval pending state
 			setStep("pending_approval");
 		} catch (err: unknown) {
-			const error = err as Error;
-			setErrorMessage(
-				error?.message || "Failed to create account. Please try again.",
-			);
-			showDialog(
-				"Registration Error",
-				error?.message || "Failed to create account. Please try again.",
-			);
+			const error = err as Error & { code?: string; status?: number };
+			const msg = error?.message || "";
+			const isDuplicate =
+				error?.code === "user_already_exists" ||
+				error?.status === 422 ||
+				msg.toLowerCase().includes("already registered") ||
+				msg.toLowerCase().includes("already exists");
+
+			if (isDuplicate) {
+				setStep("credentials");
+				setFieldErrors({
+					email: "An account with this email already exists.",
+				});
+				setErrorMessage(
+					"An account with this email already exists. Please log in or use another email.",
+				);
+				showDialog(
+					"Account Exists",
+					"An account with this email already exists. Please log in or use another email.",
+				);
+			} else {
+				setErrorMessage(msg || "Failed to create account. Please try again.");
+				showDialog(
+					"Registration Error",
+					msg || "Failed to create account. Please try again.",
+				);
+			}
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -417,7 +424,7 @@ export default function SignUpScreen() {
 							)}
 							{/* Google SSO Button */}
 							<Button
-								size="xl"
+								size="lg"
 								fullWidth
 								variant="social"
 								loading={googleSignInMutation.isPending}
@@ -447,7 +454,7 @@ export default function SignUpScreen() {
 											fieldErrors.username
 												? "border-destructive"
 												: "border-border"
-										} bg-card px-4 py-3.5 focus:border-primary`}>
+										} bg-card px-4 py-1.5 focus:border-primary`}>
 										<User
 											size={18}
 											strokeWidth={1.75}
@@ -487,7 +494,7 @@ export default function SignUpScreen() {
 									<View
 										className={`flex-row items-center rounded-xl border ${
 											fieldErrors.email ? "border-destructive" : "border-border"
-										} bg-card px-4 py-3.5 focus:border-primary`}>
+										} bg-card px-4 py-1.5 focus:border-primary`}>
 										<Mail
 											size={18}
 											strokeWidth={1.75}
@@ -534,7 +541,7 @@ export default function SignUpScreen() {
 											fieldErrors.password
 												? "border-destructive"
 												: "border-border"
-										} bg-card px-4 py-3.5 focus:border-primary`}>
+										} bg-card px-4 py-1.5 focus:border-primary`}>
 										<Lock
 											size={18}
 											strokeWidth={1.75}
@@ -588,7 +595,7 @@ export default function SignUpScreen() {
 											fieldErrors.confirmPassword
 												? "border-destructive"
 												: "border-border"
-										} bg-card px-4 py-3.5 focus:border-primary`}>
+										} bg-card px-4 py-1.5 focus:border-primary`}>
 										<Lock
 											size={18}
 											strokeWidth={1.75}
@@ -653,18 +660,14 @@ export default function SignUpScreen() {
 								</Pressable>
 								<View className="pt-3">
 									<Button
-										size="xl"
+										size="lg"
 										fullWidth
 										variant="primary"
-										disabled={isValidatingStep1}
-										loading={isValidatingStep1}
 										endContent={
-											!isValidatingStep1 ? (
-												<ChevronRight
-													size={18}
-													className="text-primary-foreground"
-												/>
-											) : undefined
+											<ChevronRight
+												size={18}
+												className="text-primary-foreground"
+											/>
 										}
 										onPress={handleContinueToId}>
 										Continue to Verification
@@ -710,7 +713,6 @@ export default function SignUpScreen() {
 									<Text className="mt-1 text-center text-xs text-muted-foreground">
 										Supported: JPG, PNG · Clear, uncropped, readable
 									</Text>
-
 									{/* Action Buttons */}
 									<View className="mt-6 w-full flex-row gap-3">
 										<Pressable
@@ -818,19 +820,12 @@ export default function SignUpScreen() {
 											Avoid harsh lighting, glare, or blurred captures
 										</Text>
 									</View>
-									<View className="flex-row items-center gap-2.5">
-										<CheckCircle2 size={15} className="text-primary" />
-										<Text className="text-xs text-muted-foreground">
-											Pay the admins irl ;)
-										</Text>
-									</View>
 								</View>
 							</View>
-
 							{/* Submit CTA */}
 							<View className="mt-auto pt-2">
 								<Button
-									size="xl"
+									size="lg"
 									fullWidth
 									variant="primary"
 									disabled={!idAsset}
@@ -894,10 +889,6 @@ export default function SignUpScreen() {
 								</View>
 							</View>
 							<View className="mb-6 flex-row items-center gap-2.5 px-2">
-								<ShieldCheck
-									size={16}
-									className="shrink-0 text-muted-foreground"
-								/>
 								<Text className="text-center text-xs text-muted-foreground">
 									You'll receive an email notification as soon as an
 									administrator activates your account.
@@ -905,14 +896,14 @@ export default function SignUpScreen() {
 							</View>
 							<View className="w-full gap-3">
 								<Button
-									size="xl"
+									size="lg"
 									fullWidth
 									variant="primary"
 									onPress={() => router.replace("/(onboarding)/onboarding")}>
 									Back to Home
 								</Button>
 								<Button
-									size="xl"
+									size="lg"
 									fullWidth
 									variant="outline"
 									onPress={() => router.replace("/(auth)/sign-in")}>

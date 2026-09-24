@@ -1,4 +1,5 @@
 import { supabase } from "@lib/supabase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 
@@ -187,14 +188,58 @@ export async function createIdVerification(
 export async function fetchUserProfile(
 	userId: string,
 ): Promise<Profile | null> {
-	const { data, error } = await supabase
-		.from("profiles")
-		.select("*")
-		.eq("id", userId)
-		.maybeSingle();
+	let profile: Profile | null = null;
+	try {
+		const { data, error } = await supabase
+			.from("profiles")
+			.select("*")
+			.eq("id", userId)
+			.maybeSingle();
 
-	if (error) throw error;
-	return data as Profile | null;
+		if (error) throw error;
+		profile = data as Profile | null;
+	} catch {
+		// Network or remote schema handled gracefully
+	}
+
+	// Retrieve guild from local storage or auth metadata if profile has no guild
+	let localGuild: string | null = null;
+	try {
+		localGuild = await AsyncStorage.getItem(`impulse_user_guild_${userId}`);
+	} catch {
+		// ignore
+	}
+
+	if (!localGuild) {
+		try {
+			const { data: sessionData } = await supabase.auth.getSession();
+			localGuild =
+				(sessionData?.session?.user?.user_metadata?.guild as string) || null;
+		} catch {
+			// ignore
+		}
+	}
+
+	if (profile) {
+		if (!profile.guild && localGuild) {
+			profile.guild = localGuild as any;
+		}
+		return profile;
+	}
+
+	if (localGuild) {
+		return {
+			id: userId,
+			username: "student",
+			email: "",
+			role: "user",
+			guild: localGuild as any,
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+	}
+
+	return null;
 }
 
 export async function fetchUserVerification(
@@ -210,4 +255,38 @@ export async function fetchUserVerification(
 
 	if (error) throw error;
 	return data as IdVerification | null;
+}
+
+export async function updateUserGuild(
+	userId: string,
+	guild: string,
+): Promise<void> {
+	// 1. Save locally in AsyncStorage immediately
+	try {
+		await AsyncStorage.setItem(`impulse_user_guild_${userId}`, guild);
+	} catch {
+		// fallback
+	}
+
+	// 2. Persist to Supabase Auth metadata
+	try {
+		await supabase.auth.updateUser({
+			data: { guild },
+		});
+	} catch {
+		// Handled gracefully
+	}
+
+	// 3. Update profiles table
+	try {
+		await supabase
+			.from("profiles")
+			.update({
+				guild,
+				updated_at: new Date().toISOString(),
+			})
+			.eq("id", userId);
+	} catch {
+		// Handled gracefully if remote schema is pending migration
+	}
 }

@@ -52,7 +52,7 @@ export default function OnboardingScreen() {
 				)}
 				<View className="w-full gap-3">
 					<Button
-						size="xl"
+						size="lg"
 						fullWidth
 						variant="social"
 						loading={googleSignInMutation.isPending}
@@ -70,7 +70,7 @@ export default function OnboardingScreen() {
 						<View className="h-px flex-1 bg-border" />
 					</View>
 					<Button
-						size="xl"
+						size="lg"
 						fullWidth
 						variant="primary"
 						startContent={
@@ -84,7 +84,7 @@ export default function OnboardingScreen() {
 						Continue with Email
 					</Button>
 					<Button
-						size="xl"
+						size="lg"
 						fullWidth
 						variant="outline"
 						onPress={() => router.push("/(auth)/sign-in")}>

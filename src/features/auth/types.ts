@@ -1,3 +1,5 @@
+import type { GuildId } from "@/features/guilds/types";
+
 export type UserRole = "user" | "admin";
 export type VerificationStatus = "pending" | "approved" | "rejected";
 
@@ -6,6 +8,7 @@ export interface Profile {
 	username: string;
 	email: string;
 	role: UserRole;
+	guild?: GuildId | null;
 	created_at: string;
 	updated_at: string;
 }

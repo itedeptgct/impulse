@@ -46,3 +46,4 @@ yarn-error.*
 skills-lock.json
 DESIGN.*
 backup/
+supabase

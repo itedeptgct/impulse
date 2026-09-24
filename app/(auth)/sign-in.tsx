@@ -154,8 +154,8 @@ export default function SignInScreen() {
 							/>
 						</Pressable>
 						<Text
-							weight="semibold"
-							className="text-sm tracking-widest text-muted-foreground uppercase">
+							weight="bold"
+							className="text-lg tracking-tight text-foreground">
 							impulse
 						</Text>
 						<View className="w-10" />
@@ -180,7 +180,7 @@ export default function SignInScreen() {
 					)}
 					{/* Google SSO Button */}
 					<Button
-						size="xl"
+						size="lg"
 						fullWidth
 						variant="social"
 						loading={googleSignInMutation.isPending}
@@ -206,7 +206,7 @@ export default function SignInScreen() {
 							<View
 								className={`flex-row items-center rounded-xl border ${
 									fieldErrors.email ? "border-destructive" : "border-border"
-								} bg-card px-4 py-3.5 focus:border-primary`}>
+								} bg-card px-4 py-1.5 focus:border-primary`}>
 								<Mail
 									size={18}
 									strokeWidth={1.75}
@@ -258,7 +258,7 @@ export default function SignInScreen() {
 							<View
 								className={`flex-row items-center rounded-xl border ${
 									fieldErrors.password ? "border-destructive" : "border-border"
-								} bg-card px-4 py-3.5 focus:border-primary`}>
+								} bg-card px-4 py-1.5 focus:border-primary`}>
 								<Lock
 									size={18}
 									strokeWidth={1.75}
@@ -309,10 +309,9 @@ export default function SignInScreen() {
 								</Text>
 							)}
 						</View>
-
 						<View className="pt-3">
 							<Button
-								size="xl"
+								size="lg"
 								fullWidth
 								variant="primary"
 								loading={signInMutation.isPending}

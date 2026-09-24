@@ -1,17 +1,11 @@
 import { useGoogleSignIn } from "@auth/hooks/useGoogleSignIn";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import {
-	AlertCircle,
-	ArrowRight,
-	Mail,
-	Shield,
-	Sparkles,
-} from "lucide-react-native";
+import { AlertCircle, ArrowRight, Mail, Sparkles } from "lucide-react-native";
 import { Button, Text } from "panelui-native";
 import { GoogleIcon } from "panelui-native/icons";
 import { useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { ScrollView, View } from "react-native";
 
 export default function OnboardingWebScreen() {
 	const googleSignInMutation = useGoogleSignIn();
@@ -52,12 +46,6 @@ export default function OnboardingWebScreen() {
 							variant="outline"
 							onPress={() => router.push("/(auth)/sign-in")}>
 							Log In
-						</Button>
-						<Button
-							size="sm"
-							variant="primary"
-							onPress={() => router.push("/(auth)/sign-up")}>
-							Create Account
 						</Button>
 					</View>
 				</View>
