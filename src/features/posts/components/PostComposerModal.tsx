@@ -70,7 +70,8 @@ export function PostComposerModal({
 
 		const author = {
 			id: user.id,
-			username: profile?.username || user.email?.split("@")[0] || "Student",
+			username:
+				profile?.username || user.email?.split("@")[0] || "Student",
 			email: profile?.email || user.email,
 			role: profile?.role || "user",
 			guild: profile.guild,
@@ -80,7 +81,8 @@ export function PostComposerModal({
 			title: title.trim(),
 			content: content.trim(),
 			guild: profile.guild,
-			code_snippet: showCode && codeSnippet.trim() ? codeSnippet.trim() : null,
+			code_snippet:
+				showCode && codeSnippet.trim() ? codeSnippet.trim() : null,
 			code_language: showCode && codeSnippet.trim() ? codeLanguage : null,
 			tags: selectedTags,
 		};
@@ -111,23 +113,27 @@ export function PostComposerModal({
 				{/* Dialog Title */}
 				<View className="mb-4 flex-row items-center justify-between">
 					<View>
-						<Dialog.Title weight="bold" className="text-xl text-foreground">
+						<Dialog.Title
+							weight="bold"
+							className="text-xl text-foreground">
 							Create Student Post
 						</Dialog.Title>
 						<Dialog.Description className="mt-0.5 text-xs text-muted-foreground">
-							Publish an update, question, design, or code snippet to your
-							affiliated faction guild.
+							Publish an update, question, design, or code snippet
+							to your affiliated faction guild.
 						</Dialog.Description>
 					</View>
 					<Pressable
 						onPress={() => onOpenChange(false)}
 						className="h-8 w-8 items-center justify-center rounded-full hover:bg-muted/50 active:scale-[0.96]">
-						<X size={16} className="text-muted-foreground" />
+						<X size={16} color="#a1a1aa" />
 					</Pressable>
 				</View>
 				{error && (
 					<View className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
-						<Text className="text-xs text-destructive">{error}</Text>
+						<Text className="text-xs text-destructive">
+							{error}
+						</Text>
 					</View>
 				)}
 				<ScrollView
@@ -144,10 +150,13 @@ export function PostComposerModal({
 											className="text-xs text-muted-foreground">
 											Posting to your guild:
 										</Text>
-										<GuildBadge guildId={profile.guild!} size="sm" />
+										<GuildBadge
+											guildId={profile.guild!}
+											size="sm"
+										/>
 									</View>
 									<View className="flex-row items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-0.5">
-										<Lock size={10} className="text-muted-foreground" />
+										<Lock size={10} color="#a1a1aa" />
 										<Text className="font-medium text-[10px] text-muted-foreground">
 											Affiliated Only
 										</Text>
@@ -157,14 +166,17 @@ export function PostComposerModal({
 						) : (
 							<View className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
 								<View className="flex-row items-center gap-2">
-									<AlertCircle size={16} className="text-amber-400" />
-									<Text weight="bold" className="text-xs text-amber-400">
+									<AlertCircle size={16} color="#f59e0b" />
+									<Text
+										weight="bold"
+										className="text-xs text-amber-400">
 										Faction Guild Required
 									</Text>
 								</View>
 								<Text className="mt-1 text-xs text-muted-foreground">
-									Students can only post to their affiliated faction guild.
-									Choose your guild track first to publish posts.
+									Students can only post to their affiliated
+									faction guild. Choose your guild track first
+									to publish posts.
 								</Text>
 								{onOpenGuildModal && (
 									<Button
@@ -218,9 +230,13 @@ export function PostComposerModal({
 							<Pressable
 								onPress={() => setShowCode(!showCode)}
 								className="flex-row items-center gap-2 self-start rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 active:scale-[0.96]">
-								<Code2 size={14} className="text-primary" />
-								<Text weight="medium" className="text-xs text-foreground">
-									{showCode ? "Remove Code Snippet" : "Attach Code Snippet"}
+								<Code2 size={14} color="#10b981" />
+								<Text
+									weight="medium"
+									className="text-xs text-foreground">
+									{showCode
+										? "Remove Code Snippet"
+										: "Attach Code Snippet"}
 								</Text>
 							</Pressable>
 							{showCode && (
@@ -232,14 +248,20 @@ export function PostComposerModal({
 										{CODE_LANGUAGES.map((lang) => (
 											<Pressable
 												key={lang}
-												onPress={() => setCodeLanguage(lang)}
+												onPress={() =>
+													setCodeLanguage(lang)
+												}
 												className={`rounded-md px-2 py-0.5 ${
 													codeLanguage === lang
 														? "border border-primary/40 bg-primary/20 text-primary"
 														: "bg-muted/50 text-muted-foreground hover:bg-muted"
 												}`}>
 												<Text
-													weight={codeLanguage === lang ? "bold" : "normal"}
+													weight={
+														codeLanguage === lang
+															? "bold"
+															: "normal"
+													}
 													className={`font-mono text-[10px] ${
 														codeLanguage === lang
 															? "text-primary"
@@ -266,14 +288,17 @@ export function PostComposerModal({
 						{/* Topic Tags */}
 						<View>
 							<View className="mb-1.5 flex-row items-center gap-1">
-								<Hash size={13} className="text-muted-foreground" />
-								<Text weight="medium" className="text-xs text-muted-foreground">
+								<Hash size={13} color="#a1a1aa" />
+								<Text
+									weight="medium"
+									className="text-xs text-muted-foreground">
 									Tags & Topics
 								</Text>
 							</View>
 							<View className="flex-row flex-wrap gap-1.5">
 								{COMMON_TAGS.map((tag) => {
-									const isSelected = selectedTags.includes(tag);
+									const isSelected =
+										selectedTags.includes(tag);
 									return (
 										<Pressable
 											key={tag}
@@ -284,9 +309,15 @@ export function PostComposerModal({
 													: "border-border/60 bg-muted/30 hover:bg-muted/60"
 											}`}>
 											<Text
-												weight={isSelected ? "bold" : "normal"}
+												weight={
+													isSelected
+														? "bold"
+														: "normal"
+												}
 												className={`text-[10px] ${
-													isSelected ? "text-primary" : "text-muted-foreground"
+													isSelected
+														? "text-primary"
+														: "text-muted-foreground"
 												}`}>
 												{tag}
 											</Text>
@@ -311,12 +342,13 @@ export function PostComposerModal({
 						variant="primary"
 						loading={isSubmitting}
 						disabled={
-							!hasGuild || !title.trim() || !content.trim() || isSubmitting
+							!hasGuild ||
+							!title.trim() ||
+							!content.trim() ||
+							isSubmitting
 						}
 						className="flex-1 transition-transform active:scale-[0.96] sm:flex-initial"
-						startContent={
-							<Send size={15} className="text-primary-foreground" />
-						}
+						startContent={<Send size={15} color="#ffffff" />}
 						onPress={handleSubmit}>
 						Publish Post
 					</Button>

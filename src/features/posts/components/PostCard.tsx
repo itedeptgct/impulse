@@ -57,10 +57,12 @@ export function PostCard({
 					</View>
 					<View>
 						<View className="flex-row items-center gap-1.5">
-							<Text weight="bold" className="text-sm text-foreground">
+							<Text
+								weight="bold"
+								className="text-sm text-foreground">
 								{post.author?.username || "Impulse Student"}
 							</Text>
-							<CheckCircle2 size={13} className="text-emerald-400" />
+							<CheckCircle2 size={13} color="#10b981" />
 						</View>
 						<Text className="text-[11px] text-muted-foreground">
 							{getRelativeTime(post.created_at)}
@@ -120,7 +122,9 @@ export function PostCard({
 						<View
 							key={tag}
 							className="rounded-full border border-border/60 bg-muted/40 px-2.5 py-0.5">
-							<Text className="text-[11px] text-muted-foreground">{tag}</Text>
+							<Text className="text-[11px] text-muted-foreground">
+								{tag}
+							</Text>
 						</View>
 					))}
 				</View>
@@ -160,7 +164,9 @@ export function PostCard({
 						accessibilityLabel="Downvote"
 						onPress={() => onVote(post, -1)}
 						className={`h-9 w-9 items-center justify-center rounded-lg transition-all active:scale-[0.96] ${
-							isDownvoted ? "bg-sky-500/20 text-sky-400" : "hover:bg-muted/70"
+							isDownvoted
+								? "bg-sky-500/20 text-sky-400"
+								: "hover:bg-muted/70"
 						}`}>
 						<ArrowDown
 							size={16}
@@ -176,7 +182,7 @@ export function PostCard({
 						accessibilityLabel="Comments"
 						onPress={() => onOpenComments(post)}
 						className="flex-row items-center gap-1.5 rounded-xl border border-border/70 bg-muted/30 px-3 py-2 transition-all hover:bg-muted/60 active:scale-[0.96]">
-						<MessageSquare size={15} className="text-muted-foreground" />
+						<MessageSquare size={15} color="#a1a1aa" />
 						<Text
 							weight="medium"
 							className="text-xs text-foreground tabular-nums">
@@ -191,7 +197,7 @@ export function PostCard({
 						accessibilityLabel="Share post"
 						onPress={() => onShare(post)}
 						className="flex-row items-center gap-1.5 rounded-xl border border-border/70 bg-muted/30 px-3 py-2 transition-all hover:bg-muted/60 active:scale-[0.96]">
-						<Share2 size={15} className="text-muted-foreground" />
+						<Share2 size={15} color="#a1a1aa" />
 						<Text
 							weight="medium"
 							className="text-xs text-foreground tabular-nums">

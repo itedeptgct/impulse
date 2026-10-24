@@ -97,7 +97,8 @@ export default function GuildsScreen() {
 								Campus Factions
 							</Text>
 							<Text className="mt-0.5 text-xs text-muted-foreground">
-								Specialized guild communities of the Impulse network
+								Specialized guild communities of the Impulse
+								network
 							</Text>
 						</View>
 
@@ -106,7 +107,9 @@ export default function GuildsScreen() {
 								size="sm"
 								variant="outline"
 								className="transition-transform active:scale-[0.96]"
-								startContent={<Sparkles size={14} className="text-primary" />}
+								startContent={
+									<Sparkles size={14} color="#10b981" />
+								}
 								onPress={() => setIsGuildModalOpen(true)}>
 								{profile?.guild ? "Switch Guild" : "Join Guild"}
 							</Button>
@@ -120,7 +123,9 @@ export default function GuildsScreen() {
 							return (
 								<Pressable
 									key={guild.id}
-									onPress={() => setActiveGuildTab(guild.id as GuildId)}
+									onPress={() =>
+										setActiveGuildTab(guild.id as GuildId)
+									}
 									className={`flex-1 rounded-2xl border p-3.5 transition-all active:scale-[0.96] ${
 										isActive
 											? `${guild.badgeBorderColor} ${guild.badgeBgColor} shadow-md`
@@ -130,13 +135,18 @@ export default function GuildsScreen() {
 										<View className="flex-row items-center gap-2">
 											<Image
 												source={guild.logo}
-												style={{ width: 18, height: 18 }}
+												style={{
+													width: 18,
+													height: 18,
+												}}
 												contentFit="contain"
 											/>
 											<Text
 												weight="bold"
 												className={`text-sm ${
-													isActive ? guild.badgeTextColor : "text-foreground"
+													isActive
+														? guild.badgeTextColor
+														: "text-foreground"
 												}`}>
 												{guild.name}
 											</Text>
@@ -205,9 +215,14 @@ export default function GuildsScreen() {
 										variant="primary"
 										className="shrink-0 active:scale-[0.96]"
 										startContent={
-											<Sparkles size={14} className="text-primary-foreground" />
+											<Sparkles
+												size={14}
+												className="text-primary-foreground"
+											/>
 										}
-										onPress={() => setIsGuildModalOpen(true)}>
+										onPress={() =>
+											setIsGuildModalOpen(true)
+										}>
 										Induct Into {currentGuild.name}
 									</Button>
 								)}
@@ -215,7 +230,9 @@ export default function GuildsScreen() {
 					</View>
 					{/* Guild Faction Stream Header */}
 					<View className="mb-4 flex-row items-center justify-between">
-						<Text weight="bold" className="text-base text-foreground">
+						<Text
+							weight="bold"
+							className="text-base text-foreground">
 							{currentGuild.name} Discussions & Projects
 						</Text>
 						<Text className="text-xs text-muted-foreground">
@@ -231,12 +248,18 @@ export default function GuildsScreen() {
 						</View>
 					) : guildPosts.length === 0 ? (
 						<View className="items-center justify-center rounded-2xl border border-border bg-card p-8">
-							<Shield size={24} className="text-muted-foreground" />
-							<Text weight="medium" className="mt-2 text-sm text-foreground">
+							<Shield
+								size={24}
+								className="text-muted-foreground"
+							/>
+							<Text
+								weight="medium"
+								className="mt-2 text-sm text-foreground">
 								No posts in {currentGuild.name} yet
 							</Text>
 							<Text className="mt-1 text-xs text-muted-foreground">
-								Be the first to publish a technical update or discussion!
+								Be the first to publish a technical update or
+								discussion!
 							</Text>
 						</View>
 					) : (

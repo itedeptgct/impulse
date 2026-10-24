@@ -44,7 +44,8 @@ export function PostCommentsModal({
 		setIsSubmitting(true);
 		const author = {
 			id: user.id,
-			username: profile?.username || user.email?.split("@")[0] || "Student",
+			username:
+				profile?.username || user.email?.split("@")[0] || "Student",
 			email: profile?.email || user.email,
 			guild: profile?.guild || null,
 		};
@@ -81,15 +82,17 @@ export function PostCommentsModal({
 				{/* Modal Header */}
 				<View className="mb-4 flex-row items-center justify-between border-b border-border pb-3">
 					<View className="flex-row items-center gap-2">
-						<MessageSquare size={18} className="text-primary" />
-						<Dialog.Title weight="bold" className="text-lg text-foreground">
+						<MessageSquare size={18} color="#10b981" />
+						<Dialog.Title
+							weight="bold"
+							className="text-lg text-foreground">
 							Discussion ({comments.length})
 						</Dialog.Title>
 					</View>
 					<Pressable
 						onPress={() => onOpenChange(false)}
 						className="h-8 w-8 items-center justify-center rounded-full hover:bg-muted/50 active:scale-[0.96]">
-						<X size={16} className="text-muted-foreground" />
+						<X size={16} color="#a1a1aa" />
 					</Pressable>
 				</View>
 				{/* Post Summary Preview */}
@@ -126,7 +129,9 @@ export function PostCommentsModal({
 						<View className="gap-3 py-1">
 							{comments.map((comment) => {
 								const initials = comment.author?.username
-									? comment.author.username.slice(0, 2).toUpperCase()
+									? comment.author.username
+											.slice(0, 2)
+											.toUpperCase()
 									: "ST";
 								return (
 									<View
@@ -145,22 +150,28 @@ export function PostCommentsModal({
 													<Text
 														weight="bold"
 														className="text-xs text-foreground">
-														{comment.author?.username || "Student"}
+														{comment.author
+															?.username ||
+															"Student"}
 													</Text>
 													<CheckCircle2
 														size={11}
-														className="text-emerald-400"
+														color="#10b981"
 													/>
 												</View>
 												{comment.author?.guild && (
 													<GuildBadge
-														guildId={comment.author.guild}
+														guildId={
+															comment.author.guild
+														}
 														size="sm"
 													/>
 												)}
 											</View>
 											<Text className="text-[10px] text-muted-foreground">
-												{getRelativeTime(comment.created_at)}
+												{getRelativeTime(
+													comment.created_at,
+												)}
 											</Text>
 										</View>
 										<Text className="mt-2 text-xs leading-relaxed text-foreground">
@@ -188,7 +199,7 @@ export function PostCommentsModal({
 						disabled={!newCommentText.trim() || isSubmitting}
 						className="transition-transform active:scale-[0.96]"
 						onPress={handleSendComment}>
-						<Send size={14} className="text-primary-foreground" />
+						<Send size={14} color="#ffffff" />
 					</Button>
 				</View>
 			</Dialog.Content>

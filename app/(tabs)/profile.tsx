@@ -66,7 +66,9 @@ export default function ProfileScreen() {
 	// User posts
 	const [myPosts, setMyPosts] = useState<Post[]>([]);
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
-	const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);
+	const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(
+		null,
+	);
 	const [isCommentsOpen, setIsCommentsOpen] = useState(false);
 
 	// Resubmit ID state
@@ -290,7 +292,8 @@ export default function ProfileScreen() {
 								User Profile
 							</Text>
 							<Text className="mt-0.5 text-xs text-muted-foreground">
-								View and manage your account, posts, and faction.
+								View and manage your account, posts, and
+								faction.
 							</Text>
 						</View>
 						<View className="flex-row items-center gap-2">
@@ -299,7 +302,7 @@ export default function ProfileScreen() {
 								variant="outline"
 								className="transition-transform active:scale-[0.96]"
 								startContent={
-									<ArrowLeft size={14} className="text-muted-foreground" />
+									<ArrowLeft size={14} color="#a1a1aa" />
 								}
 								onPress={() => router.push("/(tabs)")}>
 								Return to Home
@@ -309,7 +312,7 @@ export default function ProfileScreen() {
 								variant="outline"
 								className="transition-transform active:scale-[0.96]"
 								startContent={
-									<LogOut size={14} className="text-muted-foreground" />
+									<LogOut size={14} color="#a1a1aa" />
 								}
 								onPress={() => {
 									setSignOutError(null);
@@ -323,7 +326,9 @@ export default function ProfileScreen() {
 					<View className="mb-6 rounded-3xl border border-border bg-card p-6 shadow-sm">
 						<View className="flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
 							<View className="h-16 w-16 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 shadow-sm">
-								<Text weight="bold" className="text-2xl text-primary">
+								<Text
+									weight="bold"
+									className="text-2xl text-primary">
 									{initials}
 								</Text>
 							</View>
@@ -337,7 +342,10 @@ export default function ProfileScreen() {
 									</Text>
 									{isAdmin && (
 										<View className="flex-row items-center gap-1 rounded-full border border-primary/30 bg-primary/15 px-2.5 py-0.5">
-											<ShieldCheck size={12} className="text-primary" />
+											<ShieldCheck
+												size={12}
+												color="#10b981"
+											/>
 											<Text
 												weight="semibold"
 												className="text-[11px] text-primary uppercase">
@@ -346,7 +354,10 @@ export default function ProfileScreen() {
 										</View>
 									)}
 									{profile.guild && (
-										<GuildBadge guildId={profile.guild} size="md" />
+										<GuildBadge
+											guildId={profile.guild}
+											size="md"
+										/>
 									)}
 								</View>
 								<Text className="mt-0.5 text-xs text-muted-foreground">
@@ -356,7 +367,10 @@ export default function ProfileScreen() {
 								<View className="mt-3 flex-row flex-wrap items-center gap-2">
 									{verificationStatus === "approved" ? (
 										<View className="flex-row items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1">
-											<CheckCircle2 size={12} className="text-emerald-400" />
+											<CheckCircle2
+												size={12}
+												color="#10b981"
+											/>
 											<Text
 												weight="medium"
 												className="text-[11px] text-emerald-400">
@@ -365,7 +379,10 @@ export default function ProfileScreen() {
 										</View>
 									) : verificationStatus === "rejected" ? (
 										<View className="flex-row items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1">
-											<XCircle size={12} className="text-destructive" />
+											<XCircle
+												size={12}
+												color="#ef4444"
+											/>
 											<Text
 												weight="medium"
 												className="text-[11px] text-destructive">
@@ -374,7 +391,7 @@ export default function ProfileScreen() {
 										</View>
 									) : (
 										<View className="flex-row items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1">
-											<Clock size={12} className="text-amber-400" />
+											<Clock size={12} color="#f59e0b" />
 											<Text
 												weight="medium"
 												className="text-[11px] text-amber-400">
@@ -393,7 +410,7 @@ export default function ProfileScreen() {
 										</View>
 									) : (
 										<View className="flex-row items-center gap-1.5 rounded-full border border-border bg-popover px-2.5 py-1">
-											<Mail size={12} className="text-muted-foreground" />
+											<Mail size={12} color="#a1a1aa" />
 											<Text
 												weight="medium"
 												className="text-[11px] text-foreground">
@@ -414,8 +431,10 @@ export default function ProfileScreen() {
 					<View className="mb-6 grid grid-cols-3 gap-3">
 						<View className="items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-sm">
 							<View className="flex-row items-center gap-1.5 text-muted-foreground">
-								<PenSquare size={14} className="text-primary" />
-								<Text weight="medium" className="text-xs text-muted-foreground">
+								<PenSquare size={14} color="#10b981" />
+								<Text
+									weight="medium"
+									className="text-xs text-muted-foreground">
 									Posts Created
 								</Text>
 							</View>
@@ -427,8 +446,10 @@ export default function ProfileScreen() {
 						</View>
 						<View className="items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-sm">
 							<View className="flex-row items-center gap-1.5 text-muted-foreground">
-								<Flame size={14} className="text-emerald-400" />
-								<Text weight="medium" className="text-xs text-muted-foreground">
+								<Flame size={14} color="#10b981" />
+								<Text
+									weight="medium"
+									className="text-xs text-muted-foreground">
 									Karma Score
 								</Text>
 							</View>
@@ -440,8 +461,10 @@ export default function ProfileScreen() {
 						</View>
 						<View className="items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-sm">
 							<View className="flex-row items-center gap-1.5 text-muted-foreground">
-								<MessageSquare size={14} className="text-sky-400" />
-								<Text weight="medium" className="text-xs text-muted-foreground">
+								<MessageSquare size={14} color="#38bdf8" />
+								<Text
+									weight="medium"
+									className="text-xs text-muted-foreground">
 									Responses
 								</Text>
 							</View>
@@ -456,21 +479,27 @@ export default function ProfileScreen() {
 					<View className="mb-6 rounded-3xl border border-border bg-card p-6 shadow-sm">
 						<View className="flex-row items-center justify-between pb-3">
 							<View>
-								<Text weight="bold" className="text-base text-foreground">
+								<Text
+									weight="bold"
+									className="text-base text-foreground">
 									Faction Selection
 								</Text>
 								<Text className="text-xs text-muted-foreground">
-									Amet ut velit aliquip eiusmod commodo cillum voluptate dolore
-									ut id Lorem eiusmod.
+									Amet ut velit aliquip eiusmod commodo cillum
+									voluptate dolore ut id Lorem eiusmod.
 								</Text>
 							</View>
 							<Button
 								size="sm"
 								variant="outline"
 								className="transition-transform active:scale-[0.96]"
-								startContent={<Sparkles size={13} className="text-primary" />}
+								startContent={
+									<Sparkles size={13} color="#10b981" />
+								}
 								onPress={() => setIsGuildModalOpen(true)}>
-								{profile.guild ? "Switch Faction" : "Choose Faction"}
+								{profile.guild
+									? "Switch Faction"
+									: "Choose Faction"}
 							</Button>
 						</View>
 						{profile.guild && guildInfo ? (
@@ -514,7 +543,9 @@ export default function ProfileScreen() {
 													className="flex-row items-center gap-1.5">
 													<Check
 														size={12}
-														color={guildInfo.accentColor}
+														color={
+															guildInfo.accentColor
+														}
 														strokeWidth={3}
 													/>
 													<Text className="text-[11px] text-foreground/80">
@@ -528,13 +559,15 @@ export default function ProfileScreen() {
 							</View>
 						) : (
 							<View className="rounded-2xl border border-border/80 bg-muted/20 p-5">
-								<Text weight="medium" className="text-sm text-foreground">
+								<Text
+									weight="medium"
+									className="text-sm text-foreground">
 									No Faction Activated
 								</Text>
 								<Text className="mt-1 text-xs text-muted-foreground">
-									Pick your track from Octagram, Chameleon, or Blue Jays to
-									unlock dedicated faction feeds, badges, and posting
-									permissions.
+									Pick your track from Octagram, Chameleon, or
+									Blue Jays to unlock dedicated faction feeds,
+									badges, and posting permissions.
 								</Text>
 								<Button
 									size="sm"
@@ -551,13 +584,16 @@ export default function ProfileScreen() {
 						<View className="mb-6 rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-sm">
 							<View className="flex-row items-center justify-between">
 								<View className="flex-row items-center gap-3">
-									<ShieldCheck size={20} className="text-primary" />
+									<ShieldCheck size={20} color="#10b981" />
 									<View>
-										<Text weight="bold" className="text-sm text-foreground">
+										<Text
+											weight="bold"
+											className="text-sm text-foreground">
 											Admin Moderation Desk
 										</Text>
 										<Text className="text-xs text-muted-foreground">
-											Audit student IDs and moderate network submissions.
+											Audit student IDs and moderate
+											network submissions.
 										</Text>
 									</View>
 								</View>
@@ -567,7 +603,7 @@ export default function ProfileScreen() {
 									endContent={
 										<ArrowUpRight
 											size={14}
-											className="text-primary-foreground"
+											color="#ffffff"
 										/>
 									}
 									onPress={() => router.push("/(admin)")}>
@@ -580,9 +616,15 @@ export default function ProfileScreen() {
 					{verificationStatus === "rejected" && (
 						<View className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-5">
 							<View className="flex-row items-start gap-3">
-								<AlertCircle size={18} className="mt-0.5 text-destructive" />
+								<AlertCircle
+									size={18}
+									color="#ef4444"
+									className="mt-0.5"
+								/>
 								<View className="flex-1">
-									<Text weight="bold" className="text-sm text-destructive">
+									<Text
+										weight="bold"
+										className="text-sm text-destructive">
 										Student ID Resubmission Required
 									</Text>
 									<Text className="mt-1 text-xs text-muted-foreground">
@@ -596,7 +638,7 @@ export default function ProfileScreen() {
 										startContent={
 											<UploadCloud
 												size={14}
-												className="text-destructive-foreground"
+												color="#ffffff"
 											/>
 										}
 										onPress={() => {
@@ -614,7 +656,9 @@ export default function ProfileScreen() {
 					<View className="mb-8">
 						<View className="flex-row items-center justify-between pb-3.5">
 							<View>
-								<Text weight="bold" className="text-lg text-foreground">
+								<Text
+									weight="bold"
+									className="text-lg text-foreground">
 									My Contributions
 								</Text>
 								<Text className="text-xs text-muted-foreground">
@@ -626,7 +670,7 @@ export default function ProfileScreen() {
 								variant="primary"
 								className="transition-transform active:scale-[0.96]"
 								startContent={
-									<PenSquare size={13} className="text-primary-foreground" />
+									<PenSquare size={13} color="#ffffff" />
 								}
 								onPress={() => setIsComposerOpen(true)}>
 								New Post
@@ -648,14 +692,17 @@ export default function ProfileScreen() {
 							<View className="items-center justify-center rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center">
 								<PenSquare
 									size={28}
-									className="mb-2 text-muted-foreground/60"
+									color="#a1a1aa"
+									className="mb-2"
 								/>
-								<Text weight="semibold" className="text-sm text-foreground">
+								<Text
+									weight="semibold"
+									className="text-sm text-foreground">
 									No posts published yet
 								</Text>
 								<Text className="mt-1 max-w-sm text-center text-xs text-muted-foreground">
-									Share code snippets, architectural ideas, or UI designs with
-									your faction guild.
+									Share code snippets, architectural ideas, or
+									UI designs with your faction guild.
 								</Text>
 								<Button
 									size="sm"
@@ -679,7 +726,9 @@ export default function ProfileScreen() {
 								<Text className="text-xs text-muted-foreground">
 									Email Address
 								</Text>
-								<Text weight="medium" className="text-xs text-foreground">
+								<Text
+									weight="medium"
+									className="text-xs text-foreground">
 									{email}
 								</Text>
 							</View>
@@ -736,22 +785,30 @@ export default function ProfileScreen() {
 			{/* Resubmit ID Modal */}
 			<Dialog open={isResubmitOpen} onOpenChange={setIsResubmitOpen}>
 				<Dialog.Content className="mx-4 max-w-md rounded-2xl border border-border bg-card p-6">
-					<Dialog.Title weight="bold" className="text-lg text-foreground">
+					<Dialog.Title
+						weight="bold"
+						className="text-lg text-foreground">
 						Resubmit Student ID
 					</Dialog.Title>
 					<Dialog.Description className="mt-1 text-xs text-muted-foreground">
-						Select a clear, uncropped photo or scan of your GCT student ID card.
+						Select a clear, uncropped photo or scan of your GCT
+						student ID card.
 					</Dialog.Description>
 					{resubmitError && (
 						<View className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5">
-							<Text className="text-xs text-destructive">{resubmitError}</Text>
+							<Text className="text-xs text-destructive">
+								{resubmitError}
+							</Text>
 						</View>
 					)}
 					<View className="my-4 items-center justify-center rounded-xl border border-dashed border-border bg-background p-6">
 						{resubmitAsset ? (
 							<View className="items-center">
-								<Text weight="medium" className="text-xs text-emerald-400">
-									Selected: {resubmitAsset.fileName || "ID Document"}
+								<Text
+									weight="medium"
+									className="text-xs text-emerald-400">
+									Selected:{" "}
+									{resubmitAsset.fileName || "ID Document"}
 								</Text>
 								<Button
 									size="sm"
@@ -766,7 +823,7 @@ export default function ProfileScreen() {
 								size="sm"
 								variant="outline"
 								startContent={
-									<UploadCloud size={14} className="text-muted-foreground" />
+									<UploadCloud size={14} color="#a1a1aa" />
 								}
 								onPress={handlePickDocument}>
 								Select Image from Device
@@ -794,17 +851,24 @@ export default function ProfileScreen() {
 				</Dialog.Content>
 			</Dialog>
 			{/* Sign Out Confirmation Dialog */}
-			<Dialog open={isSignOutDialogOpen} onOpenChange={setIsSignOutDialogOpen}>
+			<Dialog
+				open={isSignOutDialogOpen}
+				onOpenChange={setIsSignOutDialogOpen}>
 				<Dialog.Content className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6">
-					<Dialog.Title weight="bold" className="text-xl text-foreground">
+					<Dialog.Title
+						weight="bold"
+						className="text-xl text-foreground">
 						Sign Out
 					</Dialog.Title>
 					<Dialog.Description className="mt-2 text-sm text-muted-foreground">
-						Are you sure you want to sign out of your Impulse account?
+						Are you sure you want to sign out of your Impulse
+						account?
 					</Dialog.Description>
 					{signOutError && (
 						<View className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5">
-							<Text className="text-xs text-destructive">{signOutError}</Text>
+							<Text className="text-xs text-destructive">
+								{signOutError}
+							</Text>
 						</View>
 					)}
 					<Dialog.Footer className="mt-6 flex-row gap-2.5">

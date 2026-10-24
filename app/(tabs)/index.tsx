@@ -46,7 +46,9 @@ export default function FeedScreen() {
 
 	// Modals
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
-	const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);
+	const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(
+		null,
+	);
 	const [isCommentsOpen, setIsCommentsOpen] = useState(false);
 	const [isGuildModalOpen, setIsGuildModalOpen] = useState(false);
 	const [copiedToast, setCopiedToast] = useState<string | null>(null);
@@ -142,7 +144,9 @@ export default function FeedScreen() {
 	const handleCommentAdded = (postId: string, _comment: Comment) => {
 		setPosts((prev) =>
 			prev.map((p) =>
-				p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p,
+				p.id === postId
+					? { ...p, comments_count: p.comments_count + 1 }
+					: p,
 			),
 		);
 	};
@@ -163,7 +167,9 @@ export default function FeedScreen() {
 		await sharePost(post.id);
 		setPosts((prev) =>
 			prev.map((p) =>
-				p.id === post.id ? { ...p, shares_count: p.shares_count + 1 } : p,
+				p.id === post.id
+					? { ...p, shares_count: p.shares_count + 1 }
+					: p,
 			),
 		);
 
@@ -214,7 +220,7 @@ export default function FeedScreen() {
 								variant="primary"
 								className="transition-transform active:scale-[0.96]"
 								startContent={
-									<Plus size={15} className="text-primary-foreground" />
+									<Plus size={15} color="#ffffff" />
 								}
 								onPress={() => setIsComposerOpen(true)}>
 								New Post
@@ -238,17 +244,23 @@ export default function FeedScreen() {
 							className="mb-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 transition-all active:scale-[0.98]">
 							<View className="flex-row items-center justify-between">
 								<View className="flex-row items-center gap-2.5">
-									<Sparkles size={18} className="text-primary" />
+									<Sparkles size={18} color="#10b981" />
 									<View>
-										<Text weight="bold" className="text-xs text-foreground">
-											You are approved! Choose Your Faction
+										<Text
+											weight="bold"
+											className="text-xs text-foreground">
+											You are approved! Choose Your
+											Faction
 										</Text>
 										<Text className="text-[11px] text-muted-foreground">
-											Align with Octagram, Chameleon, or Blue Jays.
+											Align with Octagram, Chameleon, or
+											Blue Jays.
 										</Text>
 									</View>
 								</View>
-								<Text weight="bold" className="text-xs text-primary">
+								<Text
+									weight="bold"
+									className="text-xs text-primary">
 									Select →
 								</Text>
 							</View>
@@ -256,10 +268,10 @@ export default function FeedScreen() {
 					)}
 					{isPending && (
 						<View className="mb-4 flex-row items-center gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3.5">
-							<Clock size={15} className="shrink-0 text-amber-400" />
+							<Clock size={15} color="#f59e0b" />
 							<Text className="flex-1 text-xs text-muted-foreground">
-								Student ID verification in queue. Feed is accessible in member
-								preview mode.
+								Student ID verification in queue. Feed is
+								accessible in member preview mode.
 							</Text>
 						</View>
 					)}
@@ -267,25 +279,33 @@ export default function FeedScreen() {
 					<View className="mb-4">
 						{/* Sorting Controls */}
 						<View className="mt-2.5 flex-row items-center justify-between border-t border-border/50 pt-2.5">
-							<Text weight="medium" className="text-xs text-muted-foreground">
+							<Text
+								weight="medium"
+								className="text-xs text-muted-foreground">
 								Feed Sorting
 							</Text>
 							<View className="flex-row items-center rounded-xl border border-border/70 bg-card p-1">
 								<Pressable
 									onPress={() => setSelectedSort("hot")}
 									className={`flex-row items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all active:scale-[0.96] ${
-										selectedSort === "hot" ? "bg-primary/15" : ""
+										selectedSort === "hot"
+											? "bg-primary/15"
+											: ""
 									}`}>
 									<Flame
 										size={13}
-										className={
+										color={
 											selectedSort === "hot"
-												? "text-primary"
-												: "text-muted-foreground"
+												? "#10b981"
+												: "#a1a1aa"
 										}
 									/>
 									<Text
-										weight={selectedSort === "hot" ? "bold" : "medium"}
+										weight={
+											selectedSort === "hot"
+												? "bold"
+												: "medium"
+										}
 										className={`text-xs ${
 											selectedSort === "hot"
 												? "text-primary"
@@ -297,18 +317,24 @@ export default function FeedScreen() {
 								<Pressable
 									onPress={() => setSelectedSort("new")}
 									className={`flex-row items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all active:scale-[0.96] ${
-										selectedSort === "new" ? "bg-primary/15" : ""
+										selectedSort === "new"
+											? "bg-primary/15"
+											: ""
 									}`}>
 									<Sparkles
 										size={13}
-										className={
+										color={
 											selectedSort === "new"
-												? "text-primary"
-												: "text-muted-foreground"
+												? "#10b981"
+												: "#a1a1aa"
 										}
 									/>
 									<Text
-										weight={selectedSort === "new" ? "bold" : "medium"}
+										weight={
+											selectedSort === "new"
+												? "bold"
+												: "medium"
+										}
 										className={`text-xs ${
 											selectedSort === "new"
 												? "text-primary"
@@ -320,18 +346,24 @@ export default function FeedScreen() {
 								<Pressable
 									onPress={() => setSelectedSort("top")}
 									className={`flex-row items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all active:scale-[0.96] ${
-										selectedSort === "top" ? "bg-primary/15" : ""
+										selectedSort === "top"
+											? "bg-primary/15"
+											: ""
 									}`}>
 									<Trophy
 										size={13}
-										className={
+										color={
 											selectedSort === "top"
-												? "text-primary"
-												: "text-muted-foreground"
+												? "#10b981"
+												: "#a1a1aa"
 										}
 									/>
 									<Text
-										weight={selectedSort === "top" ? "bold" : "medium"}
+										weight={
+											selectedSort === "top"
+												? "bold"
+												: "medium"
+										}
 										className={`text-xs ${
 											selectedSort === "top"
 												? "text-primary"
@@ -352,12 +384,15 @@ export default function FeedScreen() {
 						</View>
 					) : posts.length === 0 ? (
 						<View className="items-center justify-center rounded-2xl border border-border bg-card p-10 text-center">
-							<Flame size={24} className="text-muted-foreground" />
-							<Text weight="bold" className="mt-2 text-sm text-foreground">
+							<Flame size={24} color="#a1a1aa" />
+							<Text
+								weight="bold"
+								className="mt-2 text-sm text-foreground">
 								No posts found in this feed
 							</Text>
 							<Text className="mt-1 text-xs text-muted-foreground">
-								Be the first to publish a technical update or question!
+								Be the first to publish a technical update or
+								question!
 							</Text>
 							<Button
 								size="sm"
