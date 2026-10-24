@@ -1,12 +1,8 @@
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
 
 import type { IdVerification, Profile } from "./types";
-
-// complete auth session on web popup / redirect
-WebBrowser.maybeCompleteAuthSession();
 
 export async function signIn(email: string, password: string) {
 	const { data, error } = await supabase.auth.signInWithPassword({
@@ -64,14 +60,17 @@ export async function handleAuthCallbackUrl(url: string) {
 	// PKCE flow code exchange
 	const code = parsed.queryParams?.code as string | undefined;
 	if (code) {
-		const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+		const { data, error } =
+			await supabase.auth.exchangeCodeForSession(code);
 		if (error) throw error;
 		return data;
 	}
 
 	// implicit flow in query params
 	const accessToken = parsed.queryParams?.access_token as string | undefined;
-	const refreshToken = parsed.queryParams?.refresh_token as string | undefined;
+	const refreshToken = parsed.queryParams?.refresh_token as
+		| string
+		| undefined;
 	if (accessToken && refreshToken) {
 		const { data, error } = await supabase.auth.setSession({
 			access_token: accessToken,
@@ -109,40 +108,8 @@ export async function handleAuthCallbackUrl(url: string) {
 	return sessionData;
 }
 
-export async function signInWithGoogle() {
-	const redirectUrl = Linking.createURL("auth/callback");
-
-	const { data, error } = await supabase.auth.signInWithOAuth({
-		provider: "google",
-		options: {
-			redirectTo: redirectUrl,
-			skipBrowserRedirect: true,
-			queryParams: {
-				access_type: "offline",
-				prompt: "consent",
-			},
-		},
-	});
-
-	if (error) throw error;
-	if (!data?.url) {
-		throw new Error("Unable to initiate Google sign-in. Please try again.");
-	}
-
-	const authResult = await WebBrowser.openAuthSessionAsync(
-		data.url,
-		redirectUrl,
-	);
-
-	if (authResult.type === "success" && authResult.url) {
-		return await handleAuthCallbackUrl(authResult.url);
-	}
-
-	if (authResult.type === "cancel" || authResult.type === "dismiss") {
-		return null;
-	}
-
-	throw new Error("Google sign-in was not completed. Please try again.");
+export async function signInWithGoogle(): Promise<{ session?: any } | null> {
+	throw new Error("Google sign-in is currently disabled.");
 }
 
 export async function uploadIdDocument(
@@ -202,7 +169,27 @@ export async function fetchUserProfile(
 		// Network or remote schema handled gracefully
 	}
 
-	// Retrieve guild from local storage or auth metadata if profile has no guild
+	// Retrieve cached profile from local storage if remote profile is null
+	let cachedProfile: Profile | null = null;
+	try {
+		const rawCached = await AsyncStorage.getItem(
+			`impulse_profile_${userId}`,
+		);
+		if (rawCached) {
+			cachedProfile = JSON.parse(rawCached);
+		}
+	} catch {
+		// ignore
+	}
+
+	if (cachedProfile && !profile) {
+		profile = cachedProfile;
+	} else if (profile && cachedProfile) {
+		profile = {
+			...cachedProfile,
+			...profile,
+		};
+	}
 	let localGuild: string | null = null;
 	try {
 		localGuild = await AsyncStorage.getItem(`impulse_user_guild_${userId}`);
@@ -214,7 +201,8 @@ export async function fetchUserProfile(
 		try {
 			const { data: sessionData } = await supabase.auth.getSession();
 			localGuild =
-				(sessionData?.session?.user?.user_metadata?.guild as string) || null;
+				(sessionData?.session?.user?.user_metadata?.guild as string) ||
+				null;
 		} catch {
 			// ignore
 		}
@@ -255,6 +243,125 @@ export async function fetchUserVerification(
 
 	if (error) throw error;
 	return data as IdVerification | null;
+}
+
+export async function updateUserProfile(
+	userId: string,
+	updates: Partial<Profile>,
+): Promise<Profile> {
+	const current = (await fetchUserProfile(userId)) || {
+		id: userId,
+		username: updates.username || "student",
+		email: updates.email || "",
+		role: "user" as const,
+		created_at: new Date().toISOString(),
+		updated_at: new Date().toISOString(),
+	};
+
+	const updated: Profile = {
+		...current,
+		...updates,
+		updated_at: new Date().toISOString(),
+	};
+
+	// 1. Save locally in AsyncStorage immediately
+	try {
+		await AsyncStorage.setItem(
+			`impulse_profile_${userId}`,
+			JSON.stringify(updated),
+		);
+		if (updated.username) {
+			await AsyncStorage.setItem(
+				`impulse_profile_by_username_${updated.username.toLowerCase()}`,
+				JSON.stringify(updated),
+			);
+		}
+	} catch {
+		// ignored in non-storage envs
+	}
+
+	// 2. Persist to Supabase Auth metadata
+	try {
+		await supabase.auth.updateUser({
+			data: {
+				...updates,
+			},
+		});
+	} catch {
+		// Handled gracefully
+	}
+
+	// 3. Update profiles table
+	try {
+		await supabase
+			.from("profiles")
+			.update({
+				...updates,
+				updated_at: updated.updated_at,
+			})
+			.eq("id", userId);
+	} catch {
+		// Handled gracefully if remote schema is pending migration
+	}
+
+	// 4. Synchronize active in-memory auth store if loaded
+	try {
+		const { useAuthStore } = require("./store");
+		if (useAuthStore?.getState) {
+			useAuthStore.getState().setProfile(updated);
+		}
+	} catch {
+		// store not yet initialized
+	}
+
+	return updated;
+}
+
+export async function fetchProfileByUsername(
+	username: string,
+): Promise<Profile | null> {
+	const normalized = username.trim().toLowerCase();
+	if (!normalized) return null;
+
+	// 1. Try fetching from Supabase profiles table
+	try {
+		const { data, error } = await supabase
+			.from("profiles")
+			.select("*")
+			.ilike("username", normalized)
+			.maybeSingle();
+
+		if (!error && data) {
+			return data as Profile;
+		}
+	} catch {
+		// Fallback gracefully
+	}
+
+	// 2. Check local AsyncStorage username cache
+	try {
+		const raw = await AsyncStorage.getItem(
+			`impulse_profile_by_username_${normalized}`,
+		);
+		if (raw) {
+			return JSON.parse(raw);
+		}
+	} catch {
+		// Ignore
+	}
+
+	// 3. Check active in-memory auth store profile
+	try {
+		const { useAuthStore } = require("./store");
+		const current = useAuthStore?.getState?.()?.profile;
+		if (current && current.username?.toLowerCase() === normalized) {
+			return current;
+		}
+	} catch {
+		// Ignore
+	}
+
+	return null;
 }
 
 export async function updateUserGuild(
