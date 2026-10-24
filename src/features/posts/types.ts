@@ -36,6 +36,8 @@ export interface Comment {
 	author_id: string;
 	author: PostAuthor;
 	content: string;
+	parent_id?: string | null;
+	reply_to_username?: string | null;
 	created_at: string;
 }
 

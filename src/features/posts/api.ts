@@ -63,7 +63,10 @@ async function saveCachedComments(
 	comments: Record<string, Comment[]>,
 ): Promise<void> {
 	try {
-		await AsyncStorage.setItem(STORAGE_COMMENTS_KEY, JSON.stringify(comments));
+		await AsyncStorage.setItem(
+			STORAGE_COMMENTS_KEY,
+			JSON.stringify(comments),
+		);
 	} catch {
 		// ignored
 	}
@@ -76,7 +79,9 @@ async function getCachedVotes(
 	userId: string,
 ): Promise<Record<string, VoteType>> {
 	try {
-		const raw = await AsyncStorage.getItem(`${STORAGE_VOTES_KEY}_${userId}`);
+		const raw = await AsyncStorage.getItem(
+			`${STORAGE_VOTES_KEY}_${userId}`,
+		);
 		if (raw) {
 			return JSON.parse(raw);
 		}
@@ -172,7 +177,8 @@ export async function fetchFeedPosts(
 	if (sort === "new") {
 		posts.sort(
 			(a, b) =>
-				new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+				new Date(b.created_at).getTime() -
+				new Date(a.created_at).getTime(),
 		);
 	} else if (sort === "top") {
 		posts.sort(
@@ -187,9 +193,11 @@ export async function fetchFeedPosts(
 			const scoreA = Math.max(0, a.upvotes_count - a.downvotes_count);
 			const scoreB = Math.max(0, b.upvotes_count - b.downvotes_count);
 			const hoursA =
-				(Date.now() - new Date(a.created_at).getTime()) / (1000 * 60 * 60);
+				(Date.now() - new Date(a.created_at).getTime()) /
+				(1000 * 60 * 60);
 			const hoursB =
-				(Date.now() - new Date(b.created_at).getTime()) / (1000 * 60 * 60);
+				(Date.now() - new Date(b.created_at).getTime()) /
+				(1000 * 60 * 60);
 			const rankA = scoreA / Math.pow(hoursA + 2, 1.5);
 			const rankB = scoreB / Math.pow(hoursB + 2, 1.5);
 			return rankB - rankA;
@@ -360,12 +368,14 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
 }
 
 /**
- * Add a comment to a post.
+ * Add a comment or reply to a post.
  */
 export async function addPostComment(
 	postId: string,
 	author: PostAuthor,
 	content: string,
+	parentId?: string | null,
+	replyToUsername?: string | null,
 ): Promise<Comment> {
 	const newComment: Comment = {
 		id: `comment-${Date.now()}`,
@@ -373,17 +383,27 @@ export async function addPostComment(
 		author_id: author.id,
 		author,
 		content: content.trim(),
+		parent_id: parentId || null,
+		reply_to_username: replyToUsername || null,
 		created_at: new Date().toISOString(),
 	};
 
 	try {
+		const insertPayload: Record<string, any> = {
+			post_id: postId,
+			author_id: author.id,
+			content: newComment.content,
+		};
+		if (parentId) {
+			insertPayload.parent_id = parentId;
+		}
+		if (replyToUsername) {
+			insertPayload.reply_to_username = replyToUsername;
+		}
+
 		const { data, error } = await supabase
 			.from("comments")
-			.insert({
-				post_id: postId,
-				author_id: author.id,
-				content: newComment.content,
-			})
+			.insert(insertPayload)
 			.select()
 			.single();
 

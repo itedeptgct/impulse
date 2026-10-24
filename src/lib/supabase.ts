@@ -1,4 +1,13 @@
-import "react-native-url-polyfill/auto";
+try {
+	if (
+		typeof globalThis.URL !== "function" ||
+		!globalThis.URL.prototype?.toJSON
+	) {
+		require("react-native-url-polyfill/auto");
+	}
+} catch {
+	// Fallback for environments with native URL support
+}
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 
