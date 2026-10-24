@@ -1,6 +1,5 @@
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Linking from "expo-linking";
 
 import type { IdVerification, Profile } from "./types";
 
@@ -38,7 +37,13 @@ export async function signOut() {
 }
 
 export async function resetPasswordForEmail(email: string) {
-	const redirectTo = Linking.createURL("auth/callback");
+	let redirectTo = "auth/callback";
+	try {
+		const Linking = require("expo-linking");
+		redirectTo = Linking.createURL("auth/callback");
+	} catch {
+		// Fallback
+	}
 	const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
 		redirectTo,
 	});
@@ -47,7 +52,13 @@ export async function resetPasswordForEmail(email: string) {
 }
 
 export async function handleAuthCallbackUrl(url: string) {
-	const parsed = Linking.parse(url);
+	let parsed: any;
+	try {
+		const Linking = require("expo-linking");
+		parsed = Linking.parse(url);
+	} catch {
+		parsed = { queryParams: {} };
+	}
 
 	// check for error parameters
 	const errorDescription =
