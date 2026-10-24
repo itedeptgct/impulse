@@ -47,3 +47,5 @@ skills-lock.json
 DESIGN.*
 backup/
 supabase
+docs/superpowers
+.superpowers
