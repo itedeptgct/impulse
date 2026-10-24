@@ -48,7 +48,11 @@ export default function TabsLayout() {
 				options={{
 					title: "Feed",
 					tabBarIcon: ({ color, size }) => (
-						<Flame size={size || 20} color={color} strokeWidth={2} />
+						<Flame
+							size={size || 20}
+							color={color}
+							strokeWidth={2}
+						/>
 					),
 				}}
 			/>
@@ -57,7 +61,11 @@ export default function TabsLayout() {
 				options={{
 					title: "Guilds",
 					tabBarIcon: ({ color, size }) => (
-						<Shield size={size || 20} color={color} strokeWidth={2} />
+						<Shield
+							size={size || 20}
+							color={color}
+							strokeWidth={2}
+						/>
 					),
 				}}
 			/>
@@ -68,6 +76,13 @@ export default function TabsLayout() {
 					tabBarIcon: ({ color, size }) => (
 						<User size={size || 20} color={color} strokeWidth={2} />
 					),
+				}}
+			/>
+			<Tabs.Screen
+				name="u/[username]"
+				options={{
+					href: null,
+					headerShown: false,
 				}}
 			/>
 		</Tabs>

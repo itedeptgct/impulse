@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import {
 	ArrowDown,
 	ArrowUp,
@@ -49,7 +50,13 @@ export function PostCard({
 		<View className="mb-4 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm">
 			{/* Top Bar: Author, Guild Badge, & Timestamp */}
 			<View className="flex-row items-center justify-between pb-3">
-				<View className="flex-row items-center gap-2.5">
+				<Pressable
+					onPress={() => {
+						if (post.author?.username) {
+							router.push(`/(tabs)/u/${post.author.username}`);
+						}
+					}}
+					className="flex-row items-center gap-2.5 active:opacity-75">
 					<View className="h-10 w-10 items-center justify-center rounded-xl border border-border bg-muted/70">
 						<Text weight="bold" className="text-xs text-foreground">
 							{authorInitials}
@@ -59,7 +66,7 @@ export function PostCard({
 						<View className="flex-row items-center gap-1.5">
 							<Text
 								weight="bold"
-								className="text-sm text-foreground">
+								className="text-sm text-foreground hover:underline">
 								{post.author?.username || "Impulse Student"}
 							</Text>
 							<CheckCircle2 size={13} color="#10b981" />
@@ -68,7 +75,7 @@ export function PostCard({
 							{getRelativeTime(post.created_at)}
 						</Text>
 					</View>
-				</View>
+				</Pressable>
 				{/* Guild Badge */}
 				{post.guild && <GuildBadge guildId={post.guild} size="sm" />}
 			</View>
