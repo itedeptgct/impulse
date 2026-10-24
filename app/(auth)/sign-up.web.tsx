@@ -1,5 +1,4 @@
 import { createIdVerification, signOut, uploadIdDocument } from "@auth/api";
-import { useGoogleSignIn } from "@auth/hooks/useGoogleSignIn";
 import { useSignUp } from "@auth/hooks/useSignUp";
 import { idDocumentSchema, signUpCredentialsSchema } from "@auth/schemas";
 import { useAuthStore } from "@auth/store";
@@ -24,7 +23,6 @@ import {
 	User,
 } from "lucide-react-native";
 import { Button, Dialog, Text } from "panelui-native";
-import { GoogleIcon } from "panelui-native/icons";
 import { useRef, useState } from "react";
 import { Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 
@@ -40,7 +38,9 @@ export default function SignUpWebScreen() {
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [isValidatingStep1, setIsValidatingStep1] = useState(false);
-	const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
+	const [registeredUserId, setRegisteredUserId] = useState<string | null>(
+		null,
+	);
 	const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<{
@@ -70,20 +70,6 @@ export default function SignUpWebScreen() {
 	};
 
 	const signUpMutation = useSignUp();
-	const googleSignInMutation = useGoogleSignIn();
-
-	const handleGoogleSignIn = async () => {
-		setErrorMessage(null);
-		try {
-			const data = await googleSignInMutation.mutateAsync();
-			if (data?.session) {
-				router.replace("/(tabs)");
-			}
-		} catch (err: unknown) {
-			const error = err as Error;
-			setErrorMessage(error?.message || "Failed to sign in with Google.");
-		}
-	};
 
 	// validate credentials with zod and check if email exists
 	const handleContinueToId = async () => {
@@ -111,7 +97,8 @@ export default function SignUpWebScreen() {
 				confirmPassword: formatted.confirmPassword?.[0],
 			});
 			setErrorMessage(
-				validation.error.issues[0]?.message || "Please check your inputs.",
+				validation.error.issues[0]?.message ||
+					"Please check your inputs.",
 			);
 			return;
 		}
@@ -171,7 +158,8 @@ export default function SignUpWebScreen() {
 				);
 			} else {
 				setErrorMessage(
-					msg || "Failed to verify account credentials. Please try again.",
+					msg ||
+						"Failed to verify account credentials. Please try again.",
 				);
 			}
 		} finally {
@@ -287,7 +275,8 @@ export default function SignUpWebScreen() {
 		if (!idValidation.success) {
 			showDialog(
 				"Invalid Document",
-				idValidation.error.issues[0]?.message || "Invalid document asset.",
+				idValidation.error.issues[0]?.message ||
+					"Invalid document asset.",
 			);
 			return;
 		}
@@ -362,7 +351,9 @@ export default function SignUpWebScreen() {
 			<header className="border-b border-border bg-background/80 backdrop-blur-md">
 				<View className="mx-auto flex-row items-center justify-between px-6 py-2.5 lg:max-w-7xl lg:px-8">
 					<Pressable
-						onPress={() => router.replace("/(onboarding)/onboarding")}
+						onPress={() =>
+							router.replace("/(onboarding)/onboarding")
+						}
 						className="cursor-pointer flex-row items-center gap-2.5">
 						<Text
 							weight="bold"
@@ -405,7 +396,9 @@ export default function SignUpWebScreen() {
 							) : (
 								<View
 									className={`h-1.5 w-1.5 rounded-full ${
-										step === "id_upload" ? "bg-primary" : "bg-muted-foreground"
+										step === "id_upload"
+											? "bg-primary"
+											: "bg-muted-foreground"
 									}`}
 								/>
 							)}
@@ -459,7 +452,10 @@ export default function SignUpWebScreen() {
 			</header>
 			{/* Main Content Area */}
 			<ScrollView
-				contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+				contentContainerStyle={{
+					flexGrow: 1,
+					justifyContent: "center",
+				}}
 				showsVerticalScrollIndicator={false}
 				className="flex-1">
 				<View className="mx-auto w-full max-w-lg flex-1 justify-center px-4 py-4 md:py-6">
@@ -468,10 +464,19 @@ export default function SignUpWebScreen() {
 						<View className="rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
 							<View className="pb-3">
 								<Pressable
-									onPress={() => router.replace("/(onboarding)/onboarding")}
+									onPress={() =>
+										router.replace(
+											"/(onboarding)/onboarding",
+										)
+									}
 									className="mb-2 inline-flex cursor-pointer flex-row items-center gap-1.5 self-start rounded-lg border border-border bg-popover px-2 py-0.5 active:opacity-70">
-									<ArrowLeft size={13} className="text-muted-foreground" />
-									<Text className="text-xs text-muted-foreground">Back</Text>
+									<ArrowLeft
+										size={13}
+										className="text-muted-foreground"
+									/>
+									<Text className="text-xs text-muted-foreground">
+										Back
+									</Text>
 								</Pressable>
 								<Text
 									weight="bold"
@@ -479,7 +484,8 @@ export default function SignUpWebScreen() {
 									Create Account
 								</Text>
 								<Text className="mt-0.5 text-xs text-muted-foreground">
-									Enter your information to begin your verification
+									Enter your information to begin your
+									verification
 								</Text>
 							</View>
 							{errorMessage && (
@@ -493,26 +499,6 @@ export default function SignUpWebScreen() {
 									</Text>
 								</View>
 							)}
-							{/* Google SSO */}
-							<Button
-								size="md"
-								fullWidth
-								variant="social"
-								disabled={true}
-								loading={googleSignInMutation.isPending}
-								startContent={<GoogleIcon size={18} />}
-								onPress={handleGoogleSignIn}>
-								Sign up with Google
-							</Button>
-							<View className="my-2 flex-row items-center gap-2.5">
-								<View className="h-px flex-1 bg-border" />
-								<Text
-									weight="medium"
-									className="text-[10px] text-muted-foreground uppercase">
-									or register with email
-								</Text>
-								<View className="h-px flex-1 bg-border" />
-							</View>
 							{/* Form Fields */}
 							<View className="gap-2.5">
 								{/* Name Field */}
@@ -567,7 +553,9 @@ export default function SignUpWebScreen() {
 									</Text>
 									<View
 										className={`h-10.5 flex-row items-center rounded-xl border ${
-											fieldErrors.email ? "border-destructive" : "border-border"
+											fieldErrors.email
+												? "border-destructive"
+												: "border-border"
 										} bg-popover px-3 focus:border-primary`}>
 										<Mail
 											size={15}
@@ -636,16 +624,25 @@ export default function SignUpWebScreen() {
 														fieldErrors.confirmPassword ===
 															"Passwords do not match."
 													) {
-														setFieldErrors((prev) => ({
-															...prev,
-															password: undefined,
-															...(prev.confirmPassword ===
-															"Passwords do not match."
-																? { confirmPassword: undefined }
-																: {}),
-														}));
+														setFieldErrors(
+															(prev) => ({
+																...prev,
+																password:
+																	undefined,
+																...(prev.confirmPassword ===
+																"Passwords do not match."
+																	? {
+																			confirmPassword:
+																				undefined,
+																		}
+																	: {}),
+															}),
+														);
 													}
-													if (errorMessage === "Passwords do not match.") {
+													if (
+														errorMessage ===
+														"Passwords do not match."
+													) {
 														setErrorMessage(null);
 													}
 												}}
@@ -686,13 +683,21 @@ export default function SignUpWebScreen() {
 												value={confirmPassword}
 												onChangeText={(text) => {
 													setConfirmPassword(text);
-													if (fieldErrors.confirmPassword) {
-														setFieldErrors((prev) => ({
-															...prev,
-															confirmPassword: undefined,
-														}));
+													if (
+														fieldErrors.confirmPassword
+													) {
+														setFieldErrors(
+															(prev) => ({
+																...prev,
+																confirmPassword:
+																	undefined,
+															}),
+														);
 													}
-													if (errorMessage === "Passwords do not match.") {
+													if (
+														errorMessage ===
+														"Passwords do not match."
+													) {
 														setErrorMessage(null);
 													}
 												}}
@@ -700,7 +705,9 @@ export default function SignUpWebScreen() {
 												autoCapitalize="none"
 												autoCorrect={false}
 												returnKeyType="done"
-												onSubmitEditing={handleContinueToId}
+												onSubmitEditing={
+													handleContinueToId
+												}
 											/>
 										</View>
 										{fieldErrors.confirmPassword && (
@@ -712,10 +719,14 @@ export default function SignUpWebScreen() {
 								</View>
 								{/* Reveal Password Checkbox */}
 								<Pressable
-									onPress={() => setShowPassword(!showPassword)}
+									onPress={() =>
+										setShowPassword(!showPassword)
+									}
 									hitSlop={8}
 									accessibilityRole="checkbox"
-									accessibilityState={{ checked: showPassword }}
+									accessibilityState={{
+										checked: showPassword,
+									}}
 									className="cursor-pointer flex-row items-center gap-2 self-start active:opacity-70">
 									<View
 										className={`h-4 w-4 items-center justify-center rounded border transition-colors ${
@@ -762,9 +773,13 @@ export default function SignUpWebScreen() {
 									Already have an account?{" "}
 								</Text>
 								<Pressable
-									onPress={() => router.push("/(auth)/sign-in")}
+									onPress={() =>
+										router.push("/(auth)/sign-in")
+									}
 									className="cursor-pointer">
-									<Text weight="semibold" className="text-xs text-primary">
+									<Text
+										weight="semibold"
+										className="text-xs text-primary">
 										Log In
 									</Text>
 								</Pressable>
@@ -778,7 +793,10 @@ export default function SignUpWebScreen() {
 								<Pressable
 									onPress={() => setStep("credentials")}
 									className="mb-2 inline-flex cursor-pointer flex-row items-center gap-1.5 self-start rounded-lg border border-border bg-popover px-2 py-0.5 active:opacity-70">
-									<ArrowLeft size={13} className="text-muted-foreground" />
+									<ArrowLeft
+										size={13}
+										className="text-muted-foreground"
+									/>
 									<Text className="text-xs text-muted-foreground">
 										Back to Credentials
 									</Text>
@@ -789,7 +807,8 @@ export default function SignUpWebScreen() {
 									Verify Student Identity
 								</Text>
 								<Text className="mt-0.5 text-xs text-muted-foreground">
-									Upload your GCT Student ID card to complete registration
+									Upload your GCT Student ID card to complete
+									registration
 								</Text>
 							</View>
 							{/* Drag & Drop Zone */}
@@ -805,20 +824,29 @@ export default function SignUpWebScreen() {
 									}`}>
 									<View className="items-center justify-center">
 										<View className="mb-2 h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
-											<UploadCloud size={20} className="text-primary" />
+											<UploadCloud
+												size={20}
+												className="text-primary"
+											/>
 										</View>
-										<Text weight="semibold" className="text-sm text-foreground">
+										<Text
+											weight="semibold"
+											className="text-sm text-foreground">
 											Drag & drop your student ID here
 										</Text>
 										<Text className="mt-0.5 text-center text-[11px] text-muted-foreground">
-											Supported formats: PNG, JPG, or WebP up to 10MB
+											Supported formats: PNG, JPG, or WebP
+											up to 10MB
 										</Text>
 										{/* Desktop Action Buttons */}
 										<View className="mt-2.5 w-full flex-row gap-2">
 											<Pressable
 												onPress={handlePickImage}
 												className="min-h-9 flex-1 cursor-pointer flex-row items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-2 hover:bg-popover active:scale-[0.98]">
-												<ImageIcon size={14} className="text-foreground" />
+												<ImageIcon
+													size={14}
+													className="text-foreground"
+												/>
 												<Text
 													weight="semibold"
 													className="text-xs text-foreground">
@@ -834,7 +862,10 @@ export default function SignUpWebScreen() {
 									<View className="overflow-hidden rounded-lg border border-border bg-background">
 										<Image
 											source={{ uri: idAsset.uri }}
-											style={{ width: "100%", height: 140 }}
+											style={{
+												width: "100%",
+												height: 140,
+											}}
 											contentFit="cover"
 											transition={200}
 										/>
@@ -842,13 +873,22 @@ export default function SignUpWebScreen() {
 									{/* Asset Metadata */}
 									<View className="mt-2.5 flex-row items-center justify-between px-0.5">
 										<View className="flex-row items-center gap-1.5">
-											<FileText size={14} className="text-muted-foreground" />
-											<Text weight="medium" className="text-xs text-foreground">
-												{idAsset.fileName || "GCT_Student_ID.jpg"}
+											<FileText
+												size={14}
+												className="text-muted-foreground"
+											/>
+											<Text
+												weight="medium"
+												className="text-xs text-foreground">
+												{idAsset.fileName ||
+													"GCT_Student_ID.jpg"}
 											</Text>
 										</View>
 										<View className="flex-row items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5">
-											<CheckCircle2 size={11} className="text-emerald-400" />
+											<CheckCircle2
+												size={11}
+												className="text-emerald-400"
+											/>
 											<Text className="font-medium text-[10px] text-emerald-400">
 												Ready to upload
 											</Text>
@@ -859,8 +899,13 @@ export default function SignUpWebScreen() {
 										<Pressable
 											onPress={handlePickImage}
 											className="min-h-8 flex-1 cursor-pointer flex-row items-center justify-center gap-1.5 rounded-lg border border-border bg-card py-1.5 hover:bg-popover active:scale-[0.98]">
-											<RotateCcw size={13} className="text-muted-foreground" />
-											<Text weight="medium" className="text-xs text-foreground">
+											<RotateCcw
+												size={13}
+												className="text-muted-foreground"
+											/>
+											<Text
+												weight="medium"
+												className="text-xs text-foreground">
 												Choose Different File
 											</Text>
 										</Pressable>
@@ -876,15 +921,23 @@ export default function SignUpWebScreen() {
 								</Text>
 								<View className="gap-1.5">
 									<View className="flex-row items-center gap-1.5">
-										<CheckCircle2 size={13} className="text-primary" />
+										<CheckCircle2
+											size={13}
+											className="text-primary"
+										/>
 										<Text className="text-[11px] text-muted-foreground">
-											All four corners of the ID card are visible
+											All four corners of the ID card are
+											visible
 										</Text>
 									</View>
 									<View className="flex-row items-center gap-1.5">
-										<CheckCircle2 size={13} className="text-primary" />
+										<CheckCircle2
+											size={13}
+											className="text-primary"
+										/>
 										<Text className="text-[11px] text-muted-foreground">
-											No flash glare covering name or student ID number
+											No flash glare covering name or
+											student ID number
 										</Text>
 									</View>
 								</View>
@@ -918,9 +971,10 @@ export default function SignUpWebScreen() {
 									Verification Pending
 								</Text>
 								<Text className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
-									Thank you for submitting your ID. Our administrative team
-									manually reviews all documentation to protect account safety
-									and platform integrity.
+									Thank you for submitting your ID. Our
+									administrative team manually reviews all
+									documentation to protect account safety and
+									platform integrity.
 								</Text>
 							</View>
 							{/* Application Details Summary */}
@@ -929,7 +983,9 @@ export default function SignUpWebScreen() {
 									<Text className="text-xs text-muted-foreground">
 										Registered Account
 									</Text>
-									<Text weight="medium" className="text-xs text-foreground">
+									<Text
+										weight="medium"
+										className="text-xs text-foreground">
 										{email || "student@institution.edu"}
 									</Text>
 								</View>
@@ -937,7 +993,9 @@ export default function SignUpWebScreen() {
 									<Text className="text-xs text-muted-foreground">
 										Typical Turnaround
 									</Text>
-									<Text weight="medium" className="text-xs text-foreground">
+									<Text
+										weight="medium"
+										className="text-xs text-foreground">
 										Within 24 hours
 									</Text>
 								</View>
@@ -959,8 +1017,8 @@ export default function SignUpWebScreen() {
 									className="shrink-0 text-muted-foreground"
 								/>
 								<Text className="text-[11px] text-muted-foreground">
-									You'll receive an email notification as soon as an
-									administrator activates your account.
+									You'll receive an email notification as soon
+									as an administrator activates your account.
 								</Text>
 							</View>
 							<View className="w-full gap-2">
@@ -968,14 +1026,20 @@ export default function SignUpWebScreen() {
 									size="md"
 									fullWidth
 									variant="primary"
-									onPress={() => router.replace("/(onboarding)/onboarding")}>
+									onPress={() =>
+										router.replace(
+											"/(onboarding)/onboarding",
+										)
+									}>
 									Back to Home
 								</Button>
 								<Button
 									size="md"
 									fullWidth
 									variant="outline"
-									onPress={() => router.replace("/(auth)/sign-in")}>
+									onPress={() =>
+										router.replace("/(auth)/sign-in")
+									}>
 									Log In to Existing Account
 								</Button>
 							</View>
@@ -986,9 +1050,13 @@ export default function SignUpWebScreen() {
 			{/* Dialog Alert Modal */}
 			<Dialog
 				open={dialogState.open}
-				onOpenChange={(open) => setDialogState((prev) => ({ ...prev, open }))}>
+				onOpenChange={(open) =>
+					setDialogState((prev) => ({ ...prev, open }))
+				}>
 				<Dialog.Content className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl">
-					<Dialog.Title weight="bold" className="text-xl text-foreground">
+					<Dialog.Title
+						weight="bold"
+						className="text-xl text-foreground">
 						{dialogState.title}
 					</Dialog.Title>
 					<Dialog.Description className="mt-2 text-sm text-muted-foreground">
@@ -999,7 +1067,10 @@ export default function SignUpWebScreen() {
 							size="md"
 							variant="primary"
 							onPress={() =>
-								setDialogState((prev) => ({ ...prev, open: false }))
+								setDialogState((prev) => ({
+									...prev,
+									open: false,
+								}))
 							}>
 							Okay
 						</Button>

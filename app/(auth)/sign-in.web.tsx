@@ -1,4 +1,3 @@
-import { useGoogleSignIn } from "@auth/hooks/useGoogleSignIn";
 import { useResetPassword } from "@auth/hooks/useResetPassword";
 import { useSignIn } from "@auth/hooks/useSignIn";
 import { forgotPasswordSchema, signInSchema } from "@auth/schemas";
@@ -15,7 +14,6 @@ import {
 	Mail,
 } from "lucide-react-native";
 import { Button, Dialog, Text } from "panelui-native";
-import { GoogleIcon } from "panelui-native/icons";
 import { useState } from "react";
 import { Pressable, ScrollView, TextInput, View } from "react-native";
 
@@ -38,7 +36,6 @@ export default function SignInWebScreen() {
 	const [forgotMessage, setForgotMessage] = useState<string | null>(null);
 
 	const signInMutation = useSignIn();
-	const googleSignInMutation = useGoogleSignIn();
 	const resetPasswordMutation = useResetPassword();
 	const setSession = useAuthStore((state) => state.setSession);
 
@@ -58,7 +55,8 @@ export default function SignInWebScreen() {
 				password: formatted.password?.[0],
 			});
 			setErrorMessage(
-				validation.error.issues[0]?.message || "Please check your inputs.",
+				validation.error.issues[0]?.message ||
+					"Please check your inputs.",
 			);
 			return;
 		}
@@ -75,21 +73,9 @@ export default function SignInWebScreen() {
 		} catch (err: unknown) {
 			const error = err as Error;
 			setErrorMessage(
-				error?.message || "Invalid email or password. Please try again.",
+				error?.message ||
+					"Invalid email or password. Please try again.",
 			);
-		}
-	};
-
-	const handleGoogleSignIn = async () => {
-		setErrorMessage(null);
-		try {
-			const data = await googleSignInMutation.mutateAsync();
-			if (data?.session) {
-				router.replace("/(tabs)");
-			}
-		} catch (err: unknown) {
-			const error = err as Error;
-			setErrorMessage(error?.message || "Failed to sign in with Google.");
 		}
 	};
 
@@ -97,7 +83,9 @@ export default function SignInWebScreen() {
 		setForgotStatus("idle");
 		setForgotMessage(null);
 
-		const validation = forgotPasswordSchema.safeParse({ email: forgotEmail });
+		const validation = forgotPasswordSchema.safeParse({
+			email: forgotEmail,
+		});
 		if (!validation.success) {
 			setForgotStatus("error");
 			setForgotMessage(
@@ -109,7 +97,9 @@ export default function SignInWebScreen() {
 		try {
 			await resetPasswordMutation.mutateAsync(validation.data.email);
 			setForgotStatus("success");
-			setForgotMessage("Password reset email sent. Please check your inbox.");
+			setForgotMessage(
+				"Password reset email sent. Please check your inbox.",
+			);
 		} catch (err: unknown) {
 			const error = err as Error;
 			setForgotStatus("error");
@@ -126,7 +116,9 @@ export default function SignInWebScreen() {
 			<header className="border-b border-border bg-background/80 backdrop-blur-md">
 				<View className="mx-auto flex-row items-center justify-between px-6 py-2.5 lg:max-w-7xl lg:px-8">
 					<Pressable
-						onPress={() => router.replace("/(onboarding)/onboarding")}
+						onPress={() =>
+							router.replace("/(onboarding)/onboarding")
+						}
 						className="cursor-pointer flex-row items-center gap-2.5">
 						<Text
 							weight="bold"
@@ -149,17 +141,27 @@ export default function SignInWebScreen() {
 			</header>
 			{/* Main Content Area */}
 			<ScrollView
-				contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
+				contentContainerStyle={{
+					flexGrow: 1,
+					justifyContent: "center",
+				}}
 				showsVerticalScrollIndicator={false}
 				className="flex-1">
 				<View className="mx-auto w-full max-w-md flex-1 justify-center px-4 py-4 md:py-6">
 					<View className="rounded-2xl border border-border bg-card p-5 shadow-2xl sm:p-6">
 						<View className="pb-3.5">
 							<Pressable
-								onPress={() => router.replace("/(onboarding)/onboarding")}
+								onPress={() =>
+									router.replace("/(onboarding)/onboarding")
+								}
 								className="mb-2 inline-flex cursor-pointer flex-row items-center gap-1.5 self-start rounded-lg border border-border bg-popover px-2 py-0.5 active:opacity-70">
-								<ArrowLeft size={13} className="text-muted-foreground" />
-								<Text className="text-xs text-muted-foreground">Back</Text>
+								<ArrowLeft
+									size={13}
+									className="text-muted-foreground"
+								/>
+								<Text className="text-xs text-muted-foreground">
+									Back
+								</Text>
 							</Pressable>
 							<Text
 								weight="bold"
@@ -167,52 +169,41 @@ export default function SignInWebScreen() {
 								Log In
 							</Text>
 							<Text className="mt-0.5 text-xs text-muted-foreground">
-								Enter your email and password to access your account
+								Enter your email and password to access your
+								account
 							</Text>
 						</View>
 						{errorMessage && (
 							<View className="mb-3.5 flex-row items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
-								<AlertCircle size={16} className="shrink-0 text-destructive" />
+								<AlertCircle
+									size={16}
+									className="shrink-0 text-destructive"
+								/>
 								<Text className="flex-1 text-xs text-destructive">
 									{errorMessage}
 								</Text>
 							</View>
 						)}
-						{/* Google SSO */}
-						<Button
-							size="md"
-							fullWidth
-							variant="social"
-							disabled={true}
-							loading={googleSignInMutation.isPending}
-							startContent={<GoogleIcon size={18} />}
-							onPress={handleGoogleSignIn}>
-							Continue with Google
-						</Button>
-						<View className="my-2 flex-row items-center gap-2.5">
-							<View className="h-px flex-1 bg-border" />
-							<Text
-								weight="medium"
-								className="text-[10px] text-muted-foreground uppercase">
-								or sign in with email
-							</Text>
-							<View className="h-px flex-1 bg-border" />
-						</View>
 						{/* Form Fields */}
 						<View className="gap-2.5">
 							{/* Email Input */}
 							<View className="gap-1">
-								<Text weight="medium" className="text-xs text-muted-foreground">
+								<Text
+									weight="medium"
+									className="text-xs text-muted-foreground">
 									Email Address
 								</Text>
 								<View
 									className={`flex-row items-center rounded-xl border ${
-										fieldErrors.email ? "border-destructive" : "border-border"
+										fieldErrors.email
+											? "border-destructive"
+											: "border-border"
 									} bg-popover px-3 py-2.5 focus:border-primary`}>
 									<Mail
 										size={15}
 										strokeWidth={1.75}
-										className="mr-2.5 text-muted-foreground"
+										color="#a1a1aa"
+										className="mr-2.5"
 									/>
 									<TextInput
 										className="flex-1 text-sm text-foreground outline-none"
@@ -257,7 +248,9 @@ export default function SignInWebScreen() {
 										}}
 										hitSlop={8}
 										className="cursor-pointer active:opacity-70">
-										<Text weight="medium" className="text-xs text-primary">
+										<Text
+											weight="medium"
+											className="text-xs text-primary">
 											Forgot password?
 										</Text>
 									</Pressable>
@@ -294,7 +287,9 @@ export default function SignInWebScreen() {
 										onSubmitEditing={handleSignIn}
 									/>
 									<Pressable
-										onPress={() => setShowPassword(!showPassword)}
+										onPress={() =>
+											setShowPassword(!showPassword)
+										}
 										hitSlop={12}
 										className="ml-2 h-7 w-7 cursor-pointer items-center justify-center active:opacity-70">
 										{showPassword ? (
@@ -338,7 +333,9 @@ export default function SignInWebScreen() {
 							<Pressable
 								onPress={() => router.push("/(auth)/sign-up")}
 								className="cursor-pointer">
-								<Text weight="semibold" className="text-xs text-primary">
+								<Text
+									weight="semibold"
+									className="text-xs text-primary">
 									Sign Up
 								</Text>
 							</Pressable>
@@ -351,11 +348,14 @@ export default function SignInWebScreen() {
 				open={isForgotPasswordOpen}
 				onOpenChange={setIsForgotPasswordOpen}>
 				<Dialog.Content className="mx-4 max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
-					<Dialog.Title weight="bold" className="text-xl text-foreground">
+					<Dialog.Title
+						weight="bold"
+						className="text-xl text-foreground">
 						Reset Password
 					</Dialog.Title>
 					<Dialog.Description className="mt-2 text-sm text-muted-foreground">
-						Enter your email address and we'll send a password recovery link.
+						Enter your email address and we'll send a password
+						recovery link.
 					</Dialog.Description>
 					{forgotMessage && (
 						<View
@@ -365,9 +365,15 @@ export default function SignInWebScreen() {
 									: "border-destructive/30 bg-destructive/10"
 							} p-3.5`}>
 							{forgotStatus === "success" ? (
-								<CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
+								<CheckCircle2
+									size={18}
+									className="shrink-0 text-emerald-400"
+								/>
 							) : (
-								<AlertCircle size={18} className="shrink-0 text-destructive" />
+								<AlertCircle
+									size={18}
+									className="shrink-0 text-destructive"
+								/>
 							)}
 							<Text
 								className={`flex-1 text-xs ${
@@ -380,11 +386,16 @@ export default function SignInWebScreen() {
 						</View>
 					)}
 					<View className="mt-4 gap-2">
-						<Text weight="medium" className="text-xs text-muted-foreground">
+						<Text
+							weight="medium"
+							className="text-xs text-muted-foreground">
 							Email Address
 						</Text>
 						<View className="flex-row items-center rounded-xl border border-border bg-popover px-3.5 py-3">
-							<Mail size={16} className="mr-3 text-muted-foreground" />
+							<Mail
+								size={16}
+								className="mr-3 text-muted-foreground"
+							/>
 							<TextInput
 								className="flex-1 text-sm text-foreground outline-none"
 								placeholder="name@example.com"

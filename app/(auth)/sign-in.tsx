@@ -1,4 +1,3 @@
-import { useGoogleSignIn } from "@auth/hooks/useGoogleSignIn";
 import { useResetPassword } from "@auth/hooks/useResetPassword";
 import { useSignIn } from "@auth/hooks/useSignIn";
 import { forgotPasswordSchema, signInSchema } from "@auth/schemas";
@@ -15,7 +14,6 @@ import {
 	Mail,
 } from "lucide-react-native";
 import { Button, Dialog, Text } from "panelui-native";
-import { GoogleIcon } from "panelui-native/icons";
 import { useState } from "react";
 import {
 	KeyboardAvoidingView,
@@ -47,7 +45,6 @@ export default function SignInScreen() {
 	const [forgotMessage, setForgotMessage] = useState<string | null>(null);
 
 	const signInMutation = useSignIn();
-	const googleSignInMutation = useGoogleSignIn();
 	const resetPasswordMutation = useResetPassword();
 	const setSession = useAuthStore((state) => state.setSession);
 
@@ -67,7 +64,8 @@ export default function SignInScreen() {
 				password: formatted.password?.[0],
 			});
 			setErrorMessage(
-				validation.error.issues[0]?.message || "Please check your inputs.",
+				validation.error.issues[0]?.message ||
+					"Please check your inputs.",
 			);
 			return;
 		}
@@ -84,21 +82,9 @@ export default function SignInScreen() {
 		} catch (err: unknown) {
 			const error = err as Error;
 			setErrorMessage(
-				error?.message || "Invalid email or password. Please try again.",
+				error?.message ||
+					"Invalid email or password. Please try again.",
 			);
-		}
-	};
-
-	const handleGoogleSignIn = async () => {
-		setErrorMessage(null);
-		try {
-			const data = await googleSignInMutation.mutateAsync();
-			if (data?.session) {
-				router.replace("/(tabs)");
-			}
-		} catch (err: unknown) {
-			const error = err as Error;
-			setErrorMessage(error?.message || "Failed to sign in with Google.");
 		}
 	};
 
@@ -106,7 +92,9 @@ export default function SignInScreen() {
 		setForgotStatus("idle");
 		setForgotMessage(null);
 
-		const validation = forgotPasswordSchema.safeParse({ email: forgotEmail });
+		const validation = forgotPasswordSchema.safeParse({
+			email: forgotEmail,
+		});
 		if (!validation.success) {
 			setForgotStatus("error");
 			setForgotMessage(
@@ -118,7 +106,9 @@ export default function SignInScreen() {
 		try {
 			await resetPasswordMutation.mutateAsync(validation.data.email);
 			setForgotStatus("success");
-			setForgotMessage("Password reset email sent. Please check your inbox.");
+			setForgotMessage(
+				"Password reset email sent. Please check your inbox.",
+			);
 		} catch (err: unknown) {
 			const error = err as Error;
 			setForgotStatus("error");
@@ -150,7 +140,8 @@ export default function SignInScreen() {
 							className="h-10 w-10 items-center justify-center rounded-xl border border-border bg-card active:scale-[0.96] active:bg-popover">
 							<ArrowLeft
 								size={18}
-								className="-translate-x-0.5 text-foreground"
+								color="#ffffff"
+								className="-translate-x-0.5"
 							/>
 						</Pressable>
 						<Text
@@ -172,45 +163,35 @@ export default function SignInScreen() {
 					</View>
 					{errorMessage && (
 						<View className="mb-6 flex-row items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-							<AlertCircle size={18} className="shrink-0 text-destructive" />
+							<AlertCircle
+								size={18}
+								color="#ef4444"
+								className="shrink-0"
+							/>
 							<Text className="flex-1 text-sm text-destructive">
 								{errorMessage}
 							</Text>
 						</View>
 					)}
-					{/* Google SSO Button */}
-					<Button
-						size="lg"
-						fullWidth
-						variant="social"
-						loading={googleSignInMutation.isPending}
-						startContent={<GoogleIcon size={20} />}
-						onPress={handleGoogleSignIn}>
-						Continue with Google
-					</Button>
-					<View className="my-6 flex-row items-center gap-3">
-						<View className="h-px flex-1 bg-border" />
-						<Text
-							weight="medium"
-							className="text-xs text-muted-foreground uppercase">
-							or continue with email
-						</Text>
-						<View className="h-px flex-1 bg-border" />
-					</View>
 					<View className="gap-5">
 						{/* Email Input */}
 						<View className="gap-2">
-							<Text weight="medium" className="text-xs text-muted-foreground">
+							<Text
+								weight="medium"
+								className="text-xs text-muted-foreground">
 								Email Address
 							</Text>
 							<View
 								className={`flex-row items-center rounded-xl border ${
-									fieldErrors.email ? "border-destructive" : "border-border"
+									fieldErrors.email
+										? "border-destructive"
+										: "border-border"
 								} bg-card px-4 py-1.5 focus:border-primary`}>
 								<Mail
 									size={18}
 									strokeWidth={1.75}
-									className="mr-3 text-muted-foreground"
+									color="#a1a1aa"
+									className="mr-3"
 								/>
 								<TextInput
 									className="flex-1 text-base text-foreground"
@@ -220,7 +201,10 @@ export default function SignInScreen() {
 									onChangeText={(text) => {
 										setEmail(text);
 										if (fieldErrors.email) {
-											setFieldErrors((prev) => ({ ...prev, email: undefined }));
+											setFieldErrors((prev) => ({
+												...prev,
+												email: undefined,
+											}));
 										}
 									}}
 									autoCapitalize="none"
@@ -238,7 +222,9 @@ export default function SignInScreen() {
 						{/* Password Input */}
 						<View className="gap-2">
 							<View className="flex-row items-center justify-between">
-								<Text weight="medium" className="text-xs text-muted-foreground">
+								<Text
+									weight="medium"
+									className="text-xs text-muted-foreground">
 									Password
 								</Text>
 								<Pressable
@@ -250,19 +236,24 @@ export default function SignInScreen() {
 									}}
 									hitSlop={8}
 									className="active:opacity-70">
-									<Text weight="medium" className="text-xs text-primary">
+									<Text
+										weight="medium"
+										className="text-xs text-primary">
 										Forgot password?
 									</Text>
 								</Pressable>
 							</View>
 							<View
 								className={`flex-row items-center rounded-xl border ${
-									fieldErrors.password ? "border-destructive" : "border-border"
+									fieldErrors.password
+										? "border-destructive"
+										: "border-border"
 								} bg-card px-4 py-1.5 focus:border-primary`}>
 								<Lock
 									size={18}
 									strokeWidth={1.75}
-									className="mr-3 text-muted-foreground"
+									color="#a1a1aa"
+									className="mr-3"
 								/>
 								<TextInput
 									className="flex-1 text-base text-foreground"
@@ -285,20 +276,22 @@ export default function SignInScreen() {
 									onSubmitEditing={handleSignIn}
 								/>
 								<Pressable
-									onPress={() => setShowPassword(!showPassword)}
+									onPress={() =>
+										setShowPassword(!showPassword)
+									}
 									hitSlop={14}
 									className="ml-2 h-7 w-7 items-center justify-center active:opacity-70">
 									{showPassword ? (
 										<EyeOff
 											size={18}
 											strokeWidth={1.75}
-											className="text-muted-foreground"
+											color="#a1a1aa"
 										/>
 									) : (
 										<Eye
 											size={18}
 											strokeWidth={1.75}
-											className="text-muted-foreground"
+											color="#a1a1aa"
 										/>
 									)}
 								</Pressable>
@@ -328,7 +321,9 @@ export default function SignInScreen() {
 							onPress={() => router.push("/(auth)/sign-up")}
 							hitSlop={8}
 							className="active:opacity-70">
-							<Text weight="semibold" className="text-sm text-foreground">
+							<Text
+								weight="semibold"
+								className="text-sm text-foreground">
 								Sign Up
 							</Text>
 						</Pressable>
@@ -340,11 +335,14 @@ export default function SignInScreen() {
 				open={isForgotPasswordOpen}
 				onOpenChange={setIsForgotPasswordOpen}>
 				<Dialog.Content className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6">
-					<Dialog.Title weight="bold" className="text-xl text-foreground">
+					<Dialog.Title
+						weight="bold"
+						className="text-xl text-foreground">
 						Reset Password
 					</Dialog.Title>
 					<Dialog.Description className="mt-2 text-sm text-muted-foreground">
-						Enter your email address and we'll send a password recovery link.
+						Enter your email address and we'll send a password
+						recovery link.
 					</Dialog.Description>
 					{forgotMessage && (
 						<View
@@ -354,9 +352,17 @@ export default function SignInScreen() {
 									: "border-destructive/30 bg-destructive/10"
 							} p-3.5`}>
 							{forgotStatus === "success" ? (
-								<CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
+								<CheckCircle2
+									size={18}
+									color="#10b981"
+									className="shrink-0"
+								/>
 							) : (
-								<AlertCircle size={18} className="shrink-0 text-destructive" />
+								<AlertCircle
+									size={18}
+									color="#ef4444"
+									className="shrink-0"
+								/>
 							)}
 							<Text
 								className={`flex-1 text-xs ${
@@ -369,11 +375,13 @@ export default function SignInScreen() {
 						</View>
 					)}
 					<View className="mt-4 gap-2">
-						<Text weight="medium" className="text-xs text-muted-foreground">
+						<Text
+							weight="medium"
+							className="text-xs text-muted-foreground">
 							Email Address
 						</Text>
 						<View className="flex-row items-center rounded-xl border border-border bg-popover px-4 py-3">
-							<Mail size={16} className="mr-3 text-muted-foreground" />
+							<Mail size={16} color="#a1a1aa" className="mr-3" />
 							<TextInput
 								className="flex-1 text-sm text-foreground"
 								placeholder="name@example.com"

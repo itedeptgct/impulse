@@ -28,7 +28,6 @@ import {
 	XCircle,
 } from "lucide-react-native";
 import { Button, Dialog, Text } from "panelui-native";
-import { GoogleIcon } from "panelui-native/icons";
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
@@ -107,10 +106,6 @@ export default function ProfileScreen() {
 		setIsRefreshing(true);
 		void loadUserData();
 	}, [loadUserData]);
-
-	const isGoogleProvider =
-		user?.app_metadata?.provider === "google" ||
-		user?.identities?.some((id) => id.provider === "google");
 
 	const displayName =
 		profile?.username ||
@@ -399,25 +394,14 @@ export default function ProfileScreen() {
 											</Text>
 										</View>
 									)}
-									{isGoogleProvider ? (
-										<View className="flex-row items-center gap-1.5 rounded-full border border-border bg-popover px-2.5 py-1">
-											<GoogleIcon size={12} />
-											<Text
-												weight="medium"
-												className="text-[11px] text-foreground">
-												Google SSO
-											</Text>
-										</View>
-									) : (
-										<View className="flex-row items-center gap-1.5 rounded-full border border-border bg-popover px-2.5 py-1">
-											<Mail size={12} color="#a1a1aa" />
-											<Text
-												weight="medium"
-												className="text-[11px] text-foreground">
-												Student Email
-											</Text>
-										</View>
-									)}
+									<View className="flex-row items-center gap-1.5 rounded-full border border-border bg-popover px-2.5 py-1">
+										<Mail size={12} color="#a1a1aa" />
+										<Text
+											weight="medium"
+											className="text-[11px] text-foreground">
+											Student Email
+										</Text>
+									</View>
 									<View className="rounded-full border border-border/60 bg-muted/30 px-2.5 py-1">
 										<Text className="text-[11px] text-muted-foreground">
 											Member since {memberSinceDate}

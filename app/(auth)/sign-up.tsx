@@ -1,5 +1,4 @@
 import { createIdVerification, signOut, uploadIdDocument } from "@auth/api";
-import { useGoogleSignIn } from "@auth/hooks/useGoogleSignIn";
 import { useSignUp } from "@auth/hooks/useSignUp";
 import { idDocumentSchema, signUpCredentialsSchema } from "@auth/schemas";
 import { useAuthStore } from "@auth/store";
@@ -24,7 +23,6 @@ import {
 	User,
 } from "lucide-react-native";
 import { Button, Dialog, Text } from "panelui-native";
-import { GoogleIcon } from "panelui-native/icons";
 import { useState } from "react";
 import {
 	KeyboardAvoidingView,
@@ -49,7 +47,9 @@ export default function SignUpScreen() {
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
-	const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
+	const [registeredUserId, setRegisteredUserId] = useState<string | null>(
+		null,
+	);
 	const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<{
@@ -77,20 +77,6 @@ export default function SignUpScreen() {
 	};
 
 	const signUpMutation = useSignUp();
-	const googleSignInMutation = useGoogleSignIn();
-
-	const handleGoogleSignIn = async () => {
-		setErrorMessage(null);
-		try {
-			const data = await googleSignInMutation.mutateAsync();
-			if (data?.session) {
-				router.replace("/(tabs)");
-			}
-		} catch (err: unknown) {
-			const error = err as Error;
-			setErrorMessage(error?.message || "Failed to sign in with Google.");
-		}
-	};
 
 	// validate credentials with zod
 	const handleContinueToId = () => {
@@ -118,7 +104,8 @@ export default function SignUpScreen() {
 				confirmPassword: formatted.confirmPassword?.[0],
 			});
 			setErrorMessage(
-				validation.error.issues[0]?.message || "Please check your inputs.",
+				validation.error.issues[0]?.message ||
+					"Please check your inputs.",
 			);
 			return;
 		}
@@ -129,7 +116,8 @@ export default function SignUpScreen() {
 	// camera option
 	const handleTakePhoto = async () => {
 		try {
-			const permission = await ImagePicker.requestCameraPermissionsAsync();
+			const permission =
+				await ImagePicker.requestCameraPermissionsAsync();
 			if (!permission.granted) {
 				showDialog(
 					"Camera Permission Needed",
@@ -207,7 +195,8 @@ export default function SignUpScreen() {
 		if (!idValidation.success) {
 			showDialog(
 				"Invalid Document",
-				idValidation.error.issues[0]?.message || "Invalid document asset.",
+				idValidation.error.issues[0]?.message ||
+					"Invalid document asset.",
 			);
 			return;
 		}
@@ -234,7 +223,8 @@ export default function SignUpScreen() {
 				confirmPassword: formatted.confirmPassword?.[0],
 			});
 			setErrorMessage(
-				credValidation.error.issues[0]?.message || "Please check your inputs.",
+				credValidation.error.issues[0]?.message ||
+					"Please check your inputs.",
 			);
 			return;
 		}
@@ -275,7 +265,9 @@ export default function SignUpScreen() {
 
 				currentUserId = signUpData?.user?.id ?? null;
 				if (!currentUserId) {
-					throw new Error("Unable to create account. Please try again.");
+					throw new Error(
+						"Unable to create account. Please try again.",
+					);
 				}
 
 				setRegisteredUserId(currentUserId);
@@ -323,7 +315,9 @@ export default function SignUpScreen() {
 					"An account with this email already exists. Please log in or use another email.",
 				);
 			} else {
-				setErrorMessage(msg || "Failed to create account. Please try again.");
+				setErrorMessage(
+					msg || "Failed to create account. Please try again.",
+				);
 				showDialog(
 					"Registration Error",
 					msg || "Failed to create account. Please try again.",
@@ -380,13 +374,17 @@ export default function SignUpScreen() {
 								/>
 								<View
 									className={`h-1.5 w-1.5 rounded-full ${
-										step === "id_upload" ? "bg-primary" : "bg-muted-foreground"
+										step === "id_upload"
+											? "bg-primary"
+											: "bg-muted-foreground"
 									}`}
 								/>
 								<Text
 									weight="medium"
 									className="ml-1 text-xs text-muted-foreground">
-									{step === "credentials" ? "Step 1 of 2" : "Step 2 of 2"}
+									{step === "credentials"
+										? "Step 1 of 2"
+										: "Step 2 of 2"}
 								</Text>
 							</View>
 						) : (
@@ -408,7 +406,8 @@ export default function SignUpScreen() {
 									Create account
 								</Text>
 								<Text className="mt-2 text-sm text-muted-foreground">
-									Enter your information to begin your verification
+									Enter your information to begin your
+									verification
 								</Text>
 							</View>
 							{errorMessage && (
@@ -422,25 +421,6 @@ export default function SignUpScreen() {
 									</Text>
 								</View>
 							)}
-							{/* Google SSO Button */}
-							<Button
-								size="lg"
-								fullWidth
-								variant="social"
-								loading={googleSignInMutation.isPending}
-								startContent={<GoogleIcon size={20} />}
-								onPress={handleGoogleSignIn}>
-								Sign up with Google
-							</Button>
-							<View className="my-6 flex-row items-center gap-3">
-								<View className="h-px flex-1 bg-border" />
-								<Text
-									weight="medium"
-									className="text-xs text-muted-foreground uppercase">
-									or register with email
-								</Text>
-								<View className="h-px flex-1 bg-border" />
-							</View>
 							<View className="gap-4">
 								{/* Name Field */}
 								<View className="gap-2">
@@ -493,7 +473,9 @@ export default function SignUpScreen() {
 									</Text>
 									<View
 										className={`flex-row items-center rounded-xl border ${
-											fieldErrors.email ? "border-destructive" : "border-border"
+											fieldErrors.email
+												? "border-destructive"
+												: "border-border"
 										} bg-card px-4 py-1.5 focus:border-primary`}>
 										<Mail
 											size={18}
@@ -564,11 +546,17 @@ export default function SignUpScreen() {
 														password: undefined,
 														...(prev.confirmPassword ===
 														"Passwords do not match."
-															? { confirmPassword: undefined }
+															? {
+																	confirmPassword:
+																		undefined,
+																}
 															: {}),
 													}));
 												}
-												if (errorMessage === "Passwords do not match.") {
+												if (
+													errorMessage ===
+													"Passwords do not match."
+												) {
 													setErrorMessage(null);
 												}
 											}}
@@ -608,13 +596,19 @@ export default function SignUpScreen() {
 											value={confirmPassword}
 											onChangeText={(text) => {
 												setConfirmPassword(text);
-												if (fieldErrors.confirmPassword) {
+												if (
+													fieldErrors.confirmPassword
+												) {
 													setFieldErrors((prev) => ({
 														...prev,
-														confirmPassword: undefined,
+														confirmPassword:
+															undefined,
 													}));
 												}
-												if (errorMessage === "Passwords do not match.") {
+												if (
+													errorMessage ===
+													"Passwords do not match."
+												) {
 													setErrorMessage(null);
 												}
 											}}
@@ -633,10 +627,14 @@ export default function SignUpScreen() {
 								</View>
 								{/* Reveal Password Checkbox */}
 								<Pressable
-									onPress={() => setShowPassword(!showPassword)}
+									onPress={() =>
+										setShowPassword(!showPassword)
+									}
 									hitSlop={8}
 									accessibilityRole="checkbox"
-									accessibilityState={{ checked: showPassword }}
+									accessibilityState={{
+										checked: showPassword,
+									}}
 									className="flex-row items-center gap-2 self-start active:opacity-70">
 									<View
 										className={`h-4 w-4 items-center justify-center rounded border transition-colors ${
@@ -679,10 +677,14 @@ export default function SignUpScreen() {
 									Already have an account?{" "}
 								</Text>
 								<Pressable
-									onPress={() => router.push("/(auth)/sign-in")}
+									onPress={() =>
+										router.push("/(auth)/sign-in")
+									}
 									hitSlop={8}
 									className="active:opacity-70">
-									<Text weight="semibold" className="text-sm text-foreground">
+									<Text
+										weight="semibold"
+										className="text-sm text-foreground">
 										Log In
 									</Text>
 								</Pressable>
@@ -705,13 +707,19 @@ export default function SignUpScreen() {
 							{!idAsset ? (
 								<View className="mb-5 items-center justify-center rounded-2xl border border-dashed border-border bg-card/60 p-6 py-8">
 									<View className="mb-3.5 h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
-										<UploadCloud size={30} className="text-primary" />
+										<UploadCloud
+											size={30}
+											className="text-primary"
+										/>
 									</View>
-									<Text weight="semibold" className="text-base text-foreground">
+									<Text
+										weight="semibold"
+										className="text-base text-foreground">
 										Select your ID
 									</Text>
 									<Text className="mt-1 text-center text-xs text-muted-foreground">
-										Supported: JPG, PNG · Clear, uncropped, readable
+										Supported: JPG, PNG · Clear, uncropped,
+										readable
 									</Text>
 									{/* Action Buttons */}
 									<View className="mt-6 w-full flex-row gap-3">
@@ -750,7 +758,10 @@ export default function SignUpScreen() {
 									<View className="overflow-hidden rounded-2xl border border-white/10 bg-background">
 										<Image
 											source={{ uri: idAsset.uri }}
-											style={{ width: "100%", height: 210 }}
+											style={{
+												width: "100%",
+												height: 210,
+											}}
 											contentFit="cover"
 											transition={200}
 										/>
@@ -762,12 +773,17 @@ export default function SignUpScreen() {
 												strokeWidth={1.75}
 												className="text-muted-foreground"
 											/>
-											<Text weight="medium" className="text-sm text-foreground">
+											<Text
+												weight="medium"
+												className="text-sm text-foreground">
 												ID_Document.jpg
 											</Text>
 										</View>
 										<View className="flex-row items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5">
-											<CheckCircle2 size={12} color="#10b981" />
+											<CheckCircle2
+												size={12}
+												color="#10b981"
+											/>
 											<Text className="font-medium text-xs text-emerald-400">
 												Attached
 											</Text>
@@ -782,7 +798,9 @@ export default function SignUpScreen() {
 												strokeWidth={1.75}
 												className="text-muted-foreground"
 											/>
-											<Text weight="medium" className="text-xs text-foreground">
+											<Text
+												weight="medium"
+												className="text-xs text-foreground">
 												Retake
 											</Text>
 										</Pressable>
@@ -794,7 +812,9 @@ export default function SignUpScreen() {
 												strokeWidth={1.75}
 												className="text-muted-foreground"
 											/>
-											<Text weight="medium" className="text-xs text-foreground">
+											<Text
+												weight="medium"
+												className="text-xs text-foreground">
 												Choose Other
 											</Text>
 										</Pressable>
@@ -809,15 +829,23 @@ export default function SignUpScreen() {
 								</Text>
 								<View className="gap-2.5">
 									<View className="flex-row items-center gap-2.5">
-										<CheckCircle2 size={15} className="text-primary" />
+										<CheckCircle2
+											size={15}
+											className="text-primary"
+										/>
 										<Text className="text-xs text-muted-foreground">
-											Ensure all four corners of the ID card are visible
+											Ensure all four corners of the ID
+											card are visible
 										</Text>
 									</View>
 									<View className="flex-row items-center gap-2.5">
-										<CheckCircle2 size={15} className="text-primary" />
+										<CheckCircle2
+											size={15}
+											className="text-primary"
+										/>
 										<Text className="text-xs text-muted-foreground">
-											Avoid harsh lighting, glare, or blurred captures
+											Avoid harsh lighting, glare, or
+											blurred captures
 										</Text>
 									</View>
 								</View>
@@ -860,13 +888,18 @@ export default function SignUpScreen() {
 								Application Under Review
 							</Text>
 							<Text className="mt-3 px-2 text-center text-sm leading-relaxed text-muted-foreground">
-								Thank you for submitting your ID. Our team manually reviews all
-								documentation to ensure account safety and platform integrity.
+								Thank you for submitting your ID. Our team
+								manually reviews all documentation to ensure
+								account safety and platform integrity.
 							</Text>
 							<View className="my-6 w-full gap-3 rounded-2xl border border-border bg-card p-4">
 								<View className="flex-row items-center justify-between border-b border-border pb-3">
-									<Text className="text-xs text-muted-foreground">Account</Text>
-									<Text weight="medium" className="text-xs text-foreground">
+									<Text className="text-xs text-muted-foreground">
+										Account
+									</Text>
+									<Text
+										weight="medium"
+										className="text-xs text-foreground">
 										{email || "Registered account"}
 									</Text>
 								</View>
@@ -874,12 +907,16 @@ export default function SignUpScreen() {
 									<Text className="text-xs text-muted-foreground">
 										Typical Turnaround
 									</Text>
-									<Text weight="medium" className="text-xs text-foreground">
+									<Text
+										weight="medium"
+										className="text-xs text-foreground">
 										Within 24 hours
 									</Text>
 								</View>
 								<View className="flex-row items-center justify-between pt-0.5">
-									<Text className="text-xs text-muted-foreground">Status</Text>
+									<Text className="text-xs text-muted-foreground">
+										Status
+									</Text>
 									<View className="flex-row items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5">
 										<View className="h-1.5 w-1.5 rounded-full bg-amber-400" />
 										<Text className="font-medium text-xs text-amber-400">
@@ -890,8 +927,8 @@ export default function SignUpScreen() {
 							</View>
 							<View className="mb-6 flex-row items-center gap-2.5 px-2">
 								<Text className="text-center text-xs text-muted-foreground">
-									You'll receive an email notification as soon as an
-									administrator activates your account.
+									You'll receive an email notification as soon
+									as an administrator activates your account.
 								</Text>
 							</View>
 							<View className="w-full gap-3">
@@ -899,14 +936,20 @@ export default function SignUpScreen() {
 									size="lg"
 									fullWidth
 									variant="primary"
-									onPress={() => router.replace("/(onboarding)/onboarding")}>
+									onPress={() =>
+										router.replace(
+											"/(onboarding)/onboarding",
+										)
+									}>
 									Back to Home
 								</Button>
 								<Button
 									size="lg"
 									fullWidth
 									variant="outline"
-									onPress={() => router.replace("/(auth)/sign-in")}>
+									onPress={() =>
+										router.replace("/(auth)/sign-in")
+									}>
 									Log In to Existing Account
 								</Button>
 							</View>
@@ -916,9 +959,13 @@ export default function SignUpScreen() {
 			</KeyboardAvoidingView>
 			<Dialog
 				open={dialogState.open}
-				onOpenChange={(open) => setDialogState((prev) => ({ ...prev, open }))}>
+				onOpenChange={(open) =>
+					setDialogState((prev) => ({ ...prev, open }))
+				}>
 				<Dialog.Content className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6">
-					<Dialog.Title weight="bold" className="text-xl text-foreground">
+					<Dialog.Title
+						weight="bold"
+						className="text-xl text-foreground">
 						{dialogState.title}
 					</Dialog.Title>
 					<Dialog.Description className="mt-2 text-sm text-muted-foreground">
@@ -929,7 +976,10 @@ export default function SignUpScreen() {
 							size="md"
 							variant="primary"
 							onPress={() =>
-								setDialogState((prev) => ({ ...prev, open: false }))
+								setDialogState((prev) => ({
+									...prev,
+									open: false,
+								}))
 							}>
 							Okay
 						</Button>
