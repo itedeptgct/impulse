@@ -5,6 +5,7 @@ import {
 	signOut,
 	uploadIdDocument,
 } from "@auth/api";
+import { EditProfileModal } from "@auth/components/EditProfileModal";
 import { useAuthStore } from "@auth/store";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -14,24 +15,23 @@ import {
 	AlertCircle,
 	ArrowLeft,
 	ArrowUpRight,
-	Check,
+	BookOpen,
 	CheckCircle2,
-	Clock,
 	Flame,
 	LogOut,
-	Mail,
 	MessageSquare,
 	PenSquare,
+	Settings,
+	Share2,
 	ShieldCheck,
-	Sparkles,
 	UploadCloud,
-	XCircle,
 } from "lucide-react-native";
 import { Button, Dialog, Text } from "panelui-native";
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	Clipboard,
+	Pressable,
 	RefreshControl,
 	ScrollView,
 	Share,
@@ -61,6 +61,10 @@ export default function ProfileScreen() {
 	const [signOutError, setSignOutError] = useState<string | null>(null);
 	const [isSigningOut, setIsSigningOut] = useState(false);
 	const [isRefreshing, setIsRefreshing] = useState(false);
+
+	// Profile customization
+	const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+	const [isAccountActionsOpen, setIsAccountActionsOpen] = useState(false);
 
 	// User posts
 	const [myPosts, setMyPosts] = useState<Post[]>([]);
@@ -108,10 +112,10 @@ export default function ProfileScreen() {
 	}, [loadUserData]);
 
 	const displayName =
+		profile?.display_name ||
 		profile?.username ||
 		user?.user_metadata?.full_name ||
 		user?.user_metadata?.name ||
-		user?.user_metadata?.username ||
 		user?.email?.split("@")[0] ||
 		"Impulse User";
 
@@ -190,7 +194,7 @@ export default function ProfileScreen() {
 				p.id === post.id
 					? {
 							...p,
-							user_vote: nextVote as any,
+							user_vote: nextVote,
 							upvotes_count: newUp,
 							downvotes_count: newDown,
 						}
@@ -198,11 +202,7 @@ export default function ProfileScreen() {
 			),
 		);
 
-		try {
-			await votePost(post.id, user.id, nextVote as any);
-		} catch {
-			// handled
-		}
+		await votePost(post.id, user.id, targetVote);
 	};
 
 	const handleShare = async (post: Post) => {
@@ -214,6 +214,19 @@ export default function ProfileScreen() {
 				Clipboard.setString(message);
 			}
 			await sharePost(post.id);
+		} catch {
+			Clipboard.setString(message);
+		}
+	};
+
+	const handleShareProfile = async () => {
+		const message = `Check out @${profile?.username || "student"} on Impulse!`;
+		try {
+			if (Share && Share.share) {
+				await Share.share({ message });
+			} else {
+				Clipboard.setString(message);
+			}
 		} catch {
 			Clipboard.setString(message);
 		}
@@ -277,57 +290,59 @@ export default function ProfileScreen() {
 					/>
 				}
 				showsVerticalScrollIndicator={false}>
-				<View className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-8">
-					{/* Top Header */}
-					<View className="flex-row items-center justify-between pb-6">
-						<View>
+				<View className="mx-auto w-full max-w-2xl px-4 sm:px-6">
+					{/* Top Header Bar */}
+					<View className="flex-row items-center justify-between pb-5">
+						<Pressable
+							onPress={() => router.back()}
+							className="flex-row items-center gap-2 rounded-xl border border-border/80 bg-card px-3 py-2">
+							<ArrowLeft size={16} color="#ffffff" />
 							<Text
-								weight="bold"
-								className="text-2xl tracking-tight text-foreground">
-								User Profile
+								weight="medium"
+								className="text-xs text-foreground">
+								Back
 							</Text>
-							<Text className="mt-0.5 text-xs text-muted-foreground">
-								View and manage your account, posts, and
-								faction.
-							</Text>
-						</View>
-						<View className="flex-row items-center gap-2">
-							<Button
-								size="sm"
-								variant="outline"
-								className="transition-transform active:scale-[0.96]"
-								startContent={
-									<ArrowLeft size={14} color="#a1a1aa" />
-								}
-								onPress={() => router.push("/(tabs)")}>
-								Return to Home
-							</Button>
-							<Button
-								size="sm"
-								variant="outline"
-								className="transition-transform active:scale-[0.96]"
-								startContent={
-									<LogOut size={14} color="#a1a1aa" />
-								}
-								onPress={() => {
-									setSignOutError(null);
-									setIsSignOutDialogOpen(true);
-								}}>
-								Sign Out
-							</Button>
-						</View>
+						</Pressable>
+
+						<Text
+							weight="bold"
+							className="text-base text-foreground">
+							My Profile
+						</Text>
+
+						<Pressable
+							onPress={() => setIsAccountActionsOpen(true)}
+							className="rounded-xl border border-border/80 bg-card p-2 active:scale-95">
+							<Settings size={18} color="#ffffff" />
+						</Pressable>
 					</View>
-					{/* Profile Hero Card */}
+
+					{/* Social Profile Hero Card */}
 					<View className="mb-6 rounded-3xl border border-border bg-card p-6 shadow-sm">
-						<View className="flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-							<View className="h-16 w-16 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 shadow-sm">
-								<Text
-									weight="bold"
-									className="text-2xl text-primary">
-									{initials}
-								</Text>
-							</View>
-							<View className="flex-1">
+						<View className="flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+							{/* Avatar */}
+							{profile.avatar_url ? (
+								<Image
+									source={{ uri: profile.avatar_url }}
+									style={{
+										width: 72,
+										height: 72,
+										borderRadius: 20,
+									}}
+									contentFit="cover"
+								/>
+							) : (
+								<View className="h-18 w-18 items-center justify-center rounded-2xl border border-primary/25 bg-primary/10 shadow-sm">
+									<Text
+										weight="bold"
+										className="text-2xl text-primary">
+										{initials}
+									</Text>
+								</View>
+							)}
+
+							<View className="min-w-0 flex-1">
+								{/* Names & Badges */}
 								<View className="flex-row flex-wrap items-center gap-2">
 									<Text
 										weight="bold"
@@ -335,270 +350,153 @@ export default function ProfileScreen() {
 										numberOfLines={1}>
 										{displayName}
 									</Text>
-									{isAdmin && (
-										<View className="flex-row items-center gap-1 rounded-full border border-primary/30 bg-primary/15 px-2.5 py-0.5">
-											<ShieldCheck
-												size={12}
+									{verificationStatus === "approved" && (
+										<View className="flex-row items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5">
+											<CheckCircle2
+												size={11}
 												color="#10b981"
 											/>
 											<Text
 												weight="semibold"
-												className="text-[11px] text-primary uppercase">
+												className="text-[10px] text-emerald-400">
+												Verified
+											</Text>
+										</View>
+									)}
+									{isAdmin && (
+										<View className="flex-row items-center gap-1 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5">
+											<ShieldCheck
+												size={11}
+												color="#10b981"
+											/>
+											<Text
+												weight="semibold"
+												className="text-[10px] text-primary uppercase">
 												Admin
 											</Text>
 										</View>
 									)}
-									{profile.guild && (
-										<GuildBadge
-											guildId={profile.guild}
-											size="md"
-										/>
-									)}
 								</View>
-								<Text className="mt-0.5 text-xs text-muted-foreground">
-									{email}
+
+								<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
+									@{profile.username || "student"}
 								</Text>
-								{/* Status Badges */}
-								<View className="mt-3 flex-row flex-wrap items-center gap-2">
-									{verificationStatus === "approved" ? (
-										<View className="flex-row items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1">
-											<CheckCircle2
-												size={12}
-												color="#10b981"
-											/>
-											<Text
-												weight="medium"
-												className="text-[11px] text-emerald-400">
-												Verified
-											</Text>
-										</View>
-									) : verificationStatus === "rejected" ? (
-										<View className="flex-row items-center gap-1.5 rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1">
-											<XCircle
-												size={12}
-												color="#ef4444"
-											/>
-											<Text
-												weight="medium"
-												className="text-[11px] text-destructive">
-												Action Required
-											</Text>
-										</View>
-									) : (
-										<View className="flex-row items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1">
-											<Clock size={12} color="#f59e0b" />
-											<Text
-												weight="medium"
-												className="text-[11px] text-amber-400">
-												Pending Verification
-											</Text>
-										</View>
-									)}
-									<View className="flex-row items-center gap-1.5 rounded-full border border-border bg-popover px-2.5 py-1">
-										<Mail size={12} color="#a1a1aa" />
+
+								{/* Major */}
+								{profile.major && (
+									<View className="mt-2 flex-row items-center gap-1.5">
+										<BookOpen size={12} color="#10b981" />
 										<Text
 											weight="medium"
-											className="text-[11px] text-foreground">
-											Student Email
+											className="text-xs text-primary">
+											{profile.major}
 										</Text>
 									</View>
-									<View className="rounded-full border border-border/60 bg-muted/30 px-2.5 py-1">
-										<Text className="text-[11px] text-muted-foreground">
-											Member since {memberSinceDate}
-										</Text>
+								)}
+
+								{/* Faction Badge */}
+								{profile.guild && (
+									<View className="mt-2 self-start">
+										<GuildBadge
+											guildId={profile.guild}
+											size="sm"
+										/>
 									</View>
-								</View>
+								)}
+
+								{/* Bio */}
+								{profile.bio ? (
+									<Text className="mt-3 text-xs leading-relaxed text-foreground/90">
+										{profile.bio}
+									</Text>
+								) : (
+									<Text className="mt-2 text-xs text-muted-foreground italic">
+										No bio added yet. Tell the campus about
+										your interests!
+									</Text>
+								)}
 							</View>
 						</View>
+
+						{/* Action Buttons: Edit Profile & Share */}
+						<View className="mt-5 flex-row gap-2.5 border-t border-border/60 pt-4">
+							<Button
+								size="md"
+								variant="primary"
+								className="flex-1 active:scale-[0.98]"
+								startContent={
+									<PenSquare size={14} color="#ffffff" />
+								}
+								onPress={() => setIsEditProfileOpen(true)}>
+								Edit Profile
+							</Button>
+							<Button
+								size="md"
+								variant="outline"
+								className="px-4"
+								startContent={
+									<Share2 size={14} color="#ffffff" />
+								}
+								onPress={handleShareProfile}>
+								Share
+							</Button>
+						</View>
 					</View>
-					{/* Developer Impact Metrics Grid */}
+
+					{/* Metrics Grid */}
 					<View className="mb-6 grid grid-cols-3 gap-3">
-						<View className="items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-sm">
-							<View className="flex-row items-center gap-1.5 text-muted-foreground">
-								<PenSquare size={14} color="#10b981" />
+						<View className="items-center justify-center rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+							<View className="flex-row items-center gap-1">
+								<PenSquare size={13} color="#10b981" />
 								<Text
 									weight="medium"
-									className="text-xs text-muted-foreground">
-									Posts Created
+									className="text-[11px] text-muted-foreground">
+									Posts
 								</Text>
 							</View>
 							<Text
 								weight="bold"
-								className="mt-1 font-mono text-2xl text-foreground">
+								className="mt-1 font-mono text-xl text-foreground">
 								{myPosts.length}
 							</Text>
 						</View>
-						<View className="items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-sm">
-							<View className="flex-row items-center gap-1.5 text-muted-foreground">
-								<Flame size={14} color="#10b981" />
+
+						<View className="items-center justify-center rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+							<View className="flex-row items-center gap-1">
+								<Flame size={13} color="#10b981" />
 								<Text
 									weight="medium"
-									className="text-xs text-muted-foreground">
-									Karma Score
+									className="text-[11px] text-muted-foreground">
+									Karma
 								</Text>
 							</View>
 							<Text
 								weight="bold"
-								className="mt-1 font-mono text-2xl text-emerald-400">
+								className="mt-1 font-mono text-xl text-emerald-400">
 								{totalUpvotes}
 							</Text>
 						</View>
-						<View className="items-center justify-center rounded-2xl border border-border bg-card p-4 shadow-sm">
-							<View className="flex-row items-center gap-1.5 text-muted-foreground">
-								<MessageSquare size={14} color="#38bdf8" />
+
+						<View className="items-center justify-center rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+							<View className="flex-row items-center gap-1">
+								<MessageSquare size={13} color="#38bdf8" />
 								<Text
 									weight="medium"
-									className="text-xs text-muted-foreground">
-									Responses
+									className="text-[11px] text-muted-foreground">
+									Replies
 								</Text>
 							</View>
 							<Text
 								weight="bold"
-								className="mt-1 font-mono text-2xl text-sky-400">
+								className="mt-1 font-mono text-xl text-sky-400">
 								{totalComments}
 							</Text>
 						</View>
 					</View>
-					{/* Faction Showcase Card */}
-					<View className="mb-6 rounded-3xl border border-border bg-card p-6 shadow-sm">
-						<View className="flex-row items-center justify-between pb-3">
-							<View>
-								<Text
-									weight="bold"
-									className="text-base text-foreground">
-									Faction Selection
-								</Text>
-								<Text className="text-xs text-muted-foreground">
-									Amet ut velit aliquip eiusmod commodo cillum
-									voluptate dolore ut id Lorem eiusmod.
-								</Text>
-							</View>
-							<Button
-								size="sm"
-								variant="outline"
-								className="transition-transform active:scale-[0.96]"
-								startContent={
-									<Sparkles size={13} color="#10b981" />
-								}
-								onPress={() => setIsGuildModalOpen(true)}>
-								{profile.guild
-									? "Switch Faction"
-									: "Choose Faction"}
-							</Button>
-						</View>
-						{profile.guild && guildInfo ? (
-							<View
-								className={`rounded-2xl border p-5 ${guildInfo.badgeBorderColor} ${guildInfo.badgeBgColor}`}>
-								<View className="flex-row items-start gap-4">
-									<View className="h-14 w-14 items-center justify-center rounded-2xl border border-border/80 bg-background/80 p-1.5 shadow-sm">
-										<Image
-											source={guildInfo.logo}
-											style={{ width: 38, height: 38 }}
-											contentFit="contain"
-										/>
-									</View>
-									<View className="flex-1">
-										<View className="flex-row items-center gap-2">
-											<Text
-												weight="bold"
-												className={`text-lg ${guildInfo.badgeTextColor}`}>
-												{guildInfo.name} Faction
-											</Text>
-											<View
-												className={`rounded-full border px-2 py-0.5 ${guildInfo.badgeBorderColor} ${guildInfo.badgeBgColor}`}>
-												<Text
-													weight="bold"
-													className={`text-[9px] tracking-wider uppercase ${guildInfo.badgeTextColor}`}>
-													{guildInfo.badge}
-												</Text>
-											</View>
-										</View>
-										<Text className="mt-0.5 text-xs text-muted-foreground">
-											{guildInfo.tagline}
-										</Text>
-										<Text className="mt-2 text-xs leading-relaxed text-foreground/90">
-											{guildInfo.manifesto}
-										</Text>
-										{/* Perks Preview */}
-										<View className="mt-4 grid grid-cols-1 gap-2 border-t border-border/50 pt-3 sm:grid-cols-2">
-											{guildInfo.perks.map((perk) => (
-												<View
-													key={perk}
-													className="flex-row items-center gap-1.5">
-													<Check
-														size={12}
-														color={
-															guildInfo.accentColor
-														}
-														strokeWidth={3}
-													/>
-													<Text className="text-[11px] text-foreground/80">
-														{perk}
-													</Text>
-												</View>
-											))}
-										</View>
-									</View>
-								</View>
-							</View>
-						) : (
-							<View className="rounded-2xl border border-border/80 bg-muted/20 p-5">
-								<Text
-									weight="medium"
-									className="text-sm text-foreground">
-									No Faction Activated
-								</Text>
-								<Text className="mt-1 text-xs text-muted-foreground">
-									Pick your track from Octagram, Chameleon, or
-									Blue Jays to unlock dedicated faction feeds,
-									badges, and posting permissions.
-								</Text>
-								<Button
-									size="sm"
-									variant="primary"
-									className="mt-3.5 self-start active:scale-[0.96]"
-									onPress={() => setIsGuildModalOpen(true)}>
-									Choose Your Faction
-								</Button>
-							</View>
-						)}
-					</View>
-					{/* Admin Moderation Desk if Admin */}
-					{isAdmin && (
-						<View className="mb-6 rounded-2xl border border-primary/30 bg-primary/5 p-5 shadow-sm">
-							<View className="flex-row items-center justify-between">
-								<View className="flex-row items-center gap-3">
-									<ShieldCheck size={20} color="#10b981" />
-									<View>
-										<Text
-											weight="bold"
-											className="text-sm text-foreground">
-											Admin Moderation Desk
-										</Text>
-										<Text className="text-xs text-muted-foreground">
-											Audit student IDs and moderate
-											network submissions.
-										</Text>
-									</View>
-								</View>
-								<Button
-									size="sm"
-									variant="primary"
-									endContent={
-										<ArrowUpRight
-											size={14}
-											color="#ffffff"
-										/>
-									}
-									onPress={() => router.push("/(admin)")}>
-									Launch
-								</Button>
-							</View>
-						</View>
-					)}
+
 					{/* Resubmit ID Banner if Rejected */}
 					{verificationStatus === "rejected" && (
-						<View className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-5">
+						<View className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-4">
 							<View className="flex-row items-start gap-3">
 								<AlertCircle
 									size={18}
@@ -636,32 +534,29 @@ export default function ProfileScreen() {
 							</View>
 						</View>
 					)}
-					{/* My Published Posts Section */}
+
+					{/* Published Posts Feed */}
 					<View className="mb-8">
 						<View className="flex-row items-center justify-between pb-3.5">
-							<View>
-								<Text
-									weight="bold"
-									className="text-lg text-foreground">
-									My Contributions
-								</Text>
-								<Text className="text-xs text-muted-foreground">
-									Posts you published to your faction
-								</Text>
-							</View>
+							<Text
+								weight="bold"
+								className="text-base text-foreground">
+								Published Posts ({myPosts.length})
+							</Text>
 							<Button
 								size="sm"
-								variant="primary"
-								className="transition-transform active:scale-[0.96]"
+								variant="outline"
+								className="h-8"
 								startContent={
-									<PenSquare size={13} color="#ffffff" />
+									<PenSquare size={12} color="#ffffff" />
 								}
 								onPress={() => setIsComposerOpen(true)}>
 								New Post
 							</Button>
 						</View>
+
 						{myPosts.length > 0 ? (
-							<View className="gap-4">
+							<View className="space-y-4">
 								{myPosts.map((post) => (
 									<PostCard
 										key={post.id}
@@ -686,7 +581,7 @@ export default function ProfileScreen() {
 								</Text>
 								<Text className="mt-1 max-w-sm text-center text-xs text-muted-foreground">
 									Share code snippets, architectural ideas, or
-									UI designs with your faction guild.
+									UI designs with your peers.
 								</Text>
 								<Button
 									size="sm"
@@ -698,54 +593,145 @@ export default function ProfileScreen() {
 							</View>
 						)}
 					</View>
-					{/* Account Metadata Card */}
-					<View className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-						<Text
-							weight="semibold"
-							className="mb-4 text-xs tracking-wider text-muted-foreground uppercase">
-							Account Details
-						</Text>
-						<View className="gap-3">
-							<View className="flex-row items-center justify-between border-b border-border pb-2.5">
-								<Text className="text-xs text-muted-foreground">
-									Email Address
-								</Text>
+				</View>
+			</ScrollView>
+
+			{/* Edit Profile Modal */}
+			<EditProfileModal
+				open={isEditProfileOpen}
+				onOpenChange={setIsEditProfileOpen}
+			/>
+
+			{/* Account Actions & Settings Dialog */}
+			<Dialog
+				open={isAccountActionsOpen}
+				onOpenChange={setIsAccountActionsOpen}>
+				<Dialog.Content className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6">
+					<Dialog.Title
+						weight="bold"
+						className="text-lg text-foreground">
+						Account & Settings
+					</Dialog.Title>
+					<Dialog.Description className="mt-1 text-xs text-muted-foreground">
+						Manage your student verification, faction, and account.
+					</Dialog.Description>
+
+					<View className="mt-4 space-y-3">
+						{/* ID Status */}
+						<View className="flex-row items-center justify-between rounded-xl border border-border/70 bg-muted/30 p-3">
+							<View>
 								<Text
 									weight="medium"
 									className="text-xs text-foreground">
-									{email}
+									Student ID Verification
+								</Text>
+								<Text className="text-[10px] text-muted-foreground">
+									Status: {verificationStatus}
 								</Text>
 							</View>
-							<View className="flex-row items-center justify-between border-b border-border pb-2.5">
-								<Text className="text-xs text-muted-foreground">
-									Account Role
-								</Text>
+							{verificationStatus === "rejected" ? (
+								<Button
+									size="sm"
+									variant="destructive"
+									onPress={() => {
+										setIsAccountActionsOpen(false);
+										setIsResubmitOpen(true);
+									}}>
+									Resubmit
+								</Button>
+							) : (
+								<View className="rounded-md bg-muted px-2 py-0.5">
+									<Text
+										weight="bold"
+										className="text-[10px] text-foreground capitalize">
+										{verificationStatus}
+									</Text>
+								</View>
+							)}
+						</View>
+
+						{/* Faction Guild */}
+						<View className="flex-row items-center justify-between rounded-xl border border-border/70 bg-muted/30 p-3">
+							<View>
 								<Text
 									weight="medium"
-									className="text-xs text-foreground capitalize">
-									{role}
+									className="text-xs text-foreground">
+									Campus Faction
+								</Text>
+								<Text className="text-[10px] text-muted-foreground">
+									{guildInfo?.name || "None assigned"}
 								</Text>
 							</View>
-							<View className="flex-row items-center justify-between">
-								<Text className="text-xs text-muted-foreground">
-									ID Verification
-								</Text>
-								<Text
-									weight="semibold"
-									className={`text-xs capitalize ${
-										verificationStatus === "approved"
-											? "text-emerald-400"
-											: verificationStatus === "rejected"
-												? "text-destructive"
-												: "text-amber-400"
-									}`}>
-									{verificationStatus}
-								</Text>
-							</View>
+							<Button
+								size="sm"
+								variant="outline"
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									setIsGuildModalOpen(true);
+								}}>
+								{profile.guild ? "Switch" : "Choose"}
+							</Button>
+						</View>
+
+						{/* Admin Desk Link */}
+						{isAdmin && (
+							<Pressable
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									router.push("/(admin)");
+								}}
+								className="flex-row items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-3">
+								<View className="flex-row items-center gap-2">
+									<ShieldCheck size={16} color="#10b981" />
+									<Text
+										weight="bold"
+										className="text-xs text-primary">
+										Admin Moderation Desk
+									</Text>
+								</View>
+								<ArrowUpRight size={14} color="#10b981" />
+							</Pressable>
+						)}
+
+						{/* Account Email */}
+						<View className="rounded-xl border border-border/70 bg-muted/20 p-3">
+							<Text className="text-[10px] text-muted-foreground">
+								Logged in as
+							</Text>
+							<Text
+								weight="medium"
+								className="text-xs text-foreground">
+								{email}
+							</Text>
+							<Text className="mt-0.5 text-[10px] text-muted-foreground">
+								Member since {memberSinceDate}
+							</Text>
 						</View>
 					</View>
-				</View>
-			</ScrollView>
+
+					<Dialog.Footer className="mt-5 flex-row gap-2">
+						<Button
+							size="md"
+							variant="outline"
+							className="flex-1"
+							onPress={() => setIsAccountActionsOpen(false)}>
+							Close
+						</Button>
+						<Button
+							size="md"
+							variant="destructive"
+							className="flex-1"
+							startContent={<LogOut size={14} color="#ffffff" />}
+							onPress={() => {
+								setIsAccountActionsOpen(false);
+								setIsSignOutDialogOpen(true);
+							}}>
+							Sign Out
+						</Button>
+					</Dialog.Footer>
+				</Dialog.Content>
+			</Dialog>
+
 			{/* Post Composer Modal */}
 			<PostComposerModal
 				open={isComposerOpen}
@@ -753,6 +739,7 @@ export default function ProfileScreen() {
 				onPostCreated={(newPost) => setMyPosts([newPost, ...myPosts])}
 				onOpenGuildModal={() => setIsGuildModalOpen(true)}
 			/>
+
 			{/* Comments Modal */}
 			<PostCommentsModal
 				post={activeCommentPost}
@@ -760,12 +747,14 @@ export default function ProfileScreen() {
 				onOpenChange={setIsCommentsOpen}
 				onCommentAdded={handleCommentAdded}
 			/>
+
 			{/* Faction Modal */}
 			<GuildSelectionModal
 				open={isGuildModalOpen}
 				onOpenChange={setIsGuildModalOpen}
 				canDismiss={true}
 			/>
+
 			{/* Resubmit ID Modal */}
 			<Dialog open={isResubmitOpen} onOpenChange={setIsResubmitOpen}>
 				<Dialog.Content className="mx-4 max-w-md rounded-2xl border border-border bg-card p-6">
@@ -775,8 +764,8 @@ export default function ProfileScreen() {
 						Resubmit Student ID
 					</Dialog.Title>
 					<Dialog.Description className="mt-1 text-xs text-muted-foreground">
-						Select a clear, uncropped photo or scan of your GCT
-						student ID card.
+						Select a clear, uncropped photo or scan of your student
+						ID card.
 					</Dialog.Description>
 					{resubmitError && (
 						<View className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-2.5">
@@ -834,6 +823,7 @@ export default function ProfileScreen() {
 					</Dialog.Footer>
 				</Dialog.Content>
 			</Dialog>
+
 			{/* Sign Out Confirmation Dialog */}
 			<Dialog
 				open={isSignOutDialogOpen}
