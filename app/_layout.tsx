@@ -23,6 +23,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Uniwind } from "uniwind";
 
+import { WebUnderConstructionGuard } from "@/features/web";
+
 import "@theme/global.css";
 
 // Set Moon Dark as default theme for PanelUI
@@ -66,7 +68,8 @@ export default function RootLayout() {
 				if (profile) useAuthStore.getState().setProfile(profile);
 			});
 			void fetchUserVerification(userId).then((verification) => {
-				if (verification) useAuthStore.getState().setVerification(verification);
+				if (verification)
+					useAuthStore.getState().setVerification(verification);
 			});
 		};
 
@@ -100,7 +103,9 @@ export default function RootLayout() {
 			<PanelUIProvider>
 				<SafeAreaProvider>
 					<QueryClientProvider client={queryClient}>
-						<Stack screenOptions={{ headerShown: false }} />
+						<WebUnderConstructionGuard>
+							<Stack screenOptions={{ headerShown: false }} />
+						</WebUnderConstructionGuard>
 					</QueryClientProvider>
 				</SafeAreaProvider>
 			</PanelUIProvider>

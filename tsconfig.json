@@ -9,6 +9,7 @@
 			"@lib/*": ["./src/lib/*"],
 			"@theme/*": ["./src/theme/*"]
 		},
+		"allowImportingTsExtensions": true,
 		"noUncheckedSideEffectImports": false
 	},
 	"include": [
