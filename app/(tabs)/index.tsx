@@ -1,23 +1,20 @@
 import { fetchUserProfile, fetchUserVerification } from "@auth/api";
 import { useAuthStore } from "@auth/store";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Image } from "expo-image";
+import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Clock, Flame, Plus, Sparkles, Trophy } from "lucide-react-native";
-import { Button, Text } from "panelui-native";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
 	Clipboard,
-	Pressable,
+	FlatList,
 	RefreshControl,
-	ScrollView,
 	Share,
+	Text,
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { GuildSelectionModal } from "@/features/guilds/components/GuildSelectionModal";
-import { GUILD_LOGOS } from "@/features/guilds/constants";
+import { NeoBadge, NeoButton, NeoCard } from "@/components/ui";
 import { fetchFeedPosts, sharePost, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import { PostCommentsModal } from "@/features/posts/components/PostCommentsModal";
@@ -41,8 +38,8 @@ export default function FeedScreen() {
 	const [posts, setPosts] = useState<Post[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
-	const [selectedGuild, setSelectedGuild] = useState<FeedGuildFilter>("all");
-	const [selectedSort, setSelectedSort] = useState<FeedSort>("hot");
+	const [selectedGuild] = useState<FeedGuildFilter>("all");
+	const [selectedSort, setSelectedSort] = useState<FeedSort>("new");
 
 	// Modals
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -50,30 +47,7 @@ export default function FeedScreen() {
 		null,
 	);
 	const [isCommentsOpen, setIsCommentsOpen] = useState(false);
-	const [isGuildModalOpen, setIsGuildModalOpen] = useState(false);
 	const [copiedToast, setCopiedToast] = useState<string | null>(null);
-
-	const hasAutoPromptedRef = useRef(false);
-
-	// Check if Guild Induction modal should auto-prompt (at most once if not dismissed)
-	useEffect(() => {
-		if (hasAutoPromptedRef.current) return;
-		if (
-			verification?.status === "approved" &&
-			profile &&
-			!profile.guild &&
-			user?.id
-		) {
-			void AsyncStorage.getItem(
-				`impulse_guild_modal_dismissed_${user.id}`,
-			).then((dismissed) => {
-				if (!dismissed && !hasAutoPromptedRef.current) {
-					hasAutoPromptedRef.current = true;
-					setIsGuildModalOpen(true);
-				}
-			});
-		}
-	}, [verification?.status, profile, user?.id]);
 
 	const loadData = useCallback(async () => {
 		if (!user?.id) return;
@@ -180,261 +154,220 @@ export default function FeedScreen() {
 	const isApproved = verification?.status === "approved";
 	const isPending = verification?.status === "pending";
 
+	const renderHeader = () => (
+		<View className="pb-2">
+			{/* Top Header */}
+			<View className="flex-row items-center justify-between pb-4">
+				<View className="flex-row items-center gap-2.5">
+					<Text className="font-display text-2xl tracking-tighter text-foreground uppercase">
+						IMPULSE<Text className="text-primary">.</Text>
+					</Text>
+				</View>
+				<NeoButton
+					size="sm"
+					variant="primary"
+					startContent={
+						<Plus size={14} color="#0a0a0c" strokeWidth={2.5} />
+					}
+					onPress={() => setIsComposerOpen(true)}>
+					NEW TRANSMISSION
+				</NeoButton>
+			</View>
+
+			{/* Verification & House Induction Banner */}
+			{isApproved && !profile?.guild && (
+				<NeoCard
+					variant="accent"
+					className="mb-4"
+					onPress={() => router.push("/(tabs)/profile")}>
+					<View className="flex-row items-center justify-between">
+						<View className="flex-row items-center gap-3">
+							<Sparkles
+								size={18}
+								color="#91e6b1"
+								strokeWidth={2.5}
+							/>
+							<View>
+								<Text className="font-display text-xs tracking-wider text-foreground uppercase">
+									YOU ARE APPROVED! CHOOSE YOUR HOUSE
+								</Text>
+								<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
+									Choose Octogram, Chameleon, or BlueJays.
+								</Text>
+							</View>
+						</View>
+						<Text className="font-mono text-xs text-primary">
+							SELECT →
+						</Text>
+					</View>
+				</NeoCard>
+			)}
+
+			{isPending && (
+				<NeoCard
+					variant="raised"
+					className="mb-4 border-2 border-warning/60 bg-warning/10">
+					<View className="flex-row items-center gap-3">
+						<Clock size={18} color="#fbbf24" strokeWidth={2.5} />
+						<View className="flex-1">
+							<View className="mb-1 flex-row items-center gap-2">
+								<Text className="font-display text-xs tracking-wider text-warning uppercase">
+									VERIFICATION PENDING
+								</Text>
+								<NeoBadge variant="outline" size="sm">
+									IN QUEUE
+								</NeoBadge>
+							</View>
+							<Text className="font-mono text-xs leading-relaxed text-muted-foreground">
+								Student ID verification in queue. Feed is
+								accessible in member preview mode.
+							</Text>
+						</View>
+					</View>
+				</NeoCard>
+			)}
+
+			{/* Feed Filter & Sorting Controls */}
+			<View className="mb-4">
+				<View className="flex-row items-center justify-between border-t-2 border-border pt-3">
+					<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+						STREAM FILTER
+					</Text>
+					<View className="flex-row items-center gap-2">
+						<NeoButton
+							size="sm"
+							variant={
+								selectedSort === "new" ? "primary" : "outline"
+							}
+							startContent={
+								<Sparkles
+									size={13}
+									color={
+										selectedSort === "new"
+											? "#0a0a0c"
+											: "#9aa1b2"
+									}
+									strokeWidth={2.5}
+								/>
+							}
+							onPress={() => setSelectedSort("new")}>
+							NEW
+						</NeoButton>
+						<NeoButton
+							size="sm"
+							variant={
+								selectedSort === "top" ? "primary" : "outline"
+							}
+							startContent={
+								<Trophy
+									size={13}
+									color={
+										selectedSort === "top"
+											? "#0a0a0c"
+											: "#9aa1b2"
+									}
+									strokeWidth={2.5}
+								/>
+							}
+							onPress={() => setSelectedSort("top")}>
+							TOP
+						</NeoButton>
+					</View>
+				</View>
+			</View>
+		</View>
+	);
+
+	const renderEmpty = () => {
+		if (isLoading) {
+			return (
+				<View className="items-center justify-center py-16">
+					<Text className="font-mono text-xs text-muted-foreground">
+						[LOADING IMPULSE TRANSMISSIONS...]
+					</Text>
+				</View>
+			);
+		}
+
+		return (
+			<NeoCard
+				variant="default"
+				className="my-6 items-center justify-center p-8 text-center">
+				<Flame size={32} color="#91e6b1" strokeWidth={2.5} />
+				<Text className="mt-4 font-display text-base tracking-tight text-foreground uppercase">
+					NO TRANSMISSIONS FOUND
+				</Text>
+				<Text className="mt-1 text-center font-mono text-xs text-muted-foreground">
+					Be the first to publish a technical update or question!
+				</Text>
+				<NeoButton
+					variant="primary"
+					size="sm"
+					className="mt-5"
+					onPress={() => setIsComposerOpen(true)}>
+					+ CREATE FIRST TRANSMISSION
+				</NeoButton>
+			</NeoCard>
+		);
+	};
+
 	return (
 		<View className="flex-1 bg-background text-foreground">
 			<StatusBar style="light" />
+
 			{/* Toast notification */}
 			{copiedToast && (
-				<View className="absolute top-12 left-1/2 z-50 -translate-x-1/2 rounded-full border border-primary/30 bg-card/95 px-4 py-2 shadow-lg backdrop-blur-md">
-					<Text weight="semibold" className="text-xs text-primary">
+				<View className="absolute top-12 left-1/2 z-50 -translate-x-1/2 rounded-sm border-2 border-primary bg-card px-4 py-2 shadow-neo-sm">
+					<Text className="font-mono text-xs text-primary">
 						{copiedToast}
 					</Text>
 				</View>
 			)}
-			<ScrollView
+
+			<FlatList
+				data={posts}
+				keyExtractor={(item) => item.id}
+				renderItem={({ item }) => (
+					<PostCard
+						post={item}
+						onVote={handleVote}
+						onOpenComments={handleOpenComments}
+						onShare={handleShare}
+					/>
+				)}
+				ListHeaderComponent={renderHeader}
+				ListEmptyComponent={renderEmpty}
 				contentContainerStyle={{
 					paddingTop: Math.max(insets.top, 16) + 8,
 					paddingBottom: Math.max(insets.bottom, 16) + 32,
+					paddingHorizontal: 16,
+					maxWidth: 672,
+					width: "100%",
+					alignSelf: "center",
 				}}
 				refreshControl={
 					<RefreshControl
 						refreshing={isRefreshing}
 						onRefresh={onRefresh}
-						tintColor="#10b981"
+						tintColor="#91e6b1"
 					/>
 				}
-				showsVerticalScrollIndicator={false}>
-				<View className="mx-auto w-full max-w-2xl px-4 sm:px-6">
-					{/* Top Header */}
-					<View className="flex-row items-center justify-between pb-4">
-						<View className="flex-row items-center gap-2.5">
-							<Text
-								weight="bold"
-								className="text-xl tracking-tight text-foreground lowercase">
-								impulse
-							</Text>
-						</View>
-						<View className="flex-row items-center gap-2">
-							<Button
-								size="sm"
-								variant="primary"
-								className="transition-transform active:scale-[0.96]"
-								startContent={
-									<Plus size={15} color="#ffffff" />
-								}
-								onPress={() => setIsComposerOpen(true)}>
-								New Post
-							</Button>
-							{/* <Button
-								size="sm"
-								variant="ghost"
-								className="h-9 w-9 rounded-xl active:scale-[0.96]"
-								onPress={onRefresh}>
-								<RefreshCw
-									size={14}
-									className={`text-muted-foreground ${isRefreshing ? "animate-spin" : ""}`}
-								/>
-							</Button> */}
-						</View>
-					</View>
-					{/* Verification & Guild Induction Banner */}
-					{isApproved && !profile?.guild && (
-						<Pressable
-							onPress={() => setIsGuildModalOpen(true)}
-							className="mb-4 rounded-2xl border border-primary/30 bg-primary/10 p-4 transition-all active:scale-[0.98]">
-							<View className="flex-row items-center justify-between">
-								<View className="flex-row items-center gap-2.5">
-									<Sparkles size={18} color="#10b981" />
-									<View>
-										<Text
-											weight="bold"
-											className="text-xs text-foreground">
-											You are approved! Choose Your
-											Faction
-										</Text>
-										<Text className="text-[11px] text-muted-foreground">
-											Align with Octagram, Chameleon, or
-											Blue Jays.
-										</Text>
-									</View>
-								</View>
-								<Text
-									weight="bold"
-									className="text-xs text-primary">
-									Select →
-								</Text>
-							</View>
-						</Pressable>
-					)}
-					{isPending && (
-						<View className="mb-4 flex-row items-center gap-2.5 rounded-2xl border border-amber-500/25 bg-amber-500/5 p-3.5">
-							<Clock size={15} color="#f59e0b" />
-							<Text className="flex-1 text-xs text-muted-foreground">
-								Student ID verification in queue. Feed is
-								accessible in member preview mode.
-							</Text>
-						</View>
-					)}
-					{/* Feed Filter & Sorting Controls */}
-					<View className="mb-4">
-						{/* Sorting Controls */}
-						<View className="mt-2.5 flex-row items-center justify-between border-t border-border/50 pt-2.5">
-							<Text
-								weight="medium"
-								className="text-xs text-muted-foreground">
-								Feed Sorting
-							</Text>
-							<View className="flex-row items-center rounded-xl border border-border/70 bg-card p-1">
-								<Pressable
-									onPress={() => setSelectedSort("hot")}
-									className={`flex-row items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all active:scale-[0.96] ${
-										selectedSort === "hot"
-											? "bg-primary/15"
-											: ""
-									}`}>
-									<Flame
-										size={13}
-										color={
-											selectedSort === "hot"
-												? "#10b981"
-												: "#a1a1aa"
-										}
-									/>
-									<Text
-										weight={
-											selectedSort === "hot"
-												? "bold"
-												: "medium"
-										}
-										className={`text-xs ${
-											selectedSort === "hot"
-												? "text-primary"
-												: "text-muted-foreground"
-										}`}>
-										Hot
-									</Text>
-								</Pressable>
-								<Pressable
-									onPress={() => setSelectedSort("new")}
-									className={`flex-row items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all active:scale-[0.96] ${
-										selectedSort === "new"
-											? "bg-primary/15"
-											: ""
-									}`}>
-									<Sparkles
-										size={13}
-										color={
-											selectedSort === "new"
-												? "#10b981"
-												: "#a1a1aa"
-										}
-									/>
-									<Text
-										weight={
-											selectedSort === "new"
-												? "bold"
-												: "medium"
-										}
-										className={`text-xs ${
-											selectedSort === "new"
-												? "text-primary"
-												: "text-muted-foreground"
-										}`}>
-										New
-									</Text>
-								</Pressable>
-								<Pressable
-									onPress={() => setSelectedSort("top")}
-									className={`flex-row items-center gap-1.5 rounded-lg px-2.5 py-1 transition-all active:scale-[0.96] ${
-										selectedSort === "top"
-											? "bg-primary/15"
-											: ""
-									}`}>
-									<Trophy
-										size={13}
-										color={
-											selectedSort === "top"
-												? "#10b981"
-												: "#a1a1aa"
-										}
-									/>
-									<Text
-										weight={
-											selectedSort === "top"
-												? "bold"
-												: "medium"
-										}
-										className={`text-xs ${
-											selectedSort === "top"
-												? "text-primary"
-												: "text-muted-foreground"
-										}`}>
-										Top
-									</Text>
-								</Pressable>
-							</View>
-						</View>
-					</View>
-					{/* Posts Stream */}
-					{isLoading ? (
-						<View className="items-center justify-center py-16">
-							<Text className="text-xs text-muted-foreground">
-								Loading Impulse transmissions...
-							</Text>
-						</View>
-					) : posts.length === 0 ? (
-						<View className="items-center justify-center rounded-2xl border border-border bg-card p-10 text-center">
-							<Flame size={24} color="#a1a1aa" />
-							<Text
-								weight="bold"
-								className="mt-2 text-sm text-foreground">
-								No posts found in this feed
-							</Text>
-							<Text className="mt-1 text-xs text-muted-foreground">
-								Be the first to publish a technical update or
-								question!
-							</Text>
-							<Button
-								size="sm"
-								variant="primary"
-								className="mt-4 active:scale-[0.96]"
-								onPress={() => setIsComposerOpen(true)}>
-								Create First Post
-							</Button>
-						</View>
-					) : (
-						<View>
-							{posts.map((post) => (
-								<PostCard
-									key={post.id}
-									post={post}
-									onVote={handleVote}
-									onOpenComments={handleOpenComments}
-									onShare={handleShare}
-								/>
-							))}
-						</View>
-					)}
-				</View>
-			</ScrollView>
+				showsVerticalScrollIndicator={false}
+			/>
+
 			{/* Create Post Modal */}
 			<PostComposerModal
 				open={isComposerOpen}
 				onOpenChange={setIsComposerOpen}
 				onPostCreated={(newPost) => setPosts([newPost, ...posts])}
 			/>
+
 			{/* Comments Thread Modal */}
 			<PostCommentsModal
 				post={activeCommentPost}
 				open={isCommentsOpen}
 				onOpenChange={setIsCommentsOpen}
 				onCommentAdded={handleCommentAdded}
-			/>
-			{/* Guild Selection Induction Modal */}
-			<GuildSelectionModal
-				open={isGuildModalOpen}
-				onOpenChange={setIsGuildModalOpen}
-				canDismiss={true}
 			/>
 		</View>
 	);

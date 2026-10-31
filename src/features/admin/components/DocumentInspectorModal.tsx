@@ -8,13 +8,25 @@ import {
 	X,
 	XCircle,
 } from "lucide-react-native";
-import { Button, Dialog, Text } from "panelui-native";
 import { useState } from "react";
-import { Linking, ScrollView, TextInput, View } from "react-native";
+import {
+	KeyboardAvoidingView,
+	Linking,
+	Modal,
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	TextInput,
+	View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { NeoBadge, NeoButton, NeoCard } from "@/components/ui";
 
 import type { AdminVerificationItem } from "../types";
 
-interface DocumentInspectorModalProps {
+export interface DocumentInspectorModalProps {
 	item: AdminVerificationItem | null;
 	open: boolean;
 	onClose: () => void;
@@ -58,7 +70,9 @@ export function DocumentInspectorModal({
 
 	const handleConfirmReject = async () => {
 		if (!rejectReason.trim()) {
-			setRejectError("Please provide a reason for rejecting this document.");
+			setRejectError(
+				"Please provide a reason for rejecting this document.",
+			);
 			return;
 		}
 		setRejectError(null);
@@ -73,217 +87,295 @@ export function DocumentInspectorModal({
 		onClose();
 	};
 
+	const handleDismiss = () => {
+		setIsRejecting(false);
+		setRejectReason("");
+		setRejectError(null);
+		onClose();
+	};
+
+	const applicantName = item.profile?.username || "Student Applicant";
+	const applicantEmail = item.profile?.email || "No email available";
+	const studentId = item.profile?.id || item.user_id;
+
 	return (
-		<Dialog
-			open={open}
-			onOpenChange={(isOpen) => {
-				if (!isOpen) {
-					setIsRejecting(false);
-					setRejectReason("");
-					setRejectError(null);
-					onClose();
-				}
-			}}>
-			<Dialog.Content className="mx-4 max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-border bg-card p-0 shadow-2xl">
-				{/* Modal Header */}
-				<View className="flex-row items-center justify-between border-b border-border px-6 py-4">
-					<View className="flex-row items-center gap-3">
-						<View className="h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary/10">
-							<User size={18} className="text-primary" />
+		<Modal
+			visible={open}
+			animationType="slide"
+			presentationStyle="fullScreen"
+			onRequestClose={handleDismiss}>
+			<SafeAreaView
+				style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+				edges={["top", "bottom"]}>
+				{/* Top Navigation Bar */}
+				<View className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
+					<View className="flex-row items-center gap-2.5">
+						<View className="size-9 items-center justify-center rounded-sm border-2 border-primary/40 bg-primary/15">
+							<User size={18} color="#91e6b1" strokeWidth={2.5} />
 						</View>
 						<View>
-							<Text weight="bold" className="text-base text-foreground">
-								Student ID Verification
+							<Text className="font-display text-sm tracking-tight text-foreground uppercase">
+								Document Inspection
 							</Text>
-							<Text className="text-xs text-muted-foreground">
-								{item.profile?.username || "Student"} •{" "}
-								{item.profile?.email || item.user_id}
+							<Text className="font-mono text-[10px] text-muted-foreground">
+								{applicantName} • {studentId.slice(0, 10)}
 							</Text>
 						</View>
 					</View>
+
 					<View className="flex-row items-center gap-2">
-						<Button
+						<NeoButton
 							size="sm"
-							variant="ghost"
-							className="h-8 w-8 rounded-lg"
-							aria-label="Rotate image"
-							onPress={handleRotate}>
-							<RotateCw size={15} className="text-muted-foreground" />
-						</Button>
+							variant="outline"
+							className="h-9 w-9 px-0"
+							onPress={handleRotate}
+							accessibilityLabel="Rotate document image">
+							<RotateCw
+								size={14}
+								color="#9aa1b2"
+								strokeWidth={2.5}
+							/>
+						</NeoButton>
 						{item.documentSignedUrl && (
-							<Button
+							<NeoButton
 								size="sm"
-								variant="ghost"
-								className="h-8 w-8 rounded-lg"
-								aria-label="Open in new window"
-								onPress={handleOpenExternal}>
-								<ExternalLink size={15} className="text-muted-foreground" />
-							</Button>
+								variant="outline"
+								className="h-9 w-9 px-0"
+								onPress={handleOpenExternal}
+								accessibilityLabel="Open document externally">
+								<ExternalLink
+									size={14}
+									color="#9aa1b2"
+									strokeWidth={2.5}
+								/>
+							</NeoButton>
 						)}
-						<Button
+						<NeoButton
 							size="sm"
-							variant="ghost"
-							className="h-8 w-8 rounded-lg"
-							aria-label="Close dialog"
-							onPress={onClose}>
-							<X size={16} className="text-muted-foreground" />
-						</Button>
+							variant="secondary"
+							className="h-9 w-9 px-0"
+							onPress={handleDismiss}
+							accessibilityLabel="Close document inspection">
+							<X size={16} color="#ffffff" strokeWidth={2.5} />
+						</NeoButton>
 					</View>
 				</View>
-				{/* Modal Body */}
-				<ScrollView
-					className="max-h-[60vh] p-6"
-					showsVerticalScrollIndicator={false}>
-					{/* Document Viewer Frame */}
-					<View className="relative min-h-75 w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-black/40 p-4">
-						{item.documentSignedUrl ? (
-							<Image
-								source={{ uri: item.documentSignedUrl }}
-								style={{
-									width: "100%",
-									height: 380,
-									transform: [{ rotate: `${rotation}deg` }],
-								}}
-								contentFit="contain"
-								transition={200}
-							/>
-						) : (
-							<View className="items-center justify-center gap-2 py-16">
-								<AlertCircle size={28} className="text-muted-foreground" />
-								<Text className="text-xs text-muted-foreground">
-									Document image could not be loaded or URL has expired.
+
+				{/* Body Content */}
+				<KeyboardAvoidingView
+					behavior={Platform.OS === "ios" ? "padding" : undefined}
+					className="flex-1"
+					style={{ backgroundColor: "#0a0a0c" }}>
+					<ScrollView
+						className="flex-1 px-4 py-3"
+						showsVerticalScrollIndicator={false}
+						keyboardShouldPersistTaps="handled">
+						{/* Document Viewer Frame */}
+						<View className="relative min-h-80 w-full items-center justify-center overflow-hidden rounded-sm border-2 border-border bg-card p-3 shadow-neo">
+							{item.documentSignedUrl ? (
+								<Image
+									source={{ uri: item.documentSignedUrl }}
+									style={{
+										width: "100%",
+										height: 380,
+										transform: [
+											{ rotate: `${rotation}deg` },
+										],
+									}}
+									contentFit="contain"
+									transition={200}
+								/>
+							) : (
+								<View className="items-center justify-center gap-2 py-16">
+									<AlertCircle size={28} color="#ff5c5c" />
+									<Text className="font-mono text-xs text-muted-foreground">
+										Document image could not be loaded or
+										URL has expired.
+									</Text>
+								</View>
+							)}
+						</View>
+
+						{/* Student Metadata Card */}
+						<NeoCard className="mt-3.5 gap-2.5 border-border bg-card p-4">
+							<View className="flex-row items-center justify-between border-b border-border/60 pb-2">
+								<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+									Student Details
+								</Text>
+								<NeoBadge
+									variant={
+										item.status === "approved"
+											? "primary"
+											: item.status === "rejected"
+												? "outline"
+												: "default"
+									}
+									size="sm">
+									{item.status.toUpperCase()}
+								</NeoBadge>
+							</View>
+
+							<View className="flex-row justify-between">
+								<Text className="font-mono text-xs text-muted-foreground">
+									Full Name / Username:
+								</Text>
+								<Text className="font-mono text-xs text-foreground">
+									{applicantName}
 								</Text>
 							</View>
-						)}
-					</View>
-					{/* Metadata strip */}
-					<View className="mt-4 flex-row flex-wrap items-center justify-between rounded-xl border border-border bg-muted/40 p-3 text-xs">
-						<View className="flex-row items-center gap-2">
-							<Text className="text-xs text-muted-foreground">Status:</Text>
-							<Text
-								weight="semibold"
-								className={`text-xs capitalize ${
-									item.status === "approved"
-										? "text-emerald-400"
-										: item.status === "rejected"
-											? "text-destructive"
-											: "text-amber-400"
-								}`}>
-								{item.status}
-							</Text>
-						</View>
-						<View className="flex-row items-center gap-2">
-							<Text className="text-xs text-muted-foreground">Submitted:</Text>
-							<Text
-								weight="medium"
-								className="text-xs text-foreground tabular-nums">
-								{new Date(item.created_at).toLocaleString()}
-							</Text>
-						</View>
-						<View className="flex-row items-center gap-2">
-							<Text className="text-xs text-muted-foreground">User ID:</Text>
-							<Text className="font-mono text-xs text-muted-foreground">
-								{item.user_id.slice(0, 8)}...
-							</Text>
-						</View>
-					</View>
-					{/* If rejection reason already exists */}
-					{item.status === "rejected" && item.rejection_reason && (
-						<View className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3.5">
-							<Text weight="semibold" className="text-xs text-destructive">
-								Current Rejection Feedback:
-							</Text>
-							<Text className="mt-1 text-xs text-destructive">
-								{item.rejection_reason}
-							</Text>
-						</View>
-					)}
-					{/* Rejection Input Drawer */}
-					{isRejecting && (
-						<View className="mt-4 rounded-xl border border-destructive/30 bg-card p-4 shadow-sm">
-							<Text weight="bold" className="text-sm text-foreground">
-								Reason for Rejection
-							</Text>
-							<Text className="mt-0.5 text-xs text-muted-foreground">
-								Select a common reason or type a custom note for the student:
-							</Text>
-							{/* Presets */}
-							<View className="mt-3 flex-row flex-wrap gap-1.5">
-								{REJECTION_PRESETS.map((preset, index) => (
-									<Button
-										key={index}
+
+							<View className="flex-row justify-between">
+								<Text className="font-mono text-xs text-muted-foreground">
+									Student Email:
+								</Text>
+								<Text className="font-mono text-xs text-foreground">
+									{applicantEmail}
+								</Text>
+							</View>
+
+							<View className="flex-row justify-between">
+								<Text className="font-mono text-xs text-muted-foreground">
+									Student ID:
+								</Text>
+								<Text className="font-mono text-xs text-foreground">
+									{studentId}
+								</Text>
+							</View>
+
+							<View className="flex-row justify-between">
+								<Text className="font-mono text-xs text-muted-foreground">
+									Submitted:
+								</Text>
+								<Text className="font-mono text-xs text-foreground">
+									{new Date(item.created_at).toLocaleString()}
+								</Text>
+							</View>
+						</NeoCard>
+
+						{/* Existing Rejection Feedback */}
+						{item.status === "rejected" &&
+							item.rejection_reason && (
+								<View className="mt-3.5 rounded-sm border-2 border-destructive/60 bg-destructive/15 p-3.5 shadow-neo-sm">
+									<Text className="font-mono text-xs text-destructive">
+										Previous Rejection Feedback:
+									</Text>
+									<Text className="mt-1 font-mono text-xs text-destructive">
+										{item.rejection_reason}
+									</Text>
+								</View>
+							)}
+
+						{/* Rejection Input Box */}
+						{isRejecting && (
+							<NeoCard className="mt-4 border-destructive bg-card p-4">
+								<Text className="font-display text-sm tracking-tight text-foreground uppercase">
+									Reason for Rejection
+								</Text>
+								<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
+									Select a preset reason or enter custom
+									guidance for the student:
+								</Text>
+
+								{/* Presets */}
+								<View className="mt-3 flex-col gap-1.5">
+									{REJECTION_PRESETS.map((preset, index) => (
+										<Pressable
+											key={index}
+											onPress={() =>
+												setRejectReason(preset)
+											}
+											className="rounded-sm border-2 border-border bg-secondary p-2 active:translate-x-px active:translate-y-px">
+											<Text className="font-mono text-[11px] text-foreground">
+												{preset}
+											</Text>
+										</Pressable>
+									))}
+								</View>
+
+								{/* Text input */}
+								<TextInput
+									value={rejectReason}
+									onChangeText={setRejectReason}
+									placeholder="Explain why the document was rejected..."
+									placeholderTextColor="#71717a"
+									multiline
+									numberOfLines={3}
+									className="mt-3 min-h-20 rounded-sm border-2 border-border bg-background p-3 font-mono text-xs text-foreground"
+								/>
+								{rejectError && (
+									<Text className="mt-1.5 font-mono text-xs text-destructive">
+										{rejectError}
+									</Text>
+								)}
+								<View className="mt-3 flex-row justify-end gap-2">
+									<NeoButton
 										size="sm"
 										variant="outline"
-										className="rounded-lg text-[11px]"
-										onPress={() => setRejectReason(preset)}>
-										{preset.slice(0, 32)}...
-									</Button>
-								))}
-							</View>
-							{/* Text input */}
-							<TextInput
-								value={rejectReason}
-								onChangeText={setRejectReason}
-								placeholder="Explain why the document was rejected..."
-								placeholderTextColor="#71717a"
-								multiline
-								numberOfLines={3}
-								className="mt-3 min-h-18 rounded-xl border border-border bg-background p-3 text-xs text-foreground"
-							/>
-							{rejectError && (
-								<Text className="mt-1.5 text-xs text-destructive">
-									{rejectError}
-								</Text>
-							)}
-							<View className="mt-3 flex-row justify-end gap-2">
-								<Button
-									size="sm"
-									variant="outline"
-									onPress={() => setIsRejecting(false)}>
-									Cancel
-								</Button>
-								<Button
-									size="sm"
-									variant="destructive"
-									loading={isProcessing}
-									onPress={handleConfirmReject}>
-									Confirm Rejection
-								</Button>
-							</View>
-						</View>
-					)}
-				</ScrollView>
-				{/* Modal Footer Actions */}
-				<View className="flex-row items-center justify-between border-t border-border px-6 py-4">
-					<Button size="md" variant="outline" onPress={onClose}>
-						Close
-					</Button>
-					<View className="flex-row items-center gap-3">
-						{!isRejecting && (
-							<Button
-								size="md"
-								variant="destructive"
-								disabled={isProcessing}
-								startContent={
-									<XCircle size={16} className="text-destructive-foreground" />
-								}
-								onPress={() => setIsRejecting(true)}>
-								Reject Submission
-							</Button>
+										onPress={() => setIsRejecting(false)}>
+										Cancel
+									</NeoButton>
+									<NeoButton
+										size="sm"
+										variant="destructive"
+										loading={isProcessing}
+										onPress={handleConfirmReject}>
+										Confirm Rejection
+									</NeoButton>
+								</View>
+							</NeoCard>
 						)}
-						<Button
-							size="md"
-							variant="primary"
-							loading={isProcessing}
-							startContent={
-								<CheckCircle2 size={16} className="text-primary-foreground" />
-							}
-							onPress={handleConfirmApprove}>
-							Approve Verification
-						</Button>
+					</ScrollView>
+
+					{/* Sticky Bottom Actions */}
+					<View className="flex-row items-center gap-3 border-t-2 border-border bg-card px-4 py-3 shadow-neo">
+						{!isRejecting ? (
+							<>
+								<NeoButton
+									size="lg"
+									variant="destructive"
+									className="flex-1"
+									disabled={isProcessing}
+									startContent={
+										<XCircle
+											size={16}
+											color="#ffffff"
+											strokeWidth={2.5}
+										/>
+									}
+									onPress={() => setIsRejecting(true)}>
+									Reject
+								</NeoButton>
+								<NeoButton
+									size="lg"
+									variant="primary"
+									className="flex-1"
+									disabled={isProcessing}
+									loading={isProcessing}
+									startContent={
+										!isProcessing ? (
+											<CheckCircle2
+												size={16}
+												color="#0a0a0c"
+												strokeWidth={2.5}
+											/>
+										) : undefined
+									}
+									onPress={handleConfirmApprove}>
+									Approve
+								</NeoButton>
+							</>
+						) : (
+							<NeoButton
+								size="md"
+								variant="outline"
+								className="w-full"
+								onPress={() => setIsRejecting(false)}>
+								Back to Inspection
+							</NeoButton>
+						)}
 					</View>
-				</View>
-			</Dialog.Content>
-		</Dialog>
+				</KeyboardAvoidingView>
+			</SafeAreaView>
+		</Modal>
 	);
 }

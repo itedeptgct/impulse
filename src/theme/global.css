@@ -8,16 +8,19 @@
 @source '../../node_modules/panelui-native/src';
 
 :root {
-	--radius: 0.625rem;
+	--radius: 0.5rem;
 
 	@variant ios {
+		--font-display: SpaceGrotesk_700Bold;
 		--font-sans: DMSans_400Regular;
 		--font-mono: IBMPlexMono_400Regular;
 	}
 	@variant android {
+		--font-display: SpaceGrotesk_700Bold;
 		--font-sans: DMSans_400Regular;
 		--font-mono: IBMPlexMono_400Regular;
 	}
+	--font-display: SpaceGrotesk_700Bold;
 	--font-sans: DMSans_400Regular;
 	--font-mono: IBMPlexMono_400Regular;
 	--font-normal: DMSans_400Regular;
@@ -27,10 +30,190 @@
 }
 
 @theme inline {
+	--font-display: var(--font-display);
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);
 	--font-normal: var(--font-normal);
 	--font-medium: var(--font-medium);
 	--font-semibold: var(--font-semibold);
 	--font-bold: var(--font-bold);
+
+	--color-neo-bg: #0a0a0c;
+	--color-neo-surface: #121318;
+	--color-neo-surface-raised: #181922;
+	--color-neo-surface-active: #1f212c;
+	--color-neo-accent: #91e6b1;
+	--color-neo-accent-dim: rgba(145, 230, 177, 0.15);
+	--color-neo-border: #2a2d3d;
+	--color-neo-border-bold: #383c4e;
+	--color-neo-text: #ffffff;
+	--color-neo-muted: #9aa1b2;
+
+	--shadow-neo-sm: 2px 2px 0px #000000;
+	--shadow-neo: 4px 4px 0px #000000;
+	--shadow-neo-lg: 6px 6px 0px #000000;
+	--shadow-neo-top: 0px -4px 0px #000000;
+}
+
+@layer theme {
+	:root {
+		@variant dark {
+			--color-background: #0a0a0c;
+			--color-foreground: #ffffff;
+			--color-card: #121318;
+			--color-card-foreground: #ffffff;
+			--color-popover: #161720;
+			--color-popover-foreground: #ffffff;
+			--color-overlay: #1d1f2a;
+			--color-overlay-foreground: #ffffff;
+			--color-inset: #0e0f14;
+			--color-primary: #91e6b1;
+			--color-primary-foreground: #0a0a0c;
+			--color-secondary: #181922;
+			--color-secondary-foreground: #ffffff;
+			--color-muted: #181922;
+			--color-muted-foreground: #9aa1b2;
+			--color-accent: rgba(145, 230, 177, 0.15);
+			--color-accent-foreground: #91e6b1;
+			--color-destructive: #ff5c5c;
+			--color-destructive-foreground: #ff8585;
+			--color-destructive-solid-foreground: #0a0a0c;
+			--color-info: #60a5fa;
+			--color-info-foreground: #93c5fd;
+			--color-info-solid-foreground: #0a0a0c;
+			--color-success: #91e6b1;
+			--color-success-foreground: #91e6b1;
+			--color-success-solid-foreground: #0a0a0c;
+			--color-warning: #f59e0b;
+			--color-warning-foreground: #fbbf24;
+			--color-warning-solid-foreground: #0a0a0c;
+			--color-border: #2a2d3d;
+			--color-input: #181922;
+			--color-ring: #91e6b1;
+			--color-surface: #121318;
+			--color-surface-secondary: #181922;
+			--color-surface-tertiary: #222430;
+			--color-skeleton: rgba(255, 255, 255, 0.08);
+
+			--color-info-soft: rgba(96, 165, 250, 0.15);
+			--color-info-subtle: rgba(96, 165, 250, 0.08);
+			--color-success-soft: rgba(145, 230, 177, 0.15);
+			--color-success-subtle: rgba(145, 230, 177, 0.08);
+			--color-warning-soft: rgba(245, 158, 11, 0.15);
+			--color-warning-subtle: rgba(245, 158, 11, 0.08);
+			--color-destructive-soft: rgba(255, 92, 92, 0.15);
+			--color-destructive-subtle: rgba(255, 92, 92, 0.08);
+
+			--radius-xs: 3px;
+			--radius-sm: 4px;
+			--radius-md: 6px;
+			--radius-lg: 8px;
+			--radius-xl: 12px;
+			--radius-2xl: 16px;
+			--radius-3xl: 20px;
+		}
+
+		@variant grass-dark {
+			--color-background: #0a0a0c;
+			--color-foreground: #ffffff;
+			--color-card: #121318;
+			--color-card-foreground: #ffffff;
+			--color-popover: #161720;
+			--color-popover-foreground: #ffffff;
+			--color-overlay: #1d1f2a;
+			--color-overlay-foreground: #ffffff;
+			--color-inset: #0e0f14;
+			--color-primary: #91e6b1;
+			--color-primary-foreground: #0a0a0c;
+			--color-secondary: #181922;
+			--color-secondary-foreground: #ffffff;
+			--color-muted: #181922;
+			--color-muted-foreground: #9aa1b2;
+			--color-accent: rgba(145, 230, 177, 0.15);
+			--color-accent-foreground: #91e6b1;
+			--color-destructive: #ff5c5c;
+			--color-destructive-foreground: #ff8585;
+			--color-destructive-solid-foreground: #0a0a0c;
+			--color-info: #60a5fa;
+			--color-info-foreground: #93c5fd;
+			--color-info-solid-foreground: #0a0a0c;
+			--color-success: #91e6b1;
+			--color-success-foreground: #91e6b1;
+			--color-success-solid-foreground: #0a0a0c;
+			--color-warning: #f59e0b;
+			--color-warning-foreground: #fbbf24;
+			--color-warning-solid-foreground: #0a0a0c;
+			--color-border: #2a2d3d;
+			--color-input: #181922;
+			--color-ring: #91e6b1;
+			--color-surface: #121318;
+			--color-surface-secondary: #181922;
+			--color-surface-tertiary: #222430;
+			--color-skeleton: rgba(255, 255, 255, 0.08);
+
+			--color-info-soft: rgba(96, 165, 250, 0.15);
+			--color-info-subtle: rgba(96, 165, 250, 0.08);
+			--color-success-soft: rgba(145, 230, 177, 0.15);
+			--color-success-subtle: rgba(145, 230, 177, 0.08);
+			--color-warning-soft: rgba(245, 158, 11, 0.15);
+			--color-warning-subtle: rgba(245, 158, 11, 0.08);
+			--color-destructive-soft: rgba(255, 92, 92, 0.15);
+			--color-destructive-subtle: rgba(255, 92, 92, 0.08);
+
+			--radius-xs: 3px;
+			--radius-sm: 4px;
+			--radius-md: 6px;
+			--radius-lg: 8px;
+			--radius-xl: 12px;
+			--radius-2xl: 16px;
+			--radius-3xl: 20px;
+		}
+
+		@variant moon-dark {
+			--color-background: #0a0a0c;
+			--color-foreground: #ffffff;
+			--color-card: #121318;
+			--color-card-foreground: #ffffff;
+			--color-popover: #161720;
+			--color-popover-foreground: #ffffff;
+			--color-overlay: #1d1f2a;
+			--color-overlay-foreground: #ffffff;
+			--color-inset: #0e0f14;
+			--color-primary: #91e6b1;
+			--color-primary-foreground: #0a0a0c;
+			--color-secondary: #181922;
+			--color-secondary-foreground: #ffffff;
+			--color-muted: #181922;
+			--color-muted-foreground: #9aa1b2;
+			--color-accent: rgba(145, 230, 177, 0.15);
+			--color-accent-foreground: #91e6b1;
+			--color-destructive: #ff5c5c;
+			--color-destructive-foreground: #ff8585;
+			--color-destructive-solid-foreground: #0a0a0c;
+			--color-info: #60a5fa;
+			--color-info-foreground: #93c5fd;
+			--color-info-solid-foreground: #0a0a0c;
+			--color-success: #91e6b1;
+			--color-success-foreground: #91e6b1;
+			--color-success-solid-foreground: #0a0a0c;
+			--color-warning: #f59e0b;
+			--color-warning-foreground: #fbbf24;
+			--color-warning-solid-foreground: #0a0a0c;
+			--color-border: #2a2d3d;
+			--color-input: #181922;
+			--color-ring: #91e6b1;
+			--color-surface: #121318;
+			--color-surface-secondary: #181922;
+			--color-surface-tertiary: #222430;
+			--color-skeleton: rgba(255, 255, 255, 0.08);
+
+			--radius-xs: 3px;
+			--radius-sm: 4px;
+			--radius-md: 6px;
+			--radius-lg: 8px;
+			--radius-xl: 12px;
+			--radius-2xl: 16px;
+			--radius-3xl: 20px;
+		}
+	}
 }

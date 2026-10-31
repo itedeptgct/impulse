@@ -41,7 +41,7 @@ export interface Comment {
 	created_at: string;
 }
 
-export type FeedSort = "hot" | "new" | "top";
+export type FeedSort = "new" | "top";
 export type FeedGuildFilter = "all" | GuildId;
 
 export interface CreatePostInput {

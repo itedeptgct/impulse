@@ -1,74 +1,69 @@
-import { Skeleton } from "panelui-native";
 import { View } from "react-native";
 
 export function AdminSkeleton() {
 	return (
-		<View className="min-h-screen flex-1 bg-background text-foreground">
+		<View className="flex-1 bg-background">
 			{/* Admin Header Skeleton */}
-			<header className="border-b border-border bg-card/60 px-6 py-4">
-				<View className="mx-auto flex-row items-center justify-between lg:max-w-7xl">
+			<View className="border-b-2 border-border bg-card px-4 py-3">
+				<View className="flex-row items-center justify-between">
 					<View className="flex-row items-center gap-3">
-						<Skeleton
-							className="h-6 w-32 rounded-lg"
-							label="Loading admin console..."
-						/>
-						<Skeleton className="h-5 w-20 rounded-full" />
+						<View className="h-6 w-36 animate-pulse rounded-sm border-2 border-border bg-secondary" />
+						<View className="h-5 w-16 animate-pulse rounded-sm border-2 border-border bg-secondary" />
 					</View>
-					<View className="flex-row items-center gap-3">
-						<Skeleton className="h-9 w-28 rounded-xl" />
-						<Skeleton className="h-9 w-9 rounded-xl" />
+					<View className="flex-row items-center gap-2">
+						<View className="h-9 w-24 animate-pulse rounded-sm border-2 border-border bg-secondary" />
+						<View className="size-9 animate-pulse rounded-sm border-2 border-border bg-secondary" />
 					</View>
 				</View>
-			</header>
-			<main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+			</View>
+
+			<View className="flex-1 px-4 py-6">
 				{/* Header & Subtitle Skeleton */}
-				<View className="mb-8">
-					<Skeleton className="h-8 w-64 rounded-xl" />
-					<Skeleton className="mt-2 h-4 w-96 rounded-md" />
+				<View className="mb-6">
+					<View className="h-7 w-60 animate-pulse rounded-sm border-2 border-border bg-secondary" />
+					<View className="mt-2 h-4 w-80 animate-pulse rounded-sm border-2 border-border bg-secondary" />
 				</View>
+
 				{/* 4 Stats Cards Skeleton */}
-				<View className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+				<View className="mb-6 flex-row flex-wrap gap-3">
 					{[1, 2, 3, 4].map((i) => (
 						<View
 							key={i}
-							className="rounded-2xl border border-border bg-card p-5">
-							<Skeleton className="h-4 w-28 rounded-md" />
-							<Skeleton className="mt-3 h-8 w-20 rounded-lg" />
-							<Skeleton className="mt-2 h-3.5 w-32 rounded-md" />
+							className="min-w-[45%] flex-1 rounded-sm border-2 border-border bg-card p-4 shadow-neo-sm">
+							<View className="h-4 w-24 animate-pulse rounded-sm bg-secondary" />
+							<View className="mt-3 h-8 w-16 animate-pulse rounded-sm bg-secondary" />
+							<View className="mt-2 h-3.5 w-32 animate-pulse rounded-sm bg-secondary" />
 						</View>
 					))}
 				</View>
+
 				{/* Search & Tabs Skeleton */}
-				<View className="mb-6 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-					<Skeleton className="h-10 w-full rounded-xl sm:w-80" />
+				<View className="mb-6 gap-3">
+					<View className="h-10 w-full animate-pulse rounded-sm border-2 border-border bg-card" />
 					<View className="flex-row items-center gap-2">
-						<Skeleton className="h-9 w-20 rounded-xl" />
-						<Skeleton className="h-9 w-24 rounded-xl" />
-						<Skeleton className="h-9 w-24 rounded-xl" />
+						<View className="h-8 w-24 animate-pulse rounded-sm border-2 border-border bg-secondary" />
+						<View className="h-8 w-24 animate-pulse rounded-sm border-2 border-border bg-secondary" />
+						<View className="h-8 w-24 animate-pulse rounded-sm border-2 border-border bg-secondary" />
 					</View>
 				</View>
+
 				{/* Queue Items Skeleton */}
 				<View className="gap-3">
-					{[1, 2, 3, 4, 5].map((i) => (
+					{[1, 2, 3].map((i) => (
 						<View
 							key={i}
-							className="flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
-							<View className="flex-row items-center gap-4">
-								<Skeleton className="h-12 w-12 rounded-xl" />
-								<View className="gap-2">
-									<Skeleton className="h-5 w-40 rounded-md" />
-									<Skeleton className="h-3.5 w-52 rounded-md" />
-								</View>
-							</View>
+							className="rounded-sm border-2 border-border bg-card p-4 shadow-neo-sm">
 							<View className="flex-row items-center gap-3">
-								<Skeleton className="h-6 w-24 rounded-full" />
-								<Skeleton className="h-9 w-28 rounded-xl" />
-								<Skeleton className="h-9 w-24 rounded-xl" />
+								<View className="size-11 animate-pulse rounded-sm border-2 border-border bg-secondary" />
+								<View className="flex-1 gap-2">
+									<View className="h-4 w-36 animate-pulse rounded-sm bg-secondary" />
+									<View className="h-3 w-48 animate-pulse rounded-sm bg-secondary" />
+								</View>
 							</View>
 						</View>
 					))}
 				</View>
-			</main>
+			</View>
 		</View>
 	);
 }

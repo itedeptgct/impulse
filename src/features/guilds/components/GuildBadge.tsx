@@ -1,16 +1,15 @@
 import { Image } from "expo-image";
-import { Code2, Palette, Users } from "lucide-react-native";
-import { Text } from "panelui-native";
-import { View } from "react-native";
+import { Code2, Palette, Radio, Terminal } from "lucide-react-native";
+import { Text, View } from "react-native";
 
 import { getGuildInfo } from "../constants";
-import type { GuildId } from "../types";
 
-interface GuildBadgeProps {
-	guildId: GuildId;
+export interface GuildBadgeProps {
+	guildId: string;
 	size?: "sm" | "md" | "lg";
 	showTagline?: boolean;
 	useLogo?: boolean;
+	className?: string;
 }
 
 export function GuildBadge({
@@ -18,6 +17,7 @@ export function GuildBadge({
 	size = "sm",
 	showTagline = false,
 	useLogo = true,
+	className = "",
 }: GuildBadgeProps) {
 	const info = getGuildInfo(guildId);
 	if (!info) return null;
@@ -32,18 +32,39 @@ export function GuildBadge({
 				/>
 			);
 		}
-		switch (guildId) {
+		const normalizedId = info.id;
+		switch (normalizedId) {
 			case "octagram":
 				return (
-					<Code2 size={iconSize} className="text-emerald-400" strokeWidth={2} />
+					<Code2
+						size={iconSize}
+						color={info.accentColor}
+						strokeWidth={2.2}
+					/>
 				);
 			case "chameleon":
 				return (
-					<Palette size={iconSize} className="text-pink-400" strokeWidth={2} />
+					<Palette
+						size={iconSize}
+						color={info.accentColor}
+						strokeWidth={2.2}
+					/>
 				);
 			case "blue_jays":
 				return (
-					<Users size={iconSize} className="text-sky-400" strokeWidth={2} />
+					<Radio
+						size={iconSize}
+						color={info.accentColor}
+						strokeWidth={2.2}
+					/>
+				);
+			default:
+				return (
+					<Terminal
+						size={iconSize}
+						color={info.accentColor}
+						strokeWidth={2.2}
+					/>
 				);
 		}
 	};
@@ -51,14 +72,15 @@ export function GuildBadge({
 	if (size === "lg") {
 		return (
 			<View
-				className={`flex-row items-center gap-2 rounded-xl border px-3 py-1.5 ${info.badgeBorderColor} ${info.badgeBgColor}`}>
+				className={`flex-row items-center gap-2 rounded-sm border-2 px-3 py-1.5 ${info.badgeBorderColor} ${info.badgeBgColor} ${className}`}>
 				{renderIcon(18)}
 				<View>
-					<Text weight="semibold" className={`text-xs ${info.badgeTextColor}`}>
+					<Text
+						className={`font-mono text-xs tracking-wider uppercase ${info.badgeTextColor}`}>
 						{info.name}
 					</Text>
 					{showTagline && (
-						<Text className="text-[10px] text-muted-foreground">
+						<Text className="font-mono text-[10px] text-muted-foreground">
 							{info.tagline}
 						</Text>
 					)}
@@ -70,11 +92,10 @@ export function GuildBadge({
 	if (size === "md") {
 		return (
 			<View
-				className={`flex-row items-center gap-1.5 rounded-full border px-2.5 py-0.5 ${info.badgeBorderColor} ${info.badgeBgColor}`}>
+				className={`flex-row items-center gap-1.5 rounded-sm border-2 px-2 py-0.5 ${info.badgeBorderColor} ${info.badgeBgColor} ${className}`}>
 				{renderIcon(14)}
 				<Text
-					weight="semibold"
-					className={`text-[11px] ${info.badgeTextColor}`}>
+					className={`font-mono text-xs tracking-wider uppercase ${info.badgeTextColor}`}>
 					{info.name}
 				</Text>
 			</View>
@@ -84,9 +105,10 @@ export function GuildBadge({
 	// "sm"
 	return (
 		<View
-			className={`flex-row items-center gap-1 rounded-full border px-2 py-0.5 ${info.badgeBorderColor} ${info.badgeBgColor}`}>
+			className={`flex-row items-center gap-1 rounded-sm border-2 px-1.5 py-0.5 ${info.badgeBorderColor} ${info.badgeBgColor} ${className}`}>
 			{renderIcon(12)}
-			<Text weight="semibold" className={`text-[10px] ${info.badgeTextColor}`}>
+			<Text
+				className={`font-mono text-[10px] tracking-wider uppercase ${info.badgeTextColor}`}>
 				{info.name}
 			</Text>
 		</View>

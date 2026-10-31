@@ -1,15 +1,35 @@
 import { useAuthStore } from "@auth/store";
-import { AlertCircle, Code2, Hash, Lock, Send, X } from "lucide-react-native";
-import { Button, Dialog, Text } from "panelui-native";
+import { Image as ExpoImage } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import {
+	AlertCircle,
+	Camera,
+	Code2,
+	Hash,
+	Lock,
+	Send,
+	X,
+} from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import {
+	KeyboardAvoidingView,
+	Modal,
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	TextInput,
+	View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+import { NeoBadge, NeoButton, NeoCard } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 
 import { createPost } from "../api";
 import type { CreatePostInput, Post } from "../types";
 
-interface PostComposerModalProps {
+export interface PostComposerModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onPostCreated: (post: Post) => void;
@@ -44,6 +64,8 @@ export function PostComposerModal({
 	const [codeSnippet, setCodeSnippet] = useState("");
 	const [codeLanguage, setCodeLanguage] = useState("typescript");
 	const [selectedTags, setSelectedTags] = useState<string[]>([]);
+	const [customTag, setCustomTag] = useState("");
+	const [imageUrl, setImageUrl] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
@@ -55,12 +77,30 @@ export function PostComposerModal({
 		}
 	};
 
+	const addCustomTag = () => {
+		const normalizedTag = customTag.trim().replace(/^#*/, "#");
+		if (normalizedTag.length > 1 && !selectedTags.includes(normalizedTag)) {
+			setSelectedTags([...selectedTags, normalizedTag]);
+		}
+		setCustomTag("");
+	};
+
+	const pickImage = async () => {
+		const result = await ImagePicker.launchImageLibraryAsync({
+			mediaTypes: ["images"],
+			allowsEditing: true,
+			aspect: [16, 9],
+			quality: 0.8,
+		});
+		if (!result.canceled) setImageUrl(result.assets[0]?.uri || null);
+	};
+
 	const handleSubmit = async () => {
 		if (!title.trim() || !content.trim() || !user?.id) return;
 
 		if (!profile?.guild) {
 			setError(
-				"You must choose a faction guild before posting. Users can only post to their affiliated guild.",
+				"You must choose a house before posting. Users can only post to their affiliated house.",
 			);
 			return;
 		}
@@ -84,6 +124,7 @@ export function PostComposerModal({
 			code_snippet:
 				showCode && codeSnippet.trim() ? codeSnippet.trim() : null,
 			code_language: showCode && codeSnippet.trim() ? codeLanguage : null,
+			image_url: imageUrl,
 			tags: selectedTags,
 		};
 
@@ -96,6 +137,8 @@ export function PostComposerModal({
 			setCodeSnippet("");
 			setShowCode(false);
 			setSelectedTags([]);
+			setCustomTag("");
+			setImageUrl(null);
 			onOpenChange(false);
 		} catch (err: unknown) {
 			const e = err as Error;
@@ -106,254 +149,365 @@ export function PostComposerModal({
 	};
 
 	const hasGuild = !!profile?.guild;
+	const canPublish =
+		hasGuild && !!title.trim() && !!content.trim() && !isSubmitting;
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<Dialog.Content className="mx-4 max-h-[90vh] max-w-xl rounded-3xl border border-border bg-card p-6 shadow-2xl">
-				{/* Dialog Title */}
-				<View className="mb-4 flex-row items-center justify-between">
-					<View>
-						<Dialog.Title
-							weight="bold"
-							className="text-xl text-foreground">
-							Create Student Post
-						</Dialog.Title>
-						<Dialog.Description className="mt-0.5 text-xs text-muted-foreground">
-							Publish an update, question, design, or code snippet
-							to your affiliated faction guild.
-						</Dialog.Description>
-					</View>
-					<Pressable
-						onPress={() => onOpenChange(false)}
-						className="h-8 w-8 items-center justify-center rounded-full hover:bg-muted/50 active:scale-[0.96]">
-						<X size={16} color="#a1a1aa" />
-					</Pressable>
-				</View>
-				{error && (
-					<View className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
-						<Text className="text-xs text-destructive">
-							{error}
+		<Modal
+			visible={open}
+			animationType="slide"
+			presentationStyle="fullScreen"
+			statusBarTranslucent={true}
+			onRequestClose={() => onOpenChange(false)}>
+			<View
+				style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+				className="flex-1 bg-background">
+				<SafeAreaView
+					style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+					className="flex-1 bg-background"
+					edges={["top", "bottom"]}>
+					{/* Top Header Bar */}
+					<View className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
+						<NeoButton
+							variant="secondary"
+							size="sm"
+							onPress={() => onOpenChange(false)}>
+							CANCEL
+						</NeoButton>
+
+						<Text className="font-display text-base tracking-tight text-foreground uppercase">
+							NEW TRANSMISSION
 						</Text>
+
+						<NeoButton
+							variant="primary"
+							size="sm"
+							loading={isSubmitting}
+							disabled={!canPublish}
+							onPress={handleSubmit}
+							startContent={
+								!isSubmitting ? (
+									<Send
+										size={14}
+										color="#0a0a0c"
+										strokeWidth={2.5}
+									/>
+								) : undefined
+							}>
+							POST
+						</NeoButton>
 					</View>
-				)}
-				<ScrollView
-					showsVerticalScrollIndicator={false}
-					className="-mx-1 max-h-[60vh] px-1">
-					<View className="gap-4 py-1">
-						{/* Guild Destination Locked To Affiliated Guild */}
-						{hasGuild ? (
-							<View className="rounded-xl border border-border bg-muted/20 p-3">
-								<View className="flex-row items-center justify-between">
-									<View className="flex-row items-center gap-2">
-										<Text
-											weight="medium"
-											className="text-xs text-muted-foreground">
-											Posting to your guild:
-										</Text>
-										<GuildBadge
-											guildId={profile.guild!}
-											size="sm"
-										/>
-									</View>
-									<View className="flex-row items-center gap-1 rounded-full border border-border/80 bg-background/80 px-2 py-0.5">
-										<Lock size={10} color="#a1a1aa" />
-										<Text className="font-medium text-[10px] text-muted-foreground">
-											Affiliated Only
-										</Text>
-									</View>
-								</View>
-							</View>
-						) : (
-							<View className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
-								<View className="flex-row items-center gap-2">
-									<AlertCircle size={16} color="#f59e0b" />
-									<Text
-										weight="bold"
-										className="text-xs text-amber-400">
-										Faction Guild Required
-									</Text>
-								</View>
-								<Text className="mt-1 text-xs text-muted-foreground">
-									Students can only post to their affiliated
-									faction guild. Choose your guild track first
-									to publish posts.
-								</Text>
-								{onOpenGuildModal && (
-									<Button
-										size="sm"
-										variant="outline"
-										className="mt-3 self-start active:scale-[0.96]"
-										onPress={() => {
-											onOpenChange(false);
-											onOpenGuildModal();
-										}}>
-										Choose Faction Guild
-									</Button>
-								)}
-							</View>
-						)}
-						{/* Title Input */}
-						<View>
-							<Text
-								weight="medium"
-								className="mb-1.5 text-xs text-muted-foreground">
-								Post Headline / Title
+
+					{error && (
+						<View className="mx-4 mt-3 flex-row items-center gap-2 rounded-sm border-2 border-destructive bg-destructive/15 p-3">
+							<AlertCircle size={16} color="#ff5c5c" />
+							<Text className="flex-1 font-mono text-xs text-destructive">
+								{error}
 							</Text>
-							<TextInput
-								value={title}
-								onChangeText={setTitle}
-								placeholder="e.g. Optimized graph traversal algorithm or UI critique..."
-								placeholderTextColor="#64748b"
-								className="rounded-xl border border-border bg-background p-3 text-sm text-foreground focus:border-primary"
-							/>
-						</View>
-						{/* Content Body */}
-						<View>
-							<Text
-								weight="medium"
-								className="mb-1.5 text-xs text-muted-foreground">
-								Content & Description
-							</Text>
-							<TextInput
-								value={content}
-								onChangeText={setContent}
-								multiline
-								numberOfLines={4}
-								textAlignVertical="top"
-								placeholder="Share your thoughts, breakdown of the bug, or architectural rationale..."
-								placeholderTextColor="#64748b"
-								className="min-h-25 rounded-xl border border-border bg-background p-3 text-sm text-foreground focus:border-primary"
-							/>
-						</View>
-						{/* Code Snippet Toggle */}
-						<View>
 							<Pressable
-								onPress={() => setShowCode(!showCode)}
-								className="flex-row items-center gap-2 self-start rounded-lg border border-border/80 bg-muted/40 px-3 py-1.5 active:scale-[0.96]">
-								<Code2 size={14} color="#10b981" />
-								<Text
-									weight="medium"
-									className="text-xs text-foreground">
-									{showCode
-										? "Remove Code Snippet"
-										: "Attach Code Snippet"}
-								</Text>
+								onPress={() => setError(null)}
+								hitSlop={8}>
+								<X size={14} color="#ff5c5c" />
 							</Pressable>
-							{showCode && (
-								<View className="mt-3 gap-2 rounded-xl border border-border bg-background/80 p-3">
-									<View className="flex-row flex-wrap items-center gap-1.5 pb-2">
-										<Text className="mr-1 text-[11px] text-muted-foreground">
-											Language:
-										</Text>
-										{CODE_LANGUAGES.map((lang) => (
-											<Pressable
-												key={lang}
-												onPress={() =>
-													setCodeLanguage(lang)
-												}
-												className={`rounded-md px-2 py-0.5 ${
-													codeLanguage === lang
-														? "border border-primary/40 bg-primary/20 text-primary"
-														: "bg-muted/50 text-muted-foreground hover:bg-muted"
-												}`}>
-												<Text
-													weight={
-														codeLanguage === lang
-															? "bold"
-															: "normal"
-													}
-													className={`font-mono text-[10px] ${
-														codeLanguage === lang
-															? "text-primary"
-															: "text-muted-foreground"
-													}`}>
-													{lang}
+						</View>
+					)}
+
+					<KeyboardAvoidingView
+						behavior={Platform.OS === "ios" ? "padding" : undefined}
+						className="flex-1">
+						<ScrollView
+							className="flex-1 px-4"
+							contentContainerStyle={{
+								flexGrow: 1,
+								paddingBottom: 40,
+							}}
+							showsVerticalScrollIndicator={false}
+							keyboardShouldPersistTaps="handled">
+							<View className="gap-4 py-4">
+								{/* Guild Destination Locked To Affiliated Guild */}
+								{hasGuild ? (
+									<NeoCard
+										variant="default"
+										className="rounded-sm border-2 border-border bg-card p-3 shadow-neo-sm">
+										<View className="flex-row items-center justify-between">
+											<View className="flex-row items-center gap-2">
+												<Text className="font-mono text-xs text-muted-foreground uppercase">
+													Destination:
 												</Text>
-											</Pressable>
-										))}
-									</View>
+												<GuildBadge
+													guildId={profile.guild!}
+													size="sm"
+												/>
+											</View>
+											<View className="flex-row items-center gap-1 rounded-sm border-2 border-border bg-secondary px-2 py-0.5">
+												<Lock
+													size={11}
+													color="#91e6b1"
+												/>
+												<Text className="font-mono text-xs text-primary uppercase">
+													Affiliated
+												</Text>
+											</View>
+										</View>
+									</NeoCard>
+								) : (
+									<NeoCard className="rounded-sm border-2 border-amber-500/50 bg-amber-500/10 p-4 shadow-neo-sm">
+										<View className="flex-row items-center gap-2">
+											<AlertCircle
+												size={16}
+												color="#fbbf24"
+											/>
+											<Text className="font-mono text-xs text-amber-400 uppercase">
+												House Required
+											</Text>
+										</View>
+										<Text className="mt-1 font-mono text-xs text-muted-foreground">
+											Students can only post to their
+											affiliated house. Choose your house
+											in your profile to publish posts.
+										</Text>
+										{onOpenGuildModal && (
+											<NeoButton
+												size="sm"
+												variant="secondary"
+												className="mt-3 self-start"
+												onPress={() => {
+													onOpenChange(false);
+													onOpenGuildModal();
+												}}>
+												CHOOSE HOUSE
+											</NeoButton>
+										)}
+									</NeoCard>
+								)}
+
+								{/* Title Input */}
+								<View>
+									<Text className="mb-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
+										Transmission Title
+									</Text>
 									<TextInput
-										value={codeSnippet}
-										onChangeText={setCodeSnippet}
-										multiline
-										numberOfLines={5}
-										textAlignVertical="top"
-										placeholder="// Paste your code snippet here..."
-										placeholderTextColor="#64748b"
-										className="min-h-27.5 rounded-lg border border-border/60 bg-muted/20 p-2.5 font-mono text-xs text-foreground"
+										value={title}
+										onChangeText={setTitle}
+										placeholder="e.g. Optimized graph traversal algorithm or UI critique..."
+										placeholderTextColor="#6c7284"
+										className="rounded-sm border-2 border-border bg-card p-3 font-mono text-sm text-foreground focus:border-primary"
 									/>
 								</View>
-							)}
-						</View>
-						{/* Topic Tags */}
-						<View>
-							<View className="mb-1.5 flex-row items-center gap-1">
-								<Hash size={13} color="#a1a1aa" />
-								<Text
-									weight="medium"
-									className="text-xs text-muted-foreground">
-									Tags & Topics
+
+								{/* Content Body */}
+								<View>
+									<Text className="mb-1.5 font-mono text-xs tracking-wider text-muted-foreground uppercase">
+										Content & Description
+									</Text>
+									<TextInput
+										value={content}
+										onChangeText={setContent}
+										multiline
+										numberOfLines={6}
+										textAlignVertical="top"
+										placeholder="Share your technical breakdown, question, or design rationale..."
+										placeholderTextColor="#6c7284"
+										className="min-h-36 rounded-sm border-2 border-border bg-card p-3 font-mono text-sm text-foreground focus:border-primary"
+									/>
+								</View>
+
+								{/* Code Snippet Toggle & Editor */}
+								<View>
+									<NeoButton
+										size="sm"
+										variant={
+											showCode ? "primary" : "secondary"
+										}
+										className="self-start"
+										startContent={
+											<Code2
+												size={16}
+												color={
+													showCode
+														? "#0a0a0c"
+														: "#91e6b1"
+												}
+												strokeWidth={2.5}
+											/>
+										}
+										onPress={() => setShowCode(!showCode)}>
+										{showCode
+											? "REMOVE CODE SNIPPET"
+											: "ATTACH CODE SNIPPET"}
+									</NeoButton>
+
+									{showCode && (
+										<NeoCard className="mt-3 gap-2 rounded-sm border-2 border-border bg-card p-3 shadow-neo-sm">
+											<View className="flex-row flex-wrap items-center gap-1.5 border-b border-border pb-2">
+												<Text className="mr-1 font-mono text-xs text-muted-foreground uppercase">
+													Language:
+												</Text>
+												{CODE_LANGUAGES.map((lang) => (
+													<Pressable
+														key={lang}
+														onPress={() =>
+															setCodeLanguage(
+																lang,
+															)
+														}>
+														<NeoBadge
+															variant={
+																codeLanguage ===
+																lang
+																	? "primary"
+																	: "outline"
+															}
+															size="sm">
+															{lang}
+														</NeoBadge>
+													</Pressable>
+												))}
+											</View>
+											<TextInput
+												value={codeSnippet}
+												onChangeText={setCodeSnippet}
+												multiline
+												numberOfLines={6}
+												textAlignVertical="top"
+												placeholder="// Paste your code snippet here..."
+												placeholderTextColor="#6c7284"
+												className="min-h-32 rounded-sm border-2 border-border bg-[#0d0e12] p-3 font-mono text-xs text-primary"
+											/>
+										</NeoCard>
+									)}
+								</View>
+
+								{/* Topic Tags */}
+								<View>
+									<View className="mb-2 flex-row items-center gap-1">
+										<Hash size={14} color="#9aa1b2" />
+										<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+											Tags & Topics
+										</Text>
+									</View>
+									<View className="flex-row flex-wrap gap-2">
+										{Array.from(
+											new Set([
+												...COMMON_TAGS,
+												...selectedTags,
+											]),
+										).map((tag) => {
+											const isSelected =
+												selectedTags.includes(tag);
+											return (
+												<Pressable
+													key={tag}
+													onPress={() =>
+														toggleTag(tag)
+													}>
+													<NeoBadge
+														variant={
+															isSelected
+																? "primary"
+																: "default"
+														}
+														size="md">
+														{tag}
+													</NeoBadge>
+												</Pressable>
+											);
+										})}
+									</View>
+									<View className="mt-2 flex-row items-center gap-2">
+										<TextInput
+											value={customTag}
+											onChangeText={setCustomTag}
+											onSubmitEditing={addCustomTag}
+											placeholder="#custom-tag"
+											placeholderTextColor="#6c7284"
+											className="flex-1 rounded-sm border-2 border-border bg-card px-3 py-2 font-mono text-xs text-foreground"
+										/>
+										<NeoButton
+											size="sm"
+											variant="secondary"
+											onPress={addCustomTag}>
+											ADD TAG
+										</NeoButton>
+									</View>
+								</View>
+
+								{/* Media Attachment */}
+								<View>
+									<NeoButton
+										size="sm"
+										variant={
+											imageUrl ? "primary" : "secondary"
+										}
+										startContent={
+											<Camera
+												size={15}
+												color={
+													imageUrl
+														? "#0a0a0c"
+														: "#91e6b1"
+												}
+											/>
+										}
+										onPress={pickImage}>
+										{imageUrl
+											? "REPLACE MEDIA"
+											: "ATTACH MEDIA"}
+									</NeoButton>
+									{imageUrl && (
+										<View className="mt-3 overflow-hidden rounded-sm border-2 border-border bg-black">
+											<Pressable
+												onPress={() =>
+													setImageUrl(null)
+												}
+												className="absolute top-2 right-2 z-10 rounded-sm bg-black/70 p-1">
+												<X size={14} color="#ffffff" />
+											</Pressable>
+											<ExpoImage
+												source={{ uri: imageUrl }}
+												style={{
+													height: 180,
+													width: "100%",
+												}}
+												contentFit="cover"
+											/>
+										</View>
+									)}
+								</View>
+							</View>
+						</ScrollView>
+
+						{/* Keyboard Accessory Bar */}
+						<View className="flex-row items-center justify-between border-t-2 border-border bg-card px-4 py-2">
+							<View className="flex-row items-center gap-2">
+								<NeoButton
+									size="sm"
+									variant={showCode ? "primary" : "secondary"}
+									startContent={
+										<Code2
+											size={14}
+											color={
+												showCode ? "#0a0a0c" : "#91e6b1"
+											}
+										/>
+									}
+									onPress={() => setShowCode(!showCode)}>
+									CODE
+								</NeoButton>
+								<Text className="font-mono text-xs text-muted-foreground">
+									{selectedTags.length > 0
+										? `${selectedTags.length} tag${selectedTags.length > 1 ? "s" : ""}`
+										: "No tags"}
 								</Text>
 							</View>
-							<View className="flex-row flex-wrap gap-1.5">
-								{COMMON_TAGS.map((tag) => {
-									const isSelected =
-										selectedTags.includes(tag);
-									return (
-										<Pressable
-											key={tag}
-											onPress={() => toggleTag(tag)}
-											className={`rounded-lg border px-2.5 py-1 transition-all active:scale-[0.96] ${
-												isSelected
-													? "border-primary bg-primary/20 text-primary"
-													: "border-border/60 bg-muted/30 hover:bg-muted/60"
-											}`}>
-											<Text
-												weight={
-													isSelected
-														? "bold"
-														: "normal"
-												}
-												className={`text-[10px] ${
-													isSelected
-														? "text-primary"
-														: "text-muted-foreground"
-												}`}>
-												{tag}
-											</Text>
-										</Pressable>
-									);
-								})}
-							</View>
+
+							<Text className="font-mono text-xs text-muted-foreground">
+								{content.length} chars
+							</Text>
 						</View>
-					</View>
-				</ScrollView>
-				{/* Modal Footer */}
-				<Dialog.Footer className="mt-5 flex-row items-center justify-end gap-3 border-t border-border pt-3">
-					<Button
-						size="md"
-						variant="outline"
-						className="transition-transform active:scale-[0.96]"
-						onPress={() => onOpenChange(false)}>
-						Cancel
-					</Button>
-					<Button
-						size="md"
-						variant="primary"
-						loading={isSubmitting}
-						disabled={
-							!hasGuild ||
-							!title.trim() ||
-							!content.trim() ||
-							isSubmitting
-						}
-						className="flex-1 transition-transform active:scale-[0.96] sm:flex-initial"
-						startContent={<Send size={15} color="#ffffff" />}
-						onPress={handleSubmit}>
-						Publish Post
-					</Button>
-				</Dialog.Footer>
-			</Dialog.Content>
-		</Dialog>
+					</KeyboardAvoidingView>
+				</SafeAreaView>
+			</View>
+		</Modal>
 	);
 }

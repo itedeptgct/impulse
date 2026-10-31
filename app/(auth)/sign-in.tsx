@@ -8,22 +8,24 @@ import {
 	AlertCircle,
 	ArrowLeft,
 	CheckCircle2,
+	ChevronRight,
 	Eye,
 	EyeOff,
 	Lock,
 	Mail,
 } from "lucide-react-native";
-import { Button, Dialog, Text } from "panelui-native";
 import { useState } from "react";
 import {
 	KeyboardAvoidingView,
 	Platform,
 	Pressable,
 	ScrollView,
-	TextInput,
+	Text,
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { MobileSheet, NeoBadge, NeoButton, NeoInput } from "@/components/ui";
 
 export default function SignInScreen() {
 	const insets = useSafeAreaInsets();
@@ -133,99 +135,80 @@ export default function SignInScreen() {
 					}}
 					keyboardShouldPersistTaps="handled"
 					showsVerticalScrollIndicator={false}>
+					{/* Top Header Bar */}
 					<View className="flex-row items-center justify-between pb-8">
 						<Pressable
 							onPress={() => router.back()}
 							hitSlop={8}
-							className="h-10 w-10 items-center justify-center rounded-xl border border-border bg-card active:scale-[0.96] active:bg-popover">
+							className="size-10 items-center justify-center rounded-sm border-2 border-border bg-card shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
 							<ArrowLeft
 								size={18}
 								color="#ffffff"
+								strokeWidth={2.5}
 								className="-translate-x-0.5"
 							/>
 						</Pressable>
-						<Text
-							weight="bold"
-							className="text-lg tracking-tight text-foreground">
-							impulse
-						</Text>
-						<View className="w-10" />
 					</View>
+
+					{/* Technical Header */}
 					<View className="pb-8">
-						<Text
-							weight="bold"
-							className="text-3xl tracking-tight text-foreground">
-							Welcome back
+						<Text className="font-display text-3xl tracking-tight text-foreground uppercase">
+							SIGN IN
 						</Text>
-						<Text className="mt-2 text-sm text-muted-foreground">
-							Enter your credentials to access your account
+						<Text className="mt-1.5 font-mono text-xs text-muted-foreground uppercase">
+							SECURE CAMPUS GATEWAY // ENTER ACCESS CREDENTIALS
 						</Text>
 					</View>
+
+					{/* Error Alert Banner */}
 					{errorMessage && (
-						<View className="mb-6 flex-row items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+						<View className="mb-6 flex-row items-center gap-3 rounded-sm border-2 border-destructive bg-destructive/15 p-4 shadow-neo-sm">
 							<AlertCircle
 								size={18}
-								color="#ef4444"
+								color="#ff5c5c"
 								className="shrink-0"
 							/>
-							<Text className="flex-1 text-sm text-destructive">
+							<Text className="flex-1 font-mono text-xs text-destructive">
 								{errorMessage}
 							</Text>
 						</View>
 					)}
+
+					{/* Form Fields */}
 					<View className="gap-5">
 						{/* Email Input */}
-						<View className="gap-2">
-							<Text
-								weight="medium"
-								className="text-xs text-muted-foreground">
-								Email Address
-							</Text>
-							<View
-								className={`flex-row items-center rounded-xl border ${
-									fieldErrors.email
-										? "border-destructive"
-										: "border-border"
-								} bg-card px-4 py-1.5 focus:border-primary`}>
+						<NeoInput
+							label="EMAIL"
+							placeholder="student@example.com"
+							value={email}
+							onChangeText={(text) => {
+								setEmail(text);
+								if (fieldErrors.email) {
+									setFieldErrors((prev) => ({
+										...prev,
+										email: undefined,
+									}));
+								}
+							}}
+							autoCapitalize="none"
+							autoCorrect={false}
+							keyboardType="email-address"
+							returnKeyType="next"
+							error={fieldErrors.email}
+							startContent={
 								<Mail
-									size={18}
-									strokeWidth={1.75}
-									color="#a1a1aa"
-									className="mr-3"
+									size={16}
+									color="#91e6b1"
+									strokeWidth={2.2}
 								/>
-								<TextInput
-									className="flex-1 text-base text-foreground"
-									placeholder="name@example.com"
-									placeholderTextColor="#686868"
-									value={email}
-									onChangeText={(text) => {
-										setEmail(text);
-										if (fieldErrors.email) {
-											setFieldErrors((prev) => ({
-												...prev,
-												email: undefined,
-											}));
-										}
-									}}
-									autoCapitalize="none"
-									autoCorrect={false}
-									keyboardType="email-address"
-									returnKeyType="next"
-								/>
-							</View>
-							{fieldErrors.email && (
-								<Text className="text-xs text-destructive">
-									{fieldErrors.email}
-								</Text>
-							)}
-						</View>
+							}
+						/>
+
 						{/* Password Input */}
-						<View className="gap-2">
-							<View className="flex-row items-center justify-between">
-								<Text
-									weight="medium"
-									className="text-xs text-muted-foreground">
-									Password
+						<View className="gap-1">
+							<View className="flex-row items-center justify-between pb-1">
+								<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+									PASSWORD
 								</Text>
 								<Pressable
 									onPress={() => {
@@ -236,183 +219,166 @@ export default function SignInScreen() {
 									}}
 									hitSlop={8}
 									className="active:opacity-70">
-									<Text
-										weight="medium"
-										className="text-xs text-primary">
-										Forgot password?
+									<Text className="font-mono text-xs text-primary">
+										FORGOT PASSWORD?
 									</Text>
 								</Pressable>
 							</View>
-							<View
-								className={`flex-row items-center rounded-xl border ${
-									fieldErrors.password
-										? "border-destructive"
-										: "border-border"
-								} bg-card px-4 py-1.5 focus:border-primary`}>
-								<Lock
-									size={18}
-									strokeWidth={1.75}
-									color="#a1a1aa"
-									className="mr-3"
-								/>
-								<TextInput
-									className="flex-1 text-base text-foreground"
-									placeholder="Enter your password"
-									placeholderTextColor="#686868"
-									value={password}
-									onChangeText={(text) => {
-										setPassword(text);
-										if (fieldErrors.password) {
-											setFieldErrors((prev) => ({
-												...prev,
-												password: undefined,
-											}));
-										}
-									}}
-									secureTextEntry={!showPassword}
-									autoCapitalize="none"
-									autoCorrect={false}
-									returnKeyType="done"
-									onSubmitEditing={handleSignIn}
-								/>
-								<Pressable
-									onPress={() =>
-										setShowPassword(!showPassword)
+							<NeoInput
+								placeholder="Enter your password"
+								value={password}
+								onChangeText={(text) => {
+									setPassword(text);
+									if (fieldErrors.password) {
+										setFieldErrors((prev) => ({
+											...prev,
+											password: undefined,
+										}));
 									}
-									hitSlop={14}
-									className="ml-2 h-7 w-7 items-center justify-center active:opacity-70">
-									{showPassword ? (
-										<EyeOff
-											size={18}
-											strokeWidth={1.75}
-											color="#a1a1aa"
-										/>
-									) : (
-										<Eye
-											size={18}
-											strokeWidth={1.75}
-											color="#a1a1aa"
-										/>
-									)}
-								</Pressable>
-							</View>
-							{fieldErrors.password && (
-								<Text className="text-xs text-destructive">
-									{fieldErrors.password}
-								</Text>
-							)}
+								}}
+								secureTextEntry={!showPassword}
+								autoCapitalize="none"
+								autoCorrect={false}
+								returnKeyType="done"
+								onSubmitEditing={handleSignIn}
+								error={fieldErrors.password}
+								startContent={
+									<Lock
+										size={16}
+										color="#91e6b1"
+										strokeWidth={2.2}
+									/>
+								}
+								endContent={
+									<Pressable
+										onPress={() =>
+											setShowPassword(!showPassword)
+										}
+										hitSlop={12}
+										className="size-7 items-center justify-center active:opacity-70">
+										{showPassword ? (
+											<EyeOff
+												size={16}
+												strokeWidth={2}
+												color="#9aa1b2"
+											/>
+										) : (
+											<Eye
+												size={16}
+												strokeWidth={2}
+												color="#9aa1b2"
+											/>
+										)}
+									</Pressable>
+								}
+							/>
 						</View>
+
+						{/* Actions */}
 						<View className="pt-3">
-							<Button
-								size="lg"
-								fullWidth
+							<NeoButton
 								variant="primary"
+								size="lg"
+								className="w-full"
 								loading={signInMutation.isPending}
-								onPress={handleSignIn}>
-								Log In
-							</Button>
+								onPress={handleSignIn}
+								endContent={
+									<ChevronRight
+										size={18}
+										color="#0a0a0c"
+										strokeWidth={2.5}
+									/>
+								}>
+								SIGN IN
+							</NeoButton>
 						</View>
 					</View>
+
+					{/* Switch to Sign Up */}
 					<View className="mt-auto flex-row items-center justify-center pt-8">
-						<Text className="text-sm text-muted-foreground">
-							Don't have an account?{" "}
+						<Text className="font-mono text-xs text-muted-foreground uppercase">
+							NEW STUDENT?{" "}
 						</Text>
 						<Pressable
 							onPress={() => router.push("/(auth)/sign-up")}
 							hitSlop={8}
 							className="active:opacity-70">
-							<Text
-								weight="semibold"
-								className="text-sm text-foreground">
-								Sign Up
+							<Text className="font-mono text-xs text-primary">
+								REGISTER ACCOUNT →
 							</Text>
 						</Pressable>
 					</View>
 				</ScrollView>
 			</KeyboardAvoidingView>
-			{/* Forgot Password Dialog */}
-			<Dialog
+
+			{/* Forgot Password Sheet */}
+			<MobileSheet
 				open={isForgotPasswordOpen}
-				onOpenChange={setIsForgotPasswordOpen}>
-				<Dialog.Content className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6">
-					<Dialog.Title
-						weight="bold"
-						className="text-xl text-foreground">
-						Reset Password
-					</Dialog.Title>
-					<Dialog.Description className="mt-2 text-sm text-muted-foreground">
-						Enter your email address and we'll send a password
-						recovery link.
-					</Dialog.Description>
+				onOpenChange={setIsForgotPasswordOpen}
+				title="RESET PASSWORD"
+				subtitle="Enter your academic email address to receive recovery instructions.">
+				<View className="py-2">
 					{forgotMessage && (
 						<View
-							className={`mt-4 flex-row items-center gap-3 rounded-xl border ${
+							className={`mb-4 flex-row items-center gap-3 rounded-sm border-2 ${
 								forgotStatus === "success"
-									? "border-emerald-500/30 bg-emerald-500/10"
-									: "border-destructive/30 bg-destructive/10"
-							} p-3.5`}>
+									? "border-primary/50 bg-primary/15"
+									: "border-destructive bg-destructive/15"
+							} p-3.5 shadow-neo-sm`}>
 							{forgotStatus === "success" ? (
 								<CheckCircle2
 									size={18}
-									color="#10b981"
+									color="#91e6b1"
 									className="shrink-0"
 								/>
 							) : (
 								<AlertCircle
 									size={18}
-									color="#ef4444"
+									color="#ff5c5c"
 									className="shrink-0"
 								/>
 							)}
 							<Text
-								className={`flex-1 text-xs ${
+								className={`flex-1 font-mono text-xs ${
 									forgotStatus === "success"
-										? "text-emerald-300"
+										? "text-primary"
 										: "text-destructive"
 								}`}>
 								{forgotMessage}
 							</Text>
 						</View>
 					)}
-					<View className="mt-4 gap-2">
-						<Text
-							weight="medium"
-							className="text-xs text-muted-foreground">
-							Email Address
-						</Text>
-						<View className="flex-row items-center rounded-xl border border-border bg-popover px-4 py-3">
-							<Mail size={16} color="#a1a1aa" className="mr-3" />
-							<TextInput
-								className="flex-1 text-sm text-foreground"
-								placeholder="name@example.com"
-								placeholderTextColor="#686868"
-								value={forgotEmail}
-								onChangeText={setForgotEmail}
-								autoCapitalize="none"
-								autoCorrect={false}
-								keyboardType="email-address"
-							/>
-						</View>
-					</View>
-					<Dialog.Footer className="mt-6 flex-row gap-2.5">
-						<Button
-							size="md"
+					<NeoInput
+						label="CAMPUS EMAIL"
+						placeholder="name@example.com"
+						value={forgotEmail}
+						onChangeText={setForgotEmail}
+						autoCapitalize="none"
+						autoCorrect={false}
+						keyboardType="email-address"
+						startContent={
+							<Mail size={16} color="#91e6b1" strokeWidth={2.2} />
+						}
+					/>
+					<View className="mt-6 flex-row gap-2.5">
+						<NeoButton
 							variant="outline"
+							size="md"
 							className="flex-1"
 							onPress={() => setIsForgotPasswordOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							size="md"
+							CANCEL
+						</NeoButton>
+						<NeoButton
 							variant="primary"
+							size="md"
 							className="flex-1"
 							loading={resetPasswordMutation.isPending}
 							onPress={handleResetPassword}>
-							Send Link
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Content>
-			</Dialog>
+							SEND LINK
+						</NeoButton>
+					</View>
+				</View>
+			</MobileSheet>
 		</View>
 	);
 }

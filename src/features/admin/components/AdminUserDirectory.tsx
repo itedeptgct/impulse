@@ -9,9 +9,16 @@ import {
 	User,
 	XCircle,
 } from "lucide-react-native";
-import { Button, Dialog, Text } from "panelui-native";
 import { useState } from "react";
-import { TextInput, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
+
+import {
+	MobileAlertSheet,
+	NeoBadge,
+	NeoButton,
+	NeoCard,
+	NeoInput,
+} from "@/components/ui";
 
 import { useAdminUsers, useUpdateUserRole } from "../hooks/useAdmin";
 import type { AdminUserItem } from "../types";
@@ -28,7 +35,9 @@ export function AdminUserDirectory() {
 	} = useAdminUsers(search, roleFilter);
 	const updateRoleMutation = useUpdateUserRole();
 
-	const [selectedUser, setSelectedUser] = useState<AdminUserItem | null>(null);
+	const [selectedUser, setSelectedUser] = useState<AdminUserItem | null>(
+		null,
+	);
 	const [newRole, setNewRole] = useState<UserRole>("user");
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -49,206 +58,240 @@ export function AdminUserDirectory() {
 	};
 
 	return (
-		<View className="gap-6">
-			{/* Search & Filter Toolbar */}
-			<View className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-				<View className="relative flex-1 sm:max-w-md">
-					<View className="pointer-events-none absolute inset-y-0 left-3 z-10 flex-row items-center">
-						<Search size={15} className="text-muted-foreground" />
-					</View>
-					<TextInput
-						value={search}
-						onChangeText={setSearch}
-						placeholder="Search students by username or email..."
-						placeholderTextColor="#71717a"
-						className="h-10 w-full rounded-xl border border-border bg-card pr-4 pl-9 text-xs text-foreground placeholder:text-muted-foreground"
-					/>
-				</View>
-				<View className="flex-row items-center gap-2">
-					<View className="flex-row items-center rounded-xl border border-border bg-card p-1">
-						{(["all", "admin", "user"] as const).map((r) => (
-							<Button
-								key={r}
+		<View className="gap-4">
+			{/* Search input */}
+			<NeoInput
+				value={search}
+				onChangeText={setSearch}
+				placeholder="Search students by username or email..."
+				startContent={
+					<Search size={15} color="#9aa1b2" strokeWidth={2.5} />
+				}
+			/>
+
+			{/* Filter Tabs & Refresh Row */}
+			<View className="flex-row items-center justify-between gap-2">
+				<ScrollView
+					horizontal
+					showsHorizontalScrollIndicator={false}
+					contentContainerStyle={{ gap: 6 }}
+					className="flex-1">
+					{(
+						[
+							{ key: "all", label: "All Roles" },
+							{ key: "admin", label: "Admins" },
+							{ key: "user", label: "Students" },
+						] as const
+					).map((tab) => {
+						const isActive = roleFilter === tab.key;
+						return (
+							<NeoButton
+								key={tab.key}
 								size="sm"
-								variant={roleFilter === r ? "primary" : "ghost"}
-								className="rounded-lg capitalize"
-								onPress={() => setRoleFilter(r)}>
-								{r}
-							</Button>
-						))}
-					</View>
-					<Button
-						size="sm"
-						variant="outline"
-						aria-label="Refresh users list"
-						className="h-9 w-9 rounded-xl transition-transform active:scale-[0.96]"
-						onPress={() => void refetch()}>
-						<RefreshCw
-							size={14}
-							className={`text-muted-foreground ${isFetching ? "animate-spin" : ""}`}
-						/>
-					</Button>
-				</View>
+								variant={isActive ? "primary" : "outline"}
+								onPress={() => setRoleFilter(tab.key)}>
+								{tab.label}
+							</NeoButton>
+						);
+					})}
+				</ScrollView>
+
+				<NeoButton
+					size="sm"
+					variant="outline"
+					className="h-9 w-9 px-0"
+					accessibilityLabel="Refresh students list"
+					onPress={() => void refetch()}>
+					<RefreshCw
+						size={14}
+						color={isFetching ? "#91e6b1" : "#ffffff"}
+						className={isFetching ? "animate-spin" : ""}
+					/>
+				</NeoButton>
 			</View>
+
 			{/* Users List */}
 			{isLoading ? (
 				<View className="gap-3">
-					{[1, 2, 3, 4].map((i) => (
+					{[1, 2, 3].map((i) => (
 						<View
 							key={i}
-							className="h-20 animate-pulse rounded-2xl border border-border bg-card"
+							className="h-28 animate-pulse rounded-sm border-2 border-border bg-card p-4 shadow-neo-sm"
 						/>
 					))}
 				</View>
 			) : !users || users.length === 0 ? (
-				<View className="items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 py-16">
-					<User size={32} className="text-muted-foreground/60" />
-					<Text weight="medium" className="mt-3 text-sm text-foreground">
-						No students found
+				<NeoCard className="items-center justify-center border-dashed border-border bg-card py-12 text-center">
+					<User size={32} color="#9aa1b2" strokeWidth={2.5} />
+					<Text className="mt-3 font-display text-base tracking-tight text-foreground uppercase">
+						No Students Found
 					</Text>
-					<Text className="mt-1 text-xs text-muted-foreground">
+					<Text className="mt-1 text-center font-mono text-xs text-muted-foreground">
 						Try adjusting your search criteria or role filters.
 					</Text>
-				</View>
+				</NeoCard>
 			) : (
 				<View className="gap-3">
 					{users.map((u) => {
 						const isUserAdmin = u.role === "admin";
 						const verifStatus = u.verification?.status || "none";
+
 						return (
-							<View
+							<NeoCard
 								key={u.id}
-								className="flex-col gap-4 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
-								<View className="flex-row items-center gap-3.5">
-									<View className="h-11 w-11 items-center justify-center rounded-xl border border-border bg-muted/60">
-										<Text weight="bold" className="text-sm text-foreground">
-											{u.username?.slice(0, 2).toUpperCase() || "ST"}
+								className="gap-3 border-border bg-card p-4">
+								{/* Header row: Avatar, Info, Badges */}
+								<View className="flex-row items-center gap-3">
+									<View className="size-11 items-center justify-center rounded-sm border-2 border-border bg-secondary">
+										<Text className="font-mono text-sm text-primary">
+											{u.username
+												?.slice(0, 2)
+												.toUpperCase() || "ST"}
 										</Text>
 									</View>
-									<View>
-										<View className="flex-row items-center gap-2">
-											<Text weight="bold" className="text-sm text-foreground">
-												{u.username || "Anonymous Student"}
+
+									<View className="flex-1">
+										<View className="flex-row items-center justify-between">
+											<Text className="font-mono text-sm text-foreground">
+												{u.username ||
+													"Anonymous Student"}
 											</Text>
 											{isUserAdmin ? (
-												<View className="flex-row items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5">
-													<ShieldCheck size={11} className="text-primary" />
-													<Text
-														weight="semibold"
-														className="text-[10px] text-primary uppercase">
-														Admin
-													</Text>
-												</View>
+												<NeoBadge
+													variant="primary"
+													size="sm"
+													startContent={
+														<ShieldCheck
+															size={10}
+															color="#91e6b1"
+															strokeWidth={2.5}
+														/>
+													}>
+													ADMIN
+												</NeoBadge>
 											) : (
-												<View className="flex-row items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5">
-													<GraduationCap
-														size={11}
-														className="text-muted-foreground"
-													/>
-													<Text
-														weight="medium"
-														className="text-[10px] text-muted-foreground">
-														Student
-													</Text>
-												</View>
+												<NeoBadge
+													variant="default"
+													size="sm"
+													startContent={
+														<GraduationCap
+															size={10}
+															color="#9aa1b2"
+															strokeWidth={2.5}
+														/>
+													}>
+													STUDENT
+												</NeoBadge>
 											)}
 										</View>
-										<Text className="mt-0.5 text-xs text-muted-foreground">
+										<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
 											{u.email}
 										</Text>
 									</View>
 								</View>
-								<View className="flex-row items-center gap-4">
+
+								{/* Status and Action row */}
+								<View className="flex-row items-center justify-between border-t border-border/40 pt-2.5">
 									{/* Verification Pill */}
 									<View className="flex-row items-center gap-1.5">
 										{verifStatus === "approved" ? (
-											<View className="flex-row items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5">
-												<CheckCircle2 size={12} className="text-emerald-400" />
-												<Text
-													weight="medium"
-													className="text-[11px] text-emerald-400">
-													Verified
-												</Text>
-											</View>
+											<NeoBadge
+												variant="primary"
+												size="sm"
+												startContent={
+													<CheckCircle2
+														size={10}
+														color="#91e6b1"
+														strokeWidth={2.5}
+													/>
+												}>
+												VERIFIED
+											</NeoBadge>
 										) : verifStatus === "rejected" ? (
-											<View className="flex-row items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5">
-												<XCircle size={12} className="text-destructive" />
-												<Text
-													weight="medium"
-													className="text-[11px] text-destructive">
-													Rejected
-												</Text>
-											</View>
+											<NeoBadge
+												variant="outline"
+												size="sm"
+												textClassName="text-destructive"
+												startContent={
+													<XCircle
+														size={10}
+														color="#ff5c5c"
+														strokeWidth={2.5}
+													/>
+												}>
+												REJECTED
+											</NeoBadge>
 										) : verifStatus === "pending" ? (
-											<View className="flex-row items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5">
-												<Clock size={12} className="text-amber-400" />
-												<Text
-													weight="medium"
-													className="text-[11px] text-amber-400">
-													Pending
-												</Text>
-											</View>
+											<NeoBadge
+												variant="default"
+												size="sm"
+												className="border-amber-400/60 bg-amber-500/15"
+												textClassName="text-amber-400"
+												startContent={
+													<Clock
+														size={10}
+														color="#fbbf24"
+														strokeWidth={2.5}
+													/>
+												}>
+												PENDING
+											</NeoBadge>
 										) : (
-											<Text className="text-xs text-muted-foreground">
+											<Text className="font-mono text-xs text-muted-foreground">
 												No ID submitted
 											</Text>
 										)}
 									</View>
+
 									{/* Action Button */}
 									{isUserAdmin ? (
-										<Button
+										<NeoButton
 											size="sm"
 											variant="outline"
-											onPress={() => handleOpenRoleDialog(u, "user")}>
+											onPress={() =>
+												handleOpenRoleDialog(u, "user")
+											}>
 											Demote to Student
-										</Button>
+										</NeoButton>
 									) : (
-										<Button
+										<NeoButton
 											size="sm"
 											variant="outline"
-											onPress={() => handleOpenRoleDialog(u, "admin")}>
+											onPress={() =>
+												handleOpenRoleDialog(u, "admin")
+											}>
 											Promote to Admin
-										</Button>
+										</NeoButton>
 									)}
 								</View>
-							</View>
+							</NeoCard>
 						);
 					})}
 				</View>
 			)}
-			{/* Role Change Confirmation Dialog */}
-			<Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-				<Dialog.Content className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6">
-					<Dialog.Title weight="bold" className="text-lg text-foreground">
-						Change User Role
-					</Dialog.Title>
-					<Dialog.Description className="mt-2 text-xs text-muted-foreground">
-						Are you sure you want to change{" "}
-						{selectedUser?.username || "this user"}&apos;s role to{" "}
-						<Text weight="bold" className="text-foreground uppercase">
-							{newRole}
-						</Text>
-						?
-					</Dialog.Description>
-					<Dialog.Footer className="mt-6 flex-row gap-2.5">
-						<Button
-							size="sm"
-							variant="outline"
-							className="flex-1"
-							onPress={() => setIsConfirmOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							size="sm"
-							variant={newRole === "admin" ? "primary" : "destructive"}
-							className="flex-1"
-							loading={updateRoleMutation.isPending}
-							onPress={handleConfirmRoleChange}>
-							Confirm
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Content>
-			</Dialog>
+
+			{/* Role Change Confirmation Sheet */}
+			<MobileAlertSheet
+				open={isConfirmOpen}
+				onOpenChange={setIsConfirmOpen}
+				title="Change User Role"
+				type={newRole === "admin" ? "info" : "warning"}
+				description={`Are you sure you want to change ${selectedUser?.username || "this user"}'s role to ${newRole.toUpperCase()}?`}
+				actions={[
+					{
+						label: `Confirm ${newRole === "admin" ? "Promotion" : "Demotion"}`,
+						onPress: handleConfirmRoleChange,
+						variant:
+							newRole === "admin" ? "primary" : "destructive",
+						loading: updateRoleMutation.isPending,
+					},
+					{
+						label: "Cancel",
+						onPress: () => setIsConfirmOpen(false),
+						variant: "outline",
+					},
+				]}
+			/>
 		</View>
 	);
 }

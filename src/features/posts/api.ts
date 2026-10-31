@@ -113,7 +113,7 @@ async function saveCachedVotes(
  */
 export async function fetchFeedPosts(
 	filter: FeedGuildFilter = "all",
-	sort: FeedSort = "hot",
+	sort: FeedSort = "new",
 	userId?: string,
 ): Promise<Post[]> {
 	let posts: Post[] = [];
@@ -137,9 +137,6 @@ export async function fetchFeedPosts(
 			query = query.order("created_at", { ascending: false });
 		} else if (sort === "top") {
 			query = query.order("upvotes_count", { ascending: false });
-		} else {
-			// hot
-			query = query.order("created_at", { ascending: false });
 		}
 
 		const { data, error } = await query;
@@ -187,21 +184,6 @@ export async function fetchFeedPosts(
 				b.downvotes_count -
 				(a.upvotes_count - a.downvotes_count),
 		);
-	} else {
-		// Hot algorithm: Score + decay over time
-		posts.sort((a, b) => {
-			const scoreA = Math.max(0, a.upvotes_count - a.downvotes_count);
-			const scoreB = Math.max(0, b.upvotes_count - b.downvotes_count);
-			const hoursA =
-				(Date.now() - new Date(a.created_at).getTime()) /
-				(1000 * 60 * 60);
-			const hoursB =
-				(Date.now() - new Date(b.created_at).getTime()) /
-				(1000 * 60 * 60);
-			const rankA = scoreA / Math.pow(hoursA + 2, 1.5);
-			const rankB = scoreB / Math.pow(hoursB + 2, 1.5);
-			return rankB - rankA;
-		});
 	}
 
 	return posts;

@@ -1,24 +1,41 @@
+import { updateUserProfile } from "@auth/api";
 import { useAuthStore } from "@auth/store";
-import { BookOpen, Check, FileText, User, X } from "lucide-react-native";
-import { Button, Dialog, Text } from "panelui-native";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import type { Profile } from "@auth/types";
+import {
+	AlertCircle,
+	BookOpen,
+	Check,
+	FileText,
+	Palette,
+	User,
+	X,
+} from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+	KeyboardAvoidingView,
+	Modal,
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { updateUserProfile } from "../api";
-import type { Profile } from "../types";
+import { NeoBadge, NeoButton, NeoInput } from "@/components/ui";
 
-interface EditProfileModalProps {
+export interface EditProfileModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onProfileUpdated?: (updated: Profile) => void;
+	onProfileUpdated?: (updatedProfile: Profile) => void;
 }
 
 const AVATAR_PRESETS = [
-	{ label: "Emerald", color: "from-emerald-500 to-teal-700", text: "EM" },
-	{ label: "Indigo", color: "from-indigo-500 to-purple-700", text: "IN" },
-	{ label: "Amber", color: "from-amber-500 to-orange-700", text: "AM" },
-	{ label: "Sky", color: "from-sky-500 to-blue-700", text: "SK" },
-	{ label: "Rose", color: "from-rose-500 to-pink-700", text: "RO" },
+	{ label: "terminal", color: "bg-emerald-500", desc: "Emerald Matrix" },
+	{ label: "cyber", color: "bg-cyan-500", desc: "Cyan Circuit" },
+	{ label: "matrix", color: "bg-lime-400", desc: "Neon Phosphor" },
+	{ label: "void", color: "bg-purple-600", desc: "Deep Void" },
+	{ label: "neural", color: "bg-rose-500", desc: "Neural Pink" },
 ];
 
 export function EditProfileModal({
@@ -30,21 +47,24 @@ export function EditProfileModal({
 	const profile = useAuthStore((state) => state.profile);
 	const setProfile = useAuthStore((state) => state.setProfile);
 
-	const [displayName, setDisplayName] = useState("");
-	const [major, setMajor] = useState("");
-	const [bio, setBio] = useState("");
-	const [avatarUrl, setAvatarUrl] = useState("");
+	const [displayName, setDisplayName] = useState(profile?.display_name || "");
+	const [major, setMajor] = useState(profile?.major || "");
+	const [bio, setBio] = useState(profile?.bio || "");
+	const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
+	const prevOpenRef = useRef(open);
+
 	useEffect(() => {
-		if (open && profile) {
-			setDisplayName(profile.display_name || profile.username || "");
+		if (open && !prevOpenRef.current && profile) {
+			setDisplayName(profile.display_name || "");
 			setMajor(profile.major || "");
 			setBio(profile.bio || "");
 			setAvatarUrl(profile.avatar_url || "");
 			setError(null);
 		}
+		prevOpenRef.current = open;
 	}, [open, profile]);
 
 	const handleSave = async () => {
@@ -80,174 +100,222 @@ export function EditProfileModal({
 	};
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<Dialog.Content className="mx-4 max-h-[90vh] max-w-lg rounded-3xl border border-border bg-card p-6 shadow-2xl">
-				{/* Header */}
-				<View className="mb-4 flex-row items-center justify-between border-b border-border pb-3">
-					<View className="flex-row items-center gap-2">
-						<User size={18} color="#10b981" />
-						<Dialog.Title
-							weight="bold"
-							className="text-lg text-foreground">
-							Customize Profile
-						</Dialog.Title>
-					</View>
-					<Pressable
-						onPress={() => onOpenChange(false)}
-						className="h-8 w-8 items-center justify-center rounded-full hover:bg-muted/50 active:scale-[0.96]">
-						<X size={16} color="#a1a1aa" />
-					</Pressable>
-				</View>
+		<Modal
+			visible={open}
+			animationType="slide"
+			presentationStyle="fullScreen"
+			statusBarTranslucent={true}
+			onRequestClose={() => onOpenChange(false)}>
+			<View
+				style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+				className="flex-1 bg-background">
+				<SafeAreaView
+					style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+					className="flex-1 bg-background"
+					edges={["top", "bottom"]}>
+					{/* Top Header Bar */}
+					<View className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
+						<NeoButton
+							variant="secondary"
+							size="sm"
+							onPress={() => onOpenChange(false)}>
+							CANCEL
+						</NeoButton>
 
-				{error && (
-					<View className="mb-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
-						<Text className="text-xs text-destructive">
-							{error}
+						<Text className="font-display text-base tracking-tight text-foreground uppercase">
+							EDIT PROFILE
 						</Text>
+
+						<NeoButton
+							variant="primary"
+							size="sm"
+							loading={isSubmitting}
+							disabled={isSubmitting}
+							onPress={handleSave}>
+							SAVE
+						</NeoButton>
 					</View>
-				)}
 
-				<ScrollView
-					showsVerticalScrollIndicator={false}
-					className="-mx-1 max-h-[55vh] px-1">
-					<View className="gap-4 py-1">
-						{/* Display Name */}
-						<View>
-							<Text
-								weight="medium"
-								className="mb-1.5 text-xs text-muted-foreground">
-								Display Name
+					{error && (
+						<View className="mx-4 mt-3 flex-row items-center gap-2 rounded-sm border-2 border-destructive bg-destructive/15 p-3">
+							<AlertCircle size={16} color="#ff5c5c" />
+							<Text className="flex-1 font-mono text-xs text-destructive">
+								{error}
 							</Text>
-							<TextInput
-								value={displayName}
-								onChangeText={setDisplayName}
-								placeholder="e.g. Alex Rivera"
-								placeholderTextColor="#64748b"
-								maxLength={50}
-								className="rounded-xl border border-border bg-background p-3 text-sm text-foreground focus:border-primary"
-							/>
+							<Pressable
+								onPress={() => setError(null)}
+								hitSlop={8}>
+								<X size={14} color="#ff5c5c" />
+							</Pressable>
 						</View>
+					)}
 
-						{/* Academic Specialization / Major */}
-						<View>
-							<View className="mb-1.5 flex-row items-center gap-1.5">
-								<BookOpen size={13} color="#a1a1aa" />
-								<Text
-									weight="medium"
-									className="text-xs text-muted-foreground">
-									Major / Specialization
-								</Text>
-							</View>
-							<TextInput
-								value={major}
-								onChangeText={setMajor}
-								placeholder="e.g. BS Computer Science, 4th Year"
-								placeholderTextColor="#64748b"
-								maxLength={80}
-								className="rounded-xl border border-border bg-background p-3 text-sm text-foreground focus:border-primary"
-							/>
-						</View>
+					<KeyboardAvoidingView
+						behavior={Platform.OS === "ios" ? "padding" : undefined}
+						className="flex-1">
+						<ScrollView
+							contentContainerStyle={{
+								flexGrow: 1,
+								paddingBottom: 32,
+							}}
+							showsVerticalScrollIndicator={false}
+							keyboardShouldPersistTaps="handled"
+							className="flex-1 px-4 pt-4">
+							<View className="gap-5">
+								{/* Display Name */}
+								<NeoInput
+									label="DISPLAY NAME"
+									value={displayName}
+									onChangeText={setDisplayName}
+									placeholder="e.g. Alex Rivera"
+									maxLength={50}
+									startContent={
+										<User
+											size={15}
+											color="#91e6b1"
+											strokeWidth={2.2}
+										/>
+									}
+								/>
 
-						{/* Bio */}
-						<View>
-							<View className="mb-1.5 flex-row items-center justify-between">
-								<View className="flex-row items-center gap-1.5">
-									<FileText size={13} color="#a1a1aa" />
-									<Text
-										weight="medium"
-										className="text-xs text-muted-foreground">
-										Biography
-									</Text>
-								</View>
-								<Text className="text-[11px] text-muted-foreground">
-									{bio.length}/250
-								</Text>
-							</View>
-							<TextInput
-								value={bio}
-								onChangeText={setBio}
-								multiline
-								numberOfLines={3}
-								textAlignVertical="top"
-								placeholder="Share your technical interests, tech stack, or campus projects..."
-								placeholderTextColor="#64748b"
-								maxLength={250}
-								className="min-h-20 rounded-xl border border-border bg-background p-3 text-xs text-foreground focus:border-primary"
-							/>
-						</View>
+								{/* Academic Specialization / Major */}
+								<NeoInput
+									label="ACADEMIC MAJOR / SPECIALIZATION"
+									value={major}
+									onChangeText={setMajor}
+									placeholder="e.g. Computer Science, Systems Engineering"
+									maxLength={80}
+									startContent={
+										<BookOpen
+											size={15}
+											color="#91e6b1"
+											strokeWidth={2.2}
+										/>
+									}
+								/>
 
-						{/* Avatar Theme Presets */}
-						<View>
-							<Text
-								weight="medium"
-								className="mb-2 text-xs text-muted-foreground">
-								Avatar Badge Theme
-							</Text>
-							<View className="flex-row flex-wrap items-center gap-2">
-								{AVATAR_PRESETS.map((preset) => {
-									const isSelected =
-										avatarUrl === preset.label;
-									return (
-										<Pressable
-											key={preset.label}
-											onPress={() =>
-												setAvatarUrl(preset.label)
-											}
-											className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-1.5 active:scale-[0.96] ${
-												isSelected
-													? "border-primary bg-primary/20 text-primary"
-													: "border-border/70 bg-muted/30"
-											}`}>
-											<View
-												className={`h-4 w-4 rounded-full bg-gradient-to-br ${preset.color}`}
+								{/* Bio / Intel */}
+								<NeoInput
+									label="BIO / INTEL"
+									value={bio}
+									onChangeText={setBio}
+									placeholder="Briefly describe your campus focus, technical stack, or projects..."
+									multiline
+									numberOfLines={4}
+									maxLength={250}
+									textAlignVertical="top"
+									inputWrapperClassName="items-start py-1"
+									className="min-h-24"
+									startContent={
+										<View className="pt-2">
+											<FileText
+												size={15}
+												color="#91e6b1"
+												strokeWidth={2.2}
 											/>
-											<Text
-												weight={
-													isSelected
-														? "bold"
-														: "normal"
-												}
-												className={`text-xs ${
-													isSelected
-														? "text-primary"
-														: "text-muted-foreground"
-												}`}>
-												{preset.label}
-											</Text>
-											{isSelected && (
-												<Check
-													size={12}
-													color="#10b981"
-												/>
-											)}
-										</Pressable>
-									);
-								})}
-							</View>
-						</View>
-					</View>
-				</ScrollView>
+										</View>
+									}
+									helperText={`${bio.length}/250 characters`}
+								/>
 
-				{/* Modal Footer */}
-				<Dialog.Footer className="mt-5 flex-row items-center justify-end gap-3 border-t border-border pt-3">
-					<Button
-						size="md"
-						variant="outline"
-						className="transition-transform active:scale-[0.96]"
-						onPress={() => onOpenChange(false)}>
-						Cancel
-					</Button>
-					<Button
-						size="md"
-						variant="primary"
-						loading={isSubmitting}
-						disabled={isSubmitting}
-						className="flex-1 transition-transform active:scale-[0.96] sm:flex-initial"
-						onPress={handleSave}>
-						Save Changes
-					</Button>
-				</Dialog.Footer>
-			</Dialog.Content>
-		</Dialog>
+								{/* Avatar Theme Presets */}
+								<View>
+									<View className="mb-2 flex-row items-center justify-between">
+										<View className="flex-row items-center gap-1.5">
+											<Palette
+												size={14}
+												color="#91e6b1"
+												strokeWidth={2.2}
+											/>
+											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+												AVATAR THEME PRESET
+											</Text>
+										</View>
+										{avatarUrl ? (
+											<NeoBadge
+												variant="primary"
+												size="sm">
+												{avatarUrl.toUpperCase()}
+											</NeoBadge>
+										) : null}
+									</View>
+
+									<View className="gap-2">
+										{AVATAR_PRESETS.map((preset) => {
+											const isSelected =
+												avatarUrl === preset.label;
+											return (
+												<Pressable
+													key={preset.label}
+													onPress={() =>
+														setAvatarUrl(
+															preset.label,
+														)
+													}
+													className={`flex-row items-center justify-between rounded-sm border-2 p-3 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none ${
+														isSelected
+															? "border-primary bg-primary/10 shadow-neo-sm"
+															: "border-border bg-card shadow-neo-sm"
+													}`}>
+													<View className="flex-row items-center gap-3">
+														<View
+															className={`size-6 rounded-sm border-2 border-border ${preset.color}`}
+														/>
+														<View>
+															<Text
+																className={`font-mono text-xs uppercase ${
+																	isSelected
+																		? "text-primary"
+																		: "text-foreground"
+																}`}>
+																{preset.label}
+															</Text>
+															<Text className="font-mono text-[10px] text-muted-foreground">
+																{preset.desc}
+															</Text>
+														</View>
+													</View>
+													{isSelected ? (
+														<View className="size-6 items-center justify-center rounded-sm border-2 border-primary bg-primary">
+															<Check
+																size={14}
+																color="#0a0a0c"
+																strokeWidth={3}
+															/>
+														</View>
+													) : (
+														<View className="size-6 rounded-sm border-2 border-border bg-secondary" />
+													)}
+												</Pressable>
+											);
+										})}
+									</View>
+								</View>
+
+								{/* Bottom Save Action */}
+								<View className="mt-4 gap-3 border-t-2 border-border pt-4">
+									<NeoButton
+										variant="primary"
+										size="md"
+										loading={isSubmitting}
+										disabled={isSubmitting}
+										onPress={handleSave}
+										className="w-full">
+										SAVE CHANGES
+									</NeoButton>
+									<NeoButton
+										variant="outline"
+										size="md"
+										onPress={() => onOpenChange(false)}
+										className="w-full">
+										CANCEL
+									</NeoButton>
+								</View>
+							</View>
+						</ScrollView>
+					</KeyboardAvoidingView>
+				</SafeAreaView>
+			</View>
+		</Modal>
 	);
 }

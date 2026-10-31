@@ -12,6 +12,11 @@ import {
 	IBMPlexMono_600SemiBold,
 	IBMPlexMono_700Bold,
 } from "@expo-google-fonts/ibm-plex-mono";
+import {
+	SpaceGrotesk_500Medium,
+	SpaceGrotesk_600SemiBold,
+	SpaceGrotesk_700Bold,
+} from "@expo-google-fonts/space-grotesk";
 import { supabase } from "@lib/supabase";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
@@ -23,16 +28,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Uniwind } from "uniwind";
 
-import { WebUnderConstructionGuard } from "@/features/web";
-
 import "@theme/global.css";
-
-// Set Moon Dark as default theme for PanelUI
-try {
-	Uniwind.setTheme("moon-dark");
-} catch {
-	// Fallback if themes are initializing
-}
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -59,13 +55,16 @@ export default function RootLayout() {
 		IBMPlexMono_500Medium,
 		IBMPlexMono_600SemiBold,
 		IBMPlexMono_700Bold,
+		SpaceGrotesk_500Medium,
+		SpaceGrotesk_600SemiBold,
+		SpaceGrotesk_700Bold,
 	});
 
 	useEffect(() => {
 		try {
-			Uniwind.setTheme("grass-dark");
-		} catch {
-			// handled
+			Uniwind.setTheme("dark");
+		} catch (error) {
+			console.error("Failed to set theme to dark", error);
 		}
 
 		const syncUserData = (userId: string | undefined) => {
@@ -98,8 +97,8 @@ export default function RootLayout() {
 
 	if (!fontsLoaded) {
 		return (
-			<View className="flex-1 items-center justify-center bg-[#010102]">
-				<ActivityIndicator color="#5e6ad2" />
+			<View className="flex-1 items-center justify-center bg-neo-bg">
+				<ActivityIndicator color="#91e6b1" />
 			</View>
 		);
 	}
@@ -109,9 +108,7 @@ export default function RootLayout() {
 			<PanelUIProvider>
 				<SafeAreaProvider>
 					<QueryClientProvider client={queryClient}>
-						<WebUnderConstructionGuard>
-							<Stack screenOptions={{ headerShown: false }} />
-						</WebUnderConstructionGuard>
+						<Stack screenOptions={{ headerShown: false }} />
 					</QueryClientProvider>
 				</SafeAreaProvider>
 			</PanelUIProvider>

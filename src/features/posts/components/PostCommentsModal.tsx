@@ -1,20 +1,41 @@
 import { useAuthStore } from "@auth/store";
 import { router } from "expo-router";
-import { CheckCircle2, MessageSquare, Send, X } from "lucide-react-native";
-import { Button, Dialog, Text } from "panelui-native";
+import { MessageSquare, Send, X } from "lucide-react-native";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, TextInput, View } from "react-native";
+import {
+	KeyboardAvoidingView,
+	Modal,
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
+import { NeoBadge, NeoButton, NeoCard, NeoInput } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 
 import { addPostComment, fetchPostComments } from "../api";
 import type { Comment, Post } from "../types";
 
-interface PostCommentsModalProps {
+export interface PostCommentsModalProps {
 	post: Post | null;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onCommentAdded: (postId: string, comment: Comment) => void;
+}
+
+function formatRelativeTime(isoString: string): string {
+	const created = new Date(isoString).getTime();
+	const now = Date.now();
+	const diffMs = Math.max(0, now - created);
+	const diffMins = Math.floor(diffMs / (1000 * 60));
+	if (diffMins < 1) return "Just now";
+	if (diffMins < 60) return `${diffMins}m ago`;
+	const diffHours = Math.floor(diffMins / 60);
+	if (diffHours < 24) return `${diffHours}h ago`;
+	return `${Math.floor(diffHours / 24)}d ago`;
 }
 
 export function PostCommentsModal({
@@ -36,13 +57,24 @@ export function PostCommentsModal({
 	} | null>(null);
 
 	useEffect(() => {
+		let isMounted = true;
 		if (open && post?.id) {
-			setIsLoading(true);
-			setReplyingTo(null);
-			void fetchPostComments(post.id)
-				.then((list) => setComments(list))
-				.finally(() => setIsLoading(false));
+			void (async () => {
+				setIsLoading(true);
+				try {
+					const list = await fetchPostComments(post.id);
+					if (isMounted) {
+						setReplyingTo(null);
+						setComments(list);
+					}
+				} finally {
+					if (isMounted) setIsLoading(false);
+				}
+			})();
 		}
+		return () => {
+			isMounted = false;
+		};
 	}, [open, post?.id]);
 
 	const handleSendComment = async () => {
@@ -73,16 +105,6 @@ export function PostCommentsModal({
 		}
 	};
 
-	const getRelativeTime = (isoString: string) => {
-		const diffMs = Date.now() - new Date(isoString).getTime();
-		const diffMins = Math.floor(diffMs / (1000 * 60));
-		if (diffMins < 1) return "Just now";
-		if (diffMins < 60) return `${diffMins}m ago`;
-		const diffHours = Math.floor(diffMins / 60);
-		if (diffHours < 24) return `${diffHours}h ago`;
-		return `${Math.floor(diffHours / 24)}d ago`;
-	};
-
 	const handleAuthorPress = (authorUsername?: string) => {
 		if (!authorUsername) return;
 		onOpenChange(false);
@@ -104,70 +126,102 @@ export function PostCommentsModal({
 	);
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<Dialog.Content className="mx-4 max-h-[90vh] max-w-xl rounded-3xl border border-border bg-card p-6 shadow-2xl">
-				{/* Modal Header */}
-				<View className="mb-4 flex-row items-center justify-between border-b border-border pb-3">
-					<View className="flex-row items-center gap-2">
-						<MessageSquare size={18} color="#10b981" />
-						<Dialog.Title
-							weight="bold"
-							className="text-lg text-foreground">
-							Discussion ({comments.length})
-						</Dialog.Title>
+		<Modal
+			visible={open}
+			animationType="slide"
+			presentationStyle={
+				Platform.OS === "ios" ? "pageSheet" : "fullScreen"
+			}
+			statusBarTranslucent={true}
+			onRequestClose={() => onOpenChange(false)}>
+			<View
+				style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+				className="flex-1 bg-background">
+				<SafeAreaView
+					style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+					className="flex-1 bg-background"
+					edges={["top", "bottom"]}>
+					{/* Header Section */}
+					<View className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
+						<View className="flex-row items-center gap-2.5">
+							<MessageSquare
+								size={18}
+								color="#91e6b1"
+								strokeWidth={2.5}
+							/>
+							<Text className="font-display text-base tracking-tight text-foreground uppercase">
+								DISCUSSION
+							</Text>
+							<NeoBadge variant="primary" size="sm">
+								{comments.length}
+							</NeoBadge>
+						</View>
+						<Pressable
+							accessibilityLabel="Close discussion"
+							onPress={() => onOpenChange(false)}
+							hitSlop={8}
+							className="size-8 items-center justify-center rounded-sm border-2 border-border bg-secondary active:translate-x-px active:translate-y-px">
+							<X size={15} color="#ffffff" strokeWidth={2.5} />
+						</Pressable>
 					</View>
-					<Pressable
-						onPress={() => onOpenChange(false)}
-						className="h-8 w-8 items-center justify-center rounded-full hover:bg-muted/50 active:scale-[0.96]">
-						<X size={16} color="#a1a1aa" />
-					</Pressable>
-				</View>
-				{/* Post Summary Preview */}
-				<View className="mb-4 rounded-xl border border-border/70 bg-muted/20 p-3">
-					<Text
-						weight="semibold"
-						className="text-xs text-foreground"
-						numberOfLines={1}>
-						{post.title}
-					</Text>
-					<Text
-						className="mt-1 text-[11px] text-muted-foreground"
-						numberOfLines={2}>
-						{post.content}
-					</Text>
-				</View>
-				{/* Comments Scrollable List */}
-				<ScrollView
-					showsVerticalScrollIndicator={false}
-					className="-mx-1 max-h-[48vh] px-1">
-					{isLoading ? (
-						<View className="items-center justify-center py-8">
-							<Text className="text-xs text-muted-foreground">
-								Loading discussion...
-							</Text>
-						</View>
-					) : rootComments.length === 0 ? (
-						<View className="items-center justify-center py-8">
-							<Text className="text-xs text-muted-foreground">
-								No comments yet. Start the discussion!
-							</Text>
-						</View>
-					) : (
-						<View className="gap-3 py-1">
-							{rootComments.map((comment) => {
-								const initials = comment.author?.username
-									? comment.author.username
-											.slice(0, 2)
-											.toUpperCase()
-									: "ST";
-								const replies =
-									repliesByParentId[comment.id] || [];
 
-								return (
-									<View key={comment.id} className="gap-2">
-										{/* Root Comment Item */}
-										<View className="rounded-2xl border border-border/60 bg-background/50 p-3.5">
-											<View className="flex-row items-center justify-between">
+					{/* Original Post Summary NeoCard */}
+					<View className="px-4 pt-3 pb-1">
+						<NeoCard variant="default" className="p-3">
+							<Text
+								className="font-display text-xs text-foreground"
+								numberOfLines={1}>
+								{post.title}
+							</Text>
+							<Text
+								className="mt-1 font-mono text-[11px] text-muted-foreground"
+								numberOfLines={2}>
+								{post.content}
+							</Text>
+						</NeoCard>
+					</View>
+
+					{/* Comments Scrollable Stream */}
+					<ScrollView
+						showsVerticalScrollIndicator={false}
+						className="flex-1 px-4"
+						contentContainerStyle={{
+							flexGrow: 1,
+							paddingBottom: 16,
+						}}
+						keyboardShouldPersistTaps="handled">
+						{isLoading ? (
+							<View className="flex-1 items-center justify-center py-16">
+								<Text className="font-mono text-xs text-muted-foreground">
+									[LOADING DISCUSSIONS...]
+								</Text>
+							</View>
+						) : comments.length === 0 ? (
+							<View className="flex-1 items-center justify-center py-16 text-center">
+								<MessageSquare
+									size={28}
+									color="#91e6b1"
+									strokeWidth={2.5}
+								/>
+								<Text className="mt-3 font-display text-sm text-foreground uppercase">
+									NO TRANSMISSION REPLIES YET
+								</Text>
+								<Text className="mt-1 font-mono text-xs text-muted-foreground">
+									Be the first to provide technical insight or
+									ask a follow-up!
+								</Text>
+							</View>
+						) : (
+							<View className="gap-3 py-2">
+								{rootComments.map((comment) => {
+									const replies =
+										repliesByParentId[comment.id] || [];
+									return (
+										<View
+											key={comment.id}
+											className="rounded-sm border-2 border-border bg-card p-3 shadow-neo-sm">
+											{/* Root Author Bar */}
+											<View className="flex-row items-center justify-between pb-1.5">
 												<View className="flex-row items-center gap-2">
 													<Pressable
 														onPress={() =>
@@ -176,32 +230,22 @@ export function PostCommentsModal({
 																	?.username,
 															)
 														}
-														className="h-7 w-7 items-center justify-center rounded-lg border border-border bg-muted/60 active:opacity-75">
-														<Text
-															weight="bold"
-															className="text-[10px] text-foreground">
-															{initials}
-														</Text>
-													</Pressable>
-													<Pressable
-														onPress={() =>
-															handleAuthorPress(
-																comment.author
-																	?.username,
-															)
-														}
 														className="flex-row items-center gap-1.5 active:opacity-75">
-														<Text
-															weight="bold"
-															className="text-xs text-foreground hover:underline">
+														<View className="size-6 items-center justify-center rounded-sm border border-border bg-secondary">
+															<Text className="font-mono text-[10px] text-primary uppercase">
+																{
+																	(comment
+																		.author
+																		?.username ||
+																		"S")[0]
+																}
+															</Text>
+														</View>
+														<Text className="font-mono text-xs text-foreground">
 															{comment.author
 																?.username ||
 																"Student"}
 														</Text>
-														<CheckCircle2
-															size={11}
-															color="#10b981"
-														/>
 													</Pressable>
 													{comment.author?.guild && (
 														<GuildBadge
@@ -213,17 +257,20 @@ export function PostCommentsModal({
 														/>
 													)}
 												</View>
-												<Text className="text-[10px] text-muted-foreground">
-													{getRelativeTime(
+												<Text className="font-mono text-[10px] text-muted-foreground">
+													{formatRelativeTime(
 														comment.created_at,
 													)}
 												</Text>
 											</View>
-											<Text className="mt-2 text-xs leading-relaxed text-foreground">
+
+											{/* Content */}
+											<Text className="font-sans text-xs leading-relaxed text-foreground">
 												{comment.content}
 											</Text>
-											{/* Comment Actions */}
-											<View className="mt-2 flex-row items-center gap-3 pt-1">
+
+											{/* Reply Action */}
+											<View className="mt-2 flex-row items-center justify-between border-t border-border/60 pt-2">
 												<Pressable
 													onPress={() =>
 														setReplyingTo({
@@ -234,31 +281,21 @@ export function PostCommentsModal({
 																"Student",
 														})
 													}
-													className="rounded-md px-1.5 py-0.5 active:bg-muted/40">
-													<Text
-														weight="semibold"
-														className="text-[11px] text-primary">
-														Reply
+													className="rounded-sm border border-border bg-secondary px-2 py-0.5 active:translate-x-px active:translate-y-px">
+													<Text className="font-mono text-[10px] text-primary uppercase">
+														REPLY
 													</Text>
 												</Pressable>
 											</View>
-										</View>
 
-										{/* Threaded Replies List */}
-										{replies.length > 0 && (
-											<View className="mt-1 ml-6 space-y-2 border-l-2 border-primary/30 pl-3">
-												{replies.map((reply) => {
-													const replyInitials = reply
-														.author?.username
-														? reply.author.username
-																.slice(0, 2)
-																.toUpperCase()
-														: "ST";
-													return (
+											{/* Nested replies */}
+											{replies.length > 0 && (
+												<View className="mt-2.5 gap-2 border-l-2 border-primary pl-3">
+													{replies.map((reply) => (
 														<View
 															key={reply.id}
-															className="rounded-xl border border-border/50 bg-background/40 p-2.5">
-															<View className="flex-row items-center justify-between">
+															className="rounded-sm border border-border bg-secondary p-2.5">
+															<View className="flex-row items-center justify-between pb-1">
 																<View className="flex-row items-center gap-1.5">
 																	<Pressable
 																		onPress={() =>
@@ -268,38 +305,13 @@ export function PostCommentsModal({
 																					?.username,
 																			)
 																		}
-																		className="h-5 w-5 items-center justify-center rounded-md border border-border bg-muted/60 active:opacity-75">
-																		<Text
-																			weight="bold"
-																			className="text-[9px] text-foreground">
-																			{
-																				replyInitials
-																			}
-																		</Text>
-																	</Pressable>
-																	<Pressable
-																		onPress={() =>
-																			handleAuthorPress(
-																				reply
-																					.author
-																					?.username,
-																			)
-																		}
 																		className="flex-row items-center gap-1 active:opacity-75">
-																		<Text
-																			weight="bold"
-																			className="text-[11px] text-foreground hover:underline">
+																		<Text className="font-mono text-[11px] text-foreground">
 																			{reply
 																				.author
 																				?.username ||
 																				"Student"}
 																		</Text>
-																		<CheckCircle2
-																			size={
-																				10
-																			}
-																			color="#10b981"
-																		/>
 																	</Pressable>
 																	{reply
 																		.author
@@ -314,98 +326,95 @@ export function PostCommentsModal({
 																		/>
 																	)}
 																</View>
-																<Text className="text-[9px] text-muted-foreground">
-																	{getRelativeTime(
+																<Text className="font-mono text-[9px] text-muted-foreground">
+																	{formatRelativeTime(
 																		reply.created_at,
 																	)}
 																</Text>
 															</View>
-															<Text className="mt-1 text-xs leading-relaxed text-foreground">
-																{reply.reply_to_username && (
-																	<Text
-																		weight="medium"
-																		className="mr-1 text-xs text-primary">
-																		@
-																		{
-																			reply.reply_to_username
-																		}{" "}
-																	</Text>
-																)}
+															{reply.reply_to_username && (
+																<Text className="font-mono text-[10px] text-primary">
+																	@
+																	{
+																		reply.reply_to_username
+																	}
+																</Text>
+															)}
+															<Text className="font-sans text-[11px] leading-relaxed text-foreground">
 																{reply.content}
 															</Text>
-															{/* Reply Action on reply */}
-															<View className="mt-1.5 flex-row items-center gap-2">
-																<Pressable
-																	onPress={() =>
-																		setReplyingTo(
-																			{
-																				id: comment.id,
-																				username:
-																					reply
-																						.author
-																						?.username ||
-																					"Student",
-																			},
-																		)
-																	}
-																	className="rounded px-1 py-0.5 active:bg-muted/40">
-																	<Text
-																		weight="semibold"
-																		className="text-[10px] text-primary">
-																		Reply
-																	</Text>
-																</Pressable>
-															</View>
 														</View>
-													);
-												})}
-											</View>
-										)}
-									</View>
-								);
-							})}
+													))}
+												</View>
+											)}
+										</View>
+									);
+								})}
+							</View>
+						)}
+					</ScrollView>
+
+					{/* Active Reply Banner */}
+					{replyingTo && (
+						<View className="mx-4 mb-2 flex-row items-center justify-between rounded-sm border-2 border-primary bg-primary/10 px-3 py-1.5 shadow-neo-sm">
+							<Text className="font-mono text-xs text-primary">
+								REPLYING TO @{replyingTo.username}
+							</Text>
+							<Pressable
+								onPress={() => setReplyingTo(null)}
+								hitSlop={8}
+								className="rounded p-1">
+								<X
+									size={13}
+									color="#91e6b1"
+									strokeWidth={2.5}
+								/>
+							</Pressable>
 						</View>
 					)}
-				</ScrollView>
 
-				{/* Active Reply Banner */}
-				{replyingTo && (
-					<View className="mt-2 flex-row items-center justify-between rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5">
-						<Text weight="medium" className="text-xs text-primary">
-							Replying to @{replyingTo.username}
-						</Text>
-						<Pressable
-							onPress={() => setReplyingTo(null)}
-							className="rounded-full p-1 active:bg-primary/20">
-							<X size={13} color="#10b981" />
-						</Pressable>
-					</View>
-				)}
-
-				{/* Add Comment Input Bar */}
-				<View className="mt-3 flex-row items-center gap-2 border-t border-border pt-3">
-					<TextInput
-						value={newCommentText}
-						onChangeText={setNewCommentText}
-						placeholder={
-							replyingTo
-								? `Reply to @${replyingTo.username}...`
-								: "Write a constructive response or answer..."
-						}
-						placeholderTextColor="#64748b"
-						className="flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-					/>
-					<Button
-						size="md"
-						variant="primary"
-						loading={isSubmitting}
-						disabled={!newCommentText.trim() || isSubmitting}
-						className="transition-transform active:scale-[0.96]"
-						onPress={handleSendComment}>
-						<Send size={14} color="#ffffff" />
-					</Button>
-				</View>
-			</Dialog.Content>
-		</Dialog>
+					{/* Docked bottom reply input */}
+					<KeyboardAvoidingView
+						behavior={
+							Platform.OS === "ios" ? "padding" : undefined
+						}>
+						<View className="border-t-2 border-border bg-card p-3 shadow-neo-top">
+							<View className="flex-row items-center gap-2">
+								<NeoInput
+									value={newCommentText}
+									onChangeText={setNewCommentText}
+									placeholder={
+										replyingTo
+											? `Reply to @${replyingTo.username}...`
+											: "Write a transmission reply..."
+									}
+									containerClassName="flex-1"
+									editable={!isSubmitting}
+								/>
+								<NeoButton
+									size="md"
+									variant="primary"
+									loading={isSubmitting}
+									disabled={
+										!newCommentText.trim() || isSubmitting
+									}
+									onPress={handleSendComment}
+									startContent={
+										!isSubmitting ? (
+											<Send
+												size={15}
+												color="#0a0a0c"
+												strokeWidth={2.5}
+											/>
+										) : undefined
+									}>
+									SEND
+								</NeoButton>
+							</View>
+						</View>
+					</KeyboardAvoidingView>
+				</SafeAreaView>
+			</View>
+		</Modal>
 	);
 }

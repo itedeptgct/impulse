@@ -9,112 +9,76 @@ export const GUILD_LOGOS = {
 export const GUILDS: Record<GuildId, GuildInfo> = {
 	octagram: {
 		id: "octagram",
-		name: "Octagram",
-		tagline: "Software Developers & Hackers",
-		badgeLabel: "Octagram",
+		name: "Octogram",
+		tagline: "Developers & Coders",
+		badgeLabel: "Octogram",
 		description:
-			"The digital architects, competitive programmers, and security researchers forging system infrastructure.",
+			"The developers and coders building resilient software, tools, and computing infrastructure.",
 		manifesto:
-			"We write the code that powers the world. From low-level memory optimizations to distributed cloud services and cyber defense, we engineer solutions through logic and execution.",
-		accentColor: "#10b981", // Emerald
-		gradientBg: ["#064e3b", "#022c22"],
-		badgeBorderColor: "border-emerald-500/30",
-		badgeBgColor: "bg-emerald-500/10",
-		badgeTextColor: "text-emerald-400",
+			"We turn hard problems into durable systems. From product code and tooling to systems engineering, we build with relentless technical precision.",
+		accentColor: "#91e6b1", // Neon Signal Mint
+		gradientBg: ["#0a2f1c", "#0a0a0c"],
+		badgeBorderColor: "border-primary/40",
+		badgeBgColor: "bg-primary/15",
+		badgeTextColor: "text-primary",
 		emblem: "Terminal",
 		logo: GUILD_LOGOS.octagram,
-		badge: "SOFTWARE DEVELOPERS",
+		badge: "DEVELOPERS & CODERS",
 		featured: false,
-		perks: [
-			"whn I was a",
-			"a young boy, my father",
-			"took me into the city to see a marching band",
-			'he said, "son, when you grow up, would you be the savior of the broken, the beaten and the damned?"',
-		],
-		skills: [
-			"Systems Dev",
-			"Web & Mobile",
-			"Cybersecurity",
-			"Algorithms",
-			"Backend",
-		],
-		topics: [
-			"#algorithms",
-			"#webdev",
-			"#cybersecurity",
-			"#rust",
-			"#systemdesign",
-		],
+		memberCount: "",
+		activeTopics: "",
+		perks: ["Lorem Ipsum", "Dolor Sit Amet", "perk 3", "perk 4"],
 	},
 	chameleon: {
 		id: "chameleon",
 		name: "Chameleon",
-		tagline: "GFX Artists & UI/UX Designers",
+		tagline: "GFX & Artists",
 		badgeLabel: "Chameleon",
 		description:
-			"The visual visionaries, product designers, and 3D animators breathing life into digital interaction.",
+			"The artists, GFX designers, and visual creators shaping vivid digital worlds.",
 		manifesto:
-			"Every system needs a soul. We bridge human perception and technical function through typography, tactile motion, 3D rendering, and aesthetic discipline.",
-		accentColor: "#ec4899", // Fuchsia / Pink
-		gradientBg: ["#701a75", "#4a044e"],
-		badgeBorderColor: "border-pink-500/30",
-		badgeBgColor: "bg-pink-500/10",
-		badgeTextColor: "text-pink-400",
+			"We make ideas visible. Through illustration, GFX, motion, 3D, and expressive interfaces, we turn creative direction into memorable digital work.",
+		accentColor: "#a78bfa", // Purple Accent
+		gradientBg: ["#3b0764", "#0a0a0c"],
+		badgeBorderColor: "border-purple-400/40",
+		badgeBgColor: "bg-purple-500/15",
+		badgeTextColor: "text-purple-300",
 		emblem: "Palette",
 		logo: GUILD_LOGOS.chameleon,
-		badge: "GRAPHIC & VISUAL ARTISTS",
+		badge: "GFX & ARTISTS",
 		featured: false,
-		perks: ["this", "needs", "to be", "filled up"],
-		skills: [
-			"UI/UX Design",
-			"3D Blender",
-			"Motion & Animation",
-			"Brand Identity",
-			"Figma",
-		],
-		topics: [
-			"#uidesign",
-			"#3drender",
-			"#designsystems",
-			"#motion",
-			"#typography",
-		],
+		memberCount: "",
+		activeTopics: "920 posts",
+		perks: ["Lorem Ipsum", "Dolor Sit Amet", "perk 3", "perk 4"],
 	},
 	blue_jays: {
 		id: "blue_jays",
 		name: "Blue Jays",
-		tagline: "Social & Community Champions",
+		tagline: "Influencers & Media",
 		badgeLabel: "Blue Jays",
 		description:
-			"The community builders, event organizers, and student advocates driving campus tech culture.",
+			"The influencers, content creators, and media makers shaping conversations across campus and beyond.",
 		manifesto:
-			"Code means nothing without the humans behind it. We rally hackathon teams, curate campus tech lore, mentor peers, and ensure no student builds in isolation.",
-		accentColor: "#3b82f6", // Royal Blue
-		gradientBg: ["#1e3a8a", "#172554"],
-		badgeBorderColor: "border-sky-500/30",
-		badgeBgColor: "bg-sky-500/10",
-		badgeTextColor: "text-sky-400",
-		emblem: "Users",
+			"Reach is a craft. We build thoughtful campaigns, sharp editorial voices, and media that moves people to participate.",
+		accentColor: "#38bdf8", // Sky Accent
+		gradientBg: ["#082f49", "#0a0a0c"],
+		badgeBorderColor: "border-sky-400/40",
+		badgeBgColor: "bg-sky-500/15",
+		badgeTextColor: "text-sky-300",
+		emblem: "Radio",
 		logo: GUILD_LOGOS.blue_jays,
-		badge: "SOCIAL & COMMUNITY",
+		badge: "INFLUENCERS & MEDIA",
 		featured: false,
-		perks: ["with actual", "perks", "for each faction"],
-		skills: [
-			"Community Management",
-			"Event Organizing",
-			"Tech Evangelism",
-			"Mentorship",
-			"Content",
-		],
-		topics: [
-			"#campusculture",
-			"#hackathons",
-			"#studygroup",
-			"#careers",
-			"#memes",
-		],
+		memberCount: "",
+		activeTopics: "1.5k posts",
+		perks: ["Lorem Ipsum", "Dolor Sit Amet", "perk 3", "perk 4"],
 	},
 };
+
+// Backwards-compatible lookup with hyphen and spelling aliases
+const GUILDS_RECORD = GUILDS as Record<string, GuildInfo>;
+GUILDS_RECORD["blue-jays"] = GUILDS.blue_jays;
+GUILDS_RECORD["octogram"] = GUILDS.octagram;
 
 export const GUILD_LIST: GuildInfo[] = [
 	GUILDS.octagram,
@@ -122,7 +86,8 @@ export const GUILD_LIST: GuildInfo[] = [
 	GUILDS.blue_jays,
 ];
 
-export function getGuildInfo(guildId?: GuildId | null): GuildInfo | null {
+export function getGuildInfo(guildId?: string | null): GuildInfo | null {
 	if (!guildId) return null;
-	return GUILDS[guildId] || null;
+	const normalized = guildId.replace("-", "_") as GuildId;
+	return GUILDS[normalized] || GUILDS_RECORD[guildId] || null;
 }

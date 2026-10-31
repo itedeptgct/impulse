@@ -2,15 +2,25 @@ import { updateUserGuild } from "@auth/api";
 import { useAuthStore } from "@auth/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
-import { Check, CheckCircle2, Sparkles } from "lucide-react-native";
-import { Button, Dialog, Text } from "panelui-native";
-import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Check, CheckCircle2, Sparkles, X } from "lucide-react-native";
+import { useState } from "react";
+import {
+	Modal,
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { NeoButton, NeoCard } from "@/components/ui";
 
 import { GUILD_LIST } from "../constants";
 import type { GuildId } from "../types";
+import { GuildBadge } from "./GuildBadge";
 
-interface GuildSelectionModalProps {
+export interface GuildSelectionModalProps {
 	open: boolean;
 	onOpenChange?: (open: boolean) => void;
 	canDismiss?: boolean;
@@ -30,13 +40,6 @@ export function GuildSelectionModal({
 	);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-
-	// Synchronize when modal opens or profile guild changes
-	useEffect(() => {
-		if (profile?.guild) {
-			setSelectedGuild(profile.guild);
-		}
-	}, [profile?.guild, open]);
 
 	const handleDismiss = async () => {
 		if (user?.id) {
@@ -64,7 +67,7 @@ export function GuildSelectionModal({
 			await handleDismiss();
 		} catch (err: unknown) {
 			const e = err as Error;
-			setError(e.message || "Failed to update guild plan. Please try again.");
+			setError(e.message || "Failed to update house. Please try again.");
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -74,199 +77,230 @@ export function GuildSelectionModal({
 		GUILD_LIST.find((g) => g.id === selectedGuild) || GUILD_LIST[0];
 
 	return (
-		<Dialog
-			open={open}
-			onOpenChange={(newOpen) => {
-				if (!newOpen) {
-					void handleDismiss();
-				} else if (onOpenChange) {
-					onOpenChange(true);
-				}
+		<Modal
+			visible={open}
+			animationType="slide"
+			presentationStyle={
+				Platform.OS === "ios" ? "pageSheet" : "fullScreen"
+			}
+			statusBarTranslucent={true}
+			onRequestClose={() => {
+				if (canDismiss) void handleDismiss();
 			}}>
-			<Dialog.Content className="mx-2 max-h-[92vh] w-full max-w-4xl rounded-3xl border border-border bg-card p-5 shadow-2xl sm:p-6">
-				{/* Header Section */}
-				<View className="mb-4">
-					<Dialog.Title
-						weight="bold"
-						className="text-2xl tracking-tight text-foreground sm:text-3xl">
-						Choose Your Faction
-					</Dialog.Title>
-					<Dialog.Description className="mt-1 text-xs leading-relaxed text-muted-foreground sm:text-sm">
-						Every Impulse user belongs to a faction. Pick your track to unlock
-						specialized algorithms, guild badges, and community lore.
-					</Dialog.Description>
-				</View>
-				{error && (
-					<View className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
-						<Text className="text-xs text-destructive">{error}</Text>
-					</View>
-				)}
-				{/* Plan Cards Container */}
-				<ScrollView
-					showsVerticalScrollIndicator={false}
-					className="-mx-1 max-h-[58vh] px-1">
-					<View className="flex-col gap-4 py-1 md:flex-row md:items-stretch">
-						{GUILD_LIST.map((guild) => {
-							const isSelected = selectedGuild === guild.id;
-							return (
-								<Pressable
-									key={guild.id}
-									onPress={() => setSelectedGuild(guild.id)}
-									className={`relative flex-1 flex-col justify-between rounded-2xl border p-4 transition-all active:scale-[0.98] sm:p-5 ${
-										isSelected
-											? `${guild.badgeBorderColor} ${guild.badgeBgColor} shadow-lg ring-1 ring-primary/40`
-											: "border-border/70 bg-card hover:border-border"
-									}`}>
-									{/* Top Featured / Plan Tier Badge */}
-									<View className="mb-3 flex-row items-center justify-between">
-										<View
-											className={`rounded-full border px-2.5 py-0.5 ${guild.badgeBorderColor} ${guild.badgeBgColor}`}>
-											<Text
-												weight="bold"
-												className={`text-[9px] tracking-wider uppercase ${guild.badgeTextColor}`}>
-												{guild.badge}
-											</Text>
-										</View>
-										{guild.featured && (
-											<View className="flex-row items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-2 py-0.5">
-												<Sparkles size={10} className="text-emerald-400" />
-												<Text
-													weight="bold"
-													className="text-[9px] tracking-tight text-emerald-400 uppercase">
-													Featured
-												</Text>
-											</View>
-										)}
-									</View>
-									{/* Logo and Plan Identity */}
-									<View className="items-center text-center">
-										<View
-											className="mb-3 h-20 w-20 items-center justify-center rounded-2xl border border-border/80 bg-background/80 p-2 shadow-inner"
-											style={{
-												borderColor: isSelected
-													? `${guild.accentColor}70`
-													: undefined,
-											}}>
-											<Image
-												source={guild.logo}
-												style={{ width: 58, height: 58 }}
-												contentFit="contain"
-												transition={200}
-											/>
-										</View>
-										<Text
-											weight="bold"
-											className="text-lg tracking-tight text-foreground">
-											{guild.name}
-										</Text>
-										<Text
-											className="mt-0.5 text-center text-xs leading-tight text-muted-foreground"
-											numberOfLines={2}>
-											{guild.tagline}
-										</Text>
-									</View>
-									{/* Divider */}
-									<View className="my-3.5 border-t border-border/50" />
-									{/* Perks Bullet List */}
-									<View className="flex-1 gap-2">
-										<Text
-											weight="semibold"
-											className="text-[10px] tracking-wider text-muted-foreground uppercase">
-											Perks & Traits
-										</Text>
-										{guild.perks.map((perk) => (
-											<View key={perk} className="flex-row items-start gap-2">
-												<View
-													className="mt-0.5 h-4 w-4 shrink-0 items-center justify-center rounded-full"
-													style={{
-														backgroundColor: `${guild.accentColor}25`,
-													}}>
-													<Check
-														size={10}
-														color={guild.accentColor}
-														strokeWidth={3}
-													/>
-												</View>
-												<Text className="flex-1 text-[11px] leading-snug text-foreground/90">
-													{perk}
-												</Text>
-											</View>
-										))}
-									</View>
-									{/* Card Bottom CTA Indicator */}
-									<View className="mt-4 pt-1">
-										<View
-											className={`flex-row items-center justify-center gap-1.5 rounded-xl py-2.5 transition-all ${
-												isSelected
-													? "bg-primary shadow-sm"
-													: "border border-border/80 bg-muted/30"
-											}`}>
-											{isSelected ? (
-												<>
-													<CheckCircle2
-														size={14}
-														className="text-primary-foreground"
-													/>
-													<Text
-														weight="bold"
-														className="text-xs text-primary-foreground">
-														Selected Plan
-													</Text>
-												</>
-											) : (
-												<Text
-													weight="medium"
-													className="text-xs text-muted-foreground">
-													Select {guild.name}
-												</Text>
-											)}
-										</View>
-									</View>
-								</Pressable>
-							);
-						})}
-					</View>
-				</ScrollView>
-				{/* Footer with Selected Plan summary & Action Buttons */}
-				<Dialog.Footer className="mt-4 flex-col gap-3 border-t border-border pt-3.5 sm:flex-row sm:items-center sm:justify-between">
-					<View className="flex-row items-center gap-2">
-						<Text className="text-xs text-muted-foreground">
-							Selected Track:
-						</Text>
-						<View
-							className={`rounded-full border px-2.5 py-0.5 ${selectedGuildInfo.badgeBorderColor} ${selectedGuildInfo.badgeBgColor}`}>
-							<Text
-								weight="semibold"
-								className={`text-xs ${selectedGuildInfo.badgeTextColor}`}>
-								{selectedGuildInfo.name} Faction
+			<View
+				style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+				className="flex-1 bg-background">
+				<SafeAreaView
+					style={{ backgroundColor: "#0a0a0c", flex: 1 }}
+					className="flex-1 bg-background"
+					edges={["top", "bottom"]}>
+					{/* Header Section */}
+					<View className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3.5 shadow-neo-sm">
+						<View className="flex-1 pr-3">
+							<Text className="font-display text-lg tracking-tight text-foreground uppercase">
+								SELECT CAMPUS HOUSE
+							</Text>
+							<Text className="font-mono text-xs text-muted-foreground">
+								Select your track to unlock specialized
+								transmissions and lore.
 							</Text>
 						</View>
-					</View>
-					<View className="flex-row items-center gap-2.5">
 						{canDismiss && (
-							<Button
-								size="md"
-								variant="outline"
-								className="transition-transform active:scale-[0.96]"
-								onPress={handleDismiss}>
-								Decide Later
-							</Button>
+							<Pressable
+								accessibilityLabel="Close house selection"
+								onPress={handleDismiss}
+								hitSlop={8}
+								className="size-8 items-center justify-center rounded-sm border-2 border-border bg-secondary active:translate-x-px active:translate-y-px">
+								<X
+									size={15}
+									color="#ffffff"
+									strokeWidth={2.5}
+								/>
+							</Pressable>
 						)}
-						<Button
-							size="md"
-							variant="primary"
-							loading={isSubmitting}
-							disabled={!selectedGuild || isSubmitting}
-							className="transition-transform active:scale-[0.96]"
-							startContent={
-								<Sparkles size={15} className="text-primary-foreground" />
-							}
-							onPress={handleConfirmPlan}>
-							Confirm
-						</Button>
 					</View>
-				</Dialog.Footer>
-			</Dialog.Content>
-		</Dialog>
+
+					{error && (
+						<View className="mx-4 mt-3 rounded-sm border-2 border-destructive bg-destructive/15 p-3">
+							<Text className="font-mono text-xs text-destructive">
+								{error}
+							</Text>
+						</View>
+					)}
+
+					{/* House Cards Scroll Container */}
+					<ScrollView
+						showsVerticalScrollIndicator={false}
+						contentContainerStyle={{
+							padding: 16,
+							paddingBottom: 28,
+						}}
+						className="flex-1">
+						<View className="gap-4">
+							{GUILD_LIST.map((guild) => {
+								const isSelected = selectedGuild === guild.id;
+								return (
+									<NeoCard
+										key={guild.id}
+										onPress={() =>
+											setSelectedGuild(guild.id)
+										}
+										className={`p-4 ${
+											isSelected
+												? "border-primary bg-background shadow-neo"
+												: "border-border bg-card"
+										}`}>
+										{/* Top Metadata Row */}
+										<View className="mb-2.5 flex-row items-center justify-between">
+											<View
+												className={`rounded-sm border-2 px-2 py-0.5 ${guild.badgeBorderColor} ${guild.badgeBgColor}`}>
+												<Text
+													className={`font-mono text-[10px] tracking-wider uppercase ${guild.badgeTextColor}`}>
+													{guild.badge}
+												</Text>
+											</View>
+										</View>
+
+										{/* Logo and Identity */}
+										<View className="flex-row items-center gap-3">
+											<View
+												className="size-14 items-center justify-center rounded-sm border-2 bg-secondary p-1.5 shadow-neo-sm"
+												style={{
+													borderColor: isSelected
+														? guild.accentColor
+														: "#2a2d3d",
+												}}>
+												<Image
+													source={guild.logo}
+													style={{
+														width: 34,
+														height: 34,
+													}}
+													contentFit="contain"
+												/>
+											</View>
+											<View className="flex-1">
+												<Text className="font-display text-lg tracking-tight text-foreground uppercase">
+													{guild.name}
+												</Text>
+												<Text
+													className="mt-0.5 font-mono text-xs text-muted-foreground"
+													numberOfLines={2}>
+													{guild.tagline}
+												</Text>
+											</View>
+										</View>
+
+										{/* Description */}
+										<Text className="mt-3 font-sans text-xs leading-relaxed text-muted-foreground">
+											{guild.description}
+										</Text>
+
+										{/* Divider */}
+										<View className="my-3 border-t-2 border-border" />
+
+										{/* Perks Bullet List */}
+										<View className="gap-2">
+											{guild.perks.map((perk) => (
+												<View
+													key={perk}
+													className="flex-row items-center gap-2">
+													<View
+														className="size-4 shrink-0 items-center justify-center rounded-sm border-2 border-border"
+														style={{
+															backgroundColor: `${guild.accentColor}25`,
+														}}>
+														<Check
+															size={10}
+															color={
+																guild.accentColor
+															}
+															strokeWidth={3}
+														/>
+													</View>
+													<Text className="flex-1 font-mono text-[11px] text-foreground/80">
+														{perk}
+													</Text>
+												</View>
+											))}
+										</View>
+
+										{/* Selection Indicator Bar */}
+										<View className="mt-4 pt-1">
+											<View
+												className={`flex-row items-center justify-center gap-1.5 rounded-sm py-2 ${
+													isSelected
+														? "border-2 border-primary bg-primary shadow-neo-sm"
+														: "border-2 border-border bg-secondary"
+												}`}>
+												{isSelected ? (
+													<>
+														<CheckCircle2
+															size={14}
+															color="#0a0a0c"
+															strokeWidth={2.5}
+														/>
+														<Text className="font-mono text-xs tracking-wider text-primary-foreground uppercase">
+															SELECTED HOUSE
+														</Text>
+													</>
+												) : (
+													<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+														SELECT {guild.name}
+													</Text>
+												)}
+											</View>
+										</View>
+									</NeoCard>
+								);
+							})}
+						</View>
+					</ScrollView>
+
+					{/* Sticky Bottom Actions */}
+					<View className="border-t-2 border-border bg-card p-4 shadow-neo-sm">
+						<View className="mb-3 flex-row items-center justify-between">
+							<Text className="font-mono text-xs text-muted-foreground uppercase">
+								SELECTED HOUSE:
+							</Text>
+							<GuildBadge
+								guildId={selectedGuildInfo.id}
+								size="sm"
+							/>
+						</View>
+
+						<View className="flex-row items-center gap-2.5">
+							{canDismiss && (
+								<NeoButton
+									variant="secondary"
+									size="md"
+									onPress={handleDismiss}
+									className="flex-1">
+									CANCEL
+								</NeoButton>
+							)}
+							<NeoButton
+								variant="primary"
+								size="md"
+								loading={isSubmitting}
+								disabled={!selectedGuild || isSubmitting}
+								onPress={handleConfirmPlan}
+								startContent={
+									!isSubmitting ? (
+										<Sparkles
+											size={16}
+											color="#0a0a0c"
+											strokeWidth={2.5}
+										/>
+									) : undefined
+								}
+								className="flex-1">
+								INDUCT ME
+							</NeoButton>
+						</View>
+					</View>
+				</SafeAreaView>
+			</View>
+		</Modal>
 	);
 }

@@ -26,6 +26,12 @@
 			"expo-router",
 			"expo-status-bar",
 			"expo-image",
+			[
+				"expo-image-picker",
+				{
+					"photosPermission": "Allow Impulse to access your photos so you can attach media to posts."
+				}
+			],
 			"expo-font",
 			"expo-web-browser"
 		]

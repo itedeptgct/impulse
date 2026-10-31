@@ -1,6 +1,7 @@
 import { CheckCircle2, Clock, Users, XCircle } from "lucide-react-native";
-import { Text } from "panelui-native";
-import { View } from "react-native";
+import { Text, View } from "react-native";
+
+import { NeoCard } from "@/components/ui";
 
 import type { AdminStats } from "../types";
 
@@ -15,88 +16,90 @@ export function AdminStatsGrid({ stats }: AdminStatsGridProps) {
 	const rejected = stats?.rejectedVerifications ?? 0;
 
 	return (
-		<View className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+		<View className="flex-row flex-wrap gap-3">
 			{/* Pending Verifications */}
-			<View
-				className={`rounded-2xl border p-5 ${
+			<NeoCard
+				className={`min-w-[45%] flex-1 p-4 ${
 					pending > 0
-						? "border-amber-500/30 bg-amber-500/5 shadow-sm"
+						? "border-amber-400/80 bg-amber-950/20"
 						: "border-border bg-card"
 				}`}>
 				<View className="flex-row items-center justify-between">
-					<Text weight="medium" className="text-xs text-muted-foreground">
-						Pending Reviews
+					<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+						Pending Review
 					</Text>
-					<View className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-2">
-						<Clock size={16} className="text-amber-400" />
+					<View className="size-7 items-center justify-center rounded-sm border-2 border-amber-400/40 bg-amber-500/15">
+						<Clock size={14} color="#fbbf24" strokeWidth={2.5} />
 					</View>
 				</View>
 				<Text
-					weight="bold"
-					className="mt-2 text-2xl tracking-tight text-foreground tabular-nums sm:text-3xl">
+					className={`mt-2 font-display text-3xl tabular-nums ${
+						pending > 0 ? "text-amber-400" : "text-foreground"
+					}`}>
 					{pending}
 				</Text>
-				<Text className="mt-1 text-[11px] text-muted-foreground">
-					{pending > 0 ? "Requires admin review" : "Queue all caught up"}
+				<Text className="mt-1 font-mono text-[11px] text-muted-foreground">
+					{pending > 0 ? "Requires review" : "Queue all clear"}
 				</Text>
-			</View>
+			</NeoCard>
+
 			{/* Total Registered Users */}
-			<View className="rounded-2xl border border-border bg-card p-5">
+			<NeoCard className="min-w-[45%] flex-1 border-border bg-card p-4">
 				<View className="flex-row items-center justify-between">
-					<Text weight="medium" className="text-xs text-muted-foreground">
-						Registered Students
+					<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+						Total Users
 					</Text>
-					<View className="rounded-xl border border-primary/20 bg-primary/10 p-2">
-						<Users size={16} className="text-primary" />
+					<View className="size-7 items-center justify-center rounded-sm border-2 border-primary/40 bg-primary/15">
+						<Users size={14} color="#91e6b1" strokeWidth={2.5} />
 					</View>
 				</View>
-				<Text
-					weight="bold"
-					className="mt-2 text-2xl tracking-tight text-foreground tabular-nums sm:text-3xl">
+				<Text className="mt-2 font-display text-3xl text-primary tabular-nums">
 					{totalUsers}
 				</Text>
-				<Text className="mt-1 text-[11px] text-muted-foreground">
-					Total network accounts
+				<Text className="mt-1 font-mono text-[11px] text-muted-foreground">
+					Registered accounts
 				</Text>
-			</View>
+			</NeoCard>
+
 			{/* Approved Verifications */}
-			<View className="rounded-2xl border border-border bg-card p-5">
+			<NeoCard className="min-w-[45%] flex-1 border-border bg-card p-4">
 				<View className="flex-row items-center justify-between">
-					<Text weight="medium" className="text-xs text-muted-foreground">
-						Approved Verifications
+					<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+						Approved
 					</Text>
-					<View className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-2">
-						<CheckCircle2 size={16} className="text-emerald-400" />
+					<View className="size-7 items-center justify-center rounded-sm border-2 border-primary/40 bg-primary/15">
+						<CheckCircle2
+							size={14}
+							color="#91e6b1"
+							strokeWidth={2.5}
+						/>
 					</View>
 				</View>
-				<Text
-					weight="bold"
-					className="mt-2 text-2xl tracking-tight text-foreground tabular-nums sm:text-3xl">
+				<Text className="mt-2 font-display text-3xl text-foreground tabular-nums">
 					{approved}
 				</Text>
-				<Text className="mt-1 text-[11px] text-muted-foreground">
+				<Text className="mt-1 font-mono text-[11px] text-muted-foreground">
 					Verified student IDs
 				</Text>
-			</View>
+			</NeoCard>
+
 			{/* Rejected Submissions */}
-			<View className="rounded-2xl border border-border bg-card p-5">
+			<NeoCard className="min-w-[45%] flex-1 border-border bg-card p-4">
 				<View className="flex-row items-center justify-between">
-					<Text weight="medium" className="text-xs text-muted-foreground">
-						Rejected Documents
+					<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+						Rejected
 					</Text>
-					<View className="rounded-xl border border-destructive/20 bg-destructive/10 p-2">
-						<XCircle size={16} className="text-destructive" />
+					<View className="size-7 items-center justify-center rounded-sm border-2 border-destructive/40 bg-destructive/15">
+						<XCircle size={14} color="#ff5c5c" strokeWidth={2.5} />
 					</View>
 				</View>
-				<Text
-					weight="bold"
-					className="mt-2 text-2xl tracking-tight text-foreground tabular-nums sm:text-3xl">
+				<Text className="mt-2 font-display text-3xl text-foreground tabular-nums">
 					{rejected}
 				</Text>
-				<Text className="mt-1 text-[11px] text-muted-foreground">
-					Requires resubmission
+				<Text className="mt-1 font-mono text-[11px] text-muted-foreground">
+					Needs resubmission
 				</Text>
-			</View>
+			</NeoCard>
 		</View>
 	);
 }

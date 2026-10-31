@@ -1,16 +1,18 @@
 import { useAuthStore } from "@auth/store";
-import { Redirect, Slot, Tabs } from "expo-router";
-import { Flame, Shield, User } from "lucide-react-native";
-import { ActivityIndicator, Platform, View } from "react-native";
+import { Redirect, Tabs } from "expo-router";
+import { Flame, MessageSquare, User } from "lucide-react-native";
+import { ActivityIndicator, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
 	const session = useAuthStore((state) => state.session);
 	const isLoading = useAuthStore((state) => state.isLoading);
+	const insets = useSafeAreaInsets();
 
 	if (isLoading) {
 		return (
 			<View className="flex-1 items-center justify-center bg-background">
-				<ActivityIndicator color="#10b981" size="large" />
+				<ActivityIndicator color="#91e6b1" size="large" />
 			</View>
 		);
 	}
@@ -19,28 +21,32 @@ export default function TabsLayout() {
 		return <Redirect href="/(onboarding)/onboarding" />;
 	}
 
-	// On Web, do not use mobile bottom tabs
-	if (Platform.OS === "web") {
-		return <Slot />;
-	}
-
 	return (
 		<Tabs
 			screenOptions={{
 				headerShown: false,
+				animation: "none",
 				tabBarStyle: {
-					backgroundColor: "#1f1f1f",
-					borderTopColor: "rgba(255, 255, 255, 0.08)",
-					borderTopWidth: 1,
-					height: 60,
-					paddingBottom: 16,
-					paddingTop: 6,
+					backgroundColor: "#0a0a0c",
+					borderTopColor: "#2a2d3d",
+					borderTopWidth: 2.5,
+					height: 64 + insets.bottom,
+					paddingBottom: 10,
+					paddingTop: 8,
+					shadowColor: "#000000",
+					shadowOffset: { width: 0, height: -4 },
+					shadowOpacity: 1,
+					shadowRadius: 0,
+					elevation: 8,
 				},
-				tabBarActiveTintColor: "#10b981",
-				tabBarInactiveTintColor: "#8d8d8d",
+				tabBarActiveTintColor: "#91e6b1",
+				tabBarInactiveTintColor: "#6c7284",
 				tabBarLabelStyle: {
-					fontSize: 11,
-					fontWeight: "600",
+					fontFamily: "IBMPlexMono_600SemiBold",
+					fontSize: 10,
+					fontWeight: "700",
+					letterSpacing: 1,
+					textTransform: "uppercase",
 				},
 			}}>
 			<Tabs.Screen
@@ -51,20 +57,20 @@ export default function TabsLayout() {
 						<Flame
 							size={size || 20}
 							color={color}
-							strokeWidth={2}
+							strokeWidth={2.2}
 						/>
 					),
 				}}
 			/>
 			<Tabs.Screen
-				name="guilds"
+				name="messages"
 				options={{
-					title: "Guilds",
+					title: "Messages",
 					tabBarIcon: ({ color, size }) => (
-						<Shield
+						<MessageSquare
 							size={size || 20}
 							color={color}
-							strokeWidth={2}
+							strokeWidth={2.2}
 						/>
 					),
 				}}
@@ -74,7 +80,11 @@ export default function TabsLayout() {
 				options={{
 					title: "Profile",
 					tabBarIcon: ({ color, size }) => (
-						<User size={size || 20} color={color} strokeWidth={2} />
+						<User
+							size={size || 20}
+							color={color}
+							strokeWidth={2.2}
+						/>
 					),
 				}}
 			/>

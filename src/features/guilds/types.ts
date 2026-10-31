@@ -16,7 +16,7 @@ export interface GuildInfo {
 	logo: any;
 	badge: string;
 	perks: string[];
-	skills: string[];
-	topics: string[];
 	featured?: boolean;
+	memberCount: string;
+	activeTopics: string;
 }

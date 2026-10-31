@@ -22,23 +22,36 @@ import {
 	UploadCloud,
 	User,
 } from "lucide-react-native";
-import { Button, Dialog, Text } from "panelui-native";
 import { useState } from "react";
 import {
 	KeyboardAvoidingView,
 	Platform,
 	Pressable,
 	ScrollView,
-	TextInput,
+	Text,
 	View,
 } from "react-native";
+import Animated, {
+	FadeIn,
+	FadeInDown,
+	useReducedMotion,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-// I differntiate the sign up to 3 steps
+import {
+	MobileAlertSheet,
+	NeoBadge,
+	NeoButton,
+	NeoCard,
+	NeoInput,
+} from "@/components/ui";
+
+// Sign up flow steps
 type SignUpStep = "credentials" | "id_upload" | "pending_approval";
 
 export default function SignUpScreen() {
 	const insets = useSafeAreaInsets();
+	const reduceMotion = useReducedMotion();
 	const [step, setStep] = useState<SignUpStep>("credentials");
 
 	// credentials form state
@@ -343,6 +356,7 @@ export default function SignUpScreen() {
 					}}
 					keyboardShouldPersistTaps="handled"
 					showsVerticalScrollIndicator={false}>
+					{/* Top Header Bar */}
 					<View className="flex-row items-center justify-between pb-6">
 						{step !== "pending_approval" ? (
 							<Pressable
@@ -354,277 +368,206 @@ export default function SignUpScreen() {
 									}
 								}}
 								hitSlop={8}
-								className="h-10 w-10 items-center justify-center rounded-xl border border-border bg-card active:scale-[0.96] active:bg-popover">
+								className="size-10 items-center justify-center rounded-sm border-2 border-border bg-card shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
 								<ArrowLeft
 									size={18}
-									className="-translate-x-0.5 text-foreground"
+									color="#ffffff"
+									strokeWidth={2.5}
+									className="-translate-x-0.5"
 								/>
 							</Pressable>
 						) : (
-							<View className="h-10 w-10" />
+							<View className="size-10" />
 						)}
 						{step !== "pending_approval" ? (
-							<View className="flex-row items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1">
-								<View
-									className={`h-1.5 w-1.5 rounded-full ${
-										step === "credentials"
-											? "bg-primary"
-											: "bg-muted-foreground"
-									}`}
-								/>
-								<View
-									className={`h-1.5 w-1.5 rounded-full ${
-										step === "id_upload"
-											? "bg-primary"
-											: "bg-muted-foreground"
-									}`}
-								/>
-								<Text
-									weight="medium"
-									className="ml-1 text-xs text-muted-foreground">
-									{step === "credentials"
-										? "Step 1 of 2"
-										: "Step 2 of 2"}
-								</Text>
-							</View>
+							<NeoBadge variant="primary" size="sm">
+								{step === "credentials"
+									? "STEP 1/2: CREDENTIALS"
+									: "STEP 2/2: ID VERIFICATION"}
+							</NeoBadge>
 						) : (
-							<Text
-								weight="semibold"
-								className="text-sm tracking-widest text-muted-foreground uppercase">
-								impulse
+							<Text className="text-bold text-2xl text-foreground">
+								impulse<Text className="text-primary">.</Text>
 							</Text>
 						)}
 						<View className="w-10" />
 					</View>
-					{/* ACCOUNT CREDENTIALS STEP HERE */}
+
+					{/* STEP 1: ACCOUNT CREDENTIALS */}
 					{step === "credentials" && (
-						<View className="flex-1">
+						<Animated.View
+							key="credentials"
+							entering={
+								reduceMotion
+									? FadeIn.duration(180)
+									: FadeInDown.duration(240)
+							}
+							className="flex-1">
+							{/* Technical Header */}
 							<View className="pb-6">
-								<Text
-									weight="bold"
-									className="text-3xl tracking-tight text-foreground">
-									Create account
+								<Text className="font-display text-3xl tracking-tight text-foreground uppercase">
+									CREATE ACCOUNT
 								</Text>
-								<Text className="mt-2 text-sm text-muted-foreground">
-									Enter your information to begin your
-									verification
+								<Text className="mt-1.5 font-mono text-xs text-muted-foreground uppercase">
+									ENTER ACADEMIC CREDENTIALS TO BEGIN
+									VERIFICATION
 								</Text>
 							</View>
+
+							{/* Error Alert Banner */}
 							{errorMessage && (
-								<View className="mb-6 flex-row items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+								<View className="mb-6 flex-row items-center gap-3 rounded-sm border-2 border-destructive bg-destructive/15 p-4 shadow-neo-sm">
 									<AlertCircle
 										size={18}
-										className="shrink-0 text-destructive"
+										color="#ff5c5c"
+										className="shrink-0"
 									/>
-									<Text className="flex-1 text-sm text-destructive">
+									<Text className="flex-1 font-mono text-xs text-destructive">
 										{errorMessage}
 									</Text>
 								</View>
 							)}
+
 							<View className="gap-4">
 								{/* Name Field */}
-								<View className="gap-2">
-									<Text
-										weight="medium"
-										className="text-xs text-muted-foreground">
-										Full Name / Username
-									</Text>
-									<View
-										className={`flex-row items-center rounded-xl border ${
-											fieldErrors.username
-												? "border-destructive"
-												: "border-border"
-										} bg-card px-4 py-1.5 focus:border-primary`}>
+								<NeoInput
+									label="FULL NAME / USERNAME"
+									placeholder="Jane Doe"
+									value={username}
+									onChangeText={(text) => {
+										setUsername(text);
+										if (fieldErrors.username) {
+											setFieldErrors((prev) => ({
+												...prev,
+												username: undefined,
+											}));
+										}
+									}}
+									autoCapitalize="words"
+									autoCorrect={false}
+									returnKeyType="next"
+									error={fieldErrors.username}
+									startContent={
 										<User
-											size={18}
-											strokeWidth={1.75}
-											className="mr-3 text-muted-foreground"
+											size={16}
+											color="#91e6b1"
+											strokeWidth={2.2}
 										/>
-										<TextInput
-											className="flex-1 text-base text-foreground"
-											placeholder="Jane Doe"
-											placeholderTextColor="#686868"
-											value={username}
-											onChangeText={(text) => {
-												setUsername(text);
-												if (fieldErrors.username) {
-													setFieldErrors((prev) => ({
-														...prev,
-														username: undefined,
-													}));
-												}
-											}}
-											autoCapitalize="words"
-											autoCorrect={false}
-											returnKeyType="next"
-										/>
-									</View>
-									{fieldErrors.username && (
-										<Text className="text-xs text-destructive">
-											{fieldErrors.username}
-										</Text>
-									)}
-								</View>
-								<View className="gap-2">
-									<Text
-										weight="medium"
-										className="text-xs text-muted-foreground">
-										Email Address
-									</Text>
-									<View
-										className={`flex-row items-center rounded-xl border ${
-											fieldErrors.email
-												? "border-destructive"
-												: "border-border"
-										} bg-card px-4 py-1.5 focus:border-primary`}>
+									}
+								/>
+
+								{/* Email Field */}
+								<NeoInput
+									label="CAMPUS EMAIL"
+									placeholder="student@example.com"
+									value={email}
+									onChangeText={(text) => {
+										setEmail(text);
+										if (registeredUserId) {
+											setRegisteredUserId(null);
+											setRegisteredEmail(null);
+										}
+										if (fieldErrors.email) {
+											setFieldErrors((prev) => ({
+												...prev,
+												email: undefined,
+											}));
+										}
+									}}
+									autoCapitalize="none"
+									autoCorrect={false}
+									keyboardType="email-address"
+									returnKeyType="next"
+									error={fieldErrors.email}
+									startContent={
 										<Mail
-											size={18}
-											strokeWidth={1.75}
-											className="mr-3 text-muted-foreground"
+											size={16}
+											color="#91e6b1"
+											strokeWidth={2.2}
 										/>
-										<TextInput
-											className="flex-1 text-base text-foreground"
-											placeholder="name@example.com"
-											placeholderTextColor="#686868"
-											value={email}
-											onChangeText={(text) => {
-												setEmail(text);
-												if (registeredUserId) {
-													setRegisteredUserId(null);
-													setRegisteredEmail(null);
-												}
-												if (fieldErrors.email) {
-													setFieldErrors((prev) => ({
-														...prev,
-														email: undefined,
-													}));
-												}
-											}}
-											autoCapitalize="none"
-											autoCorrect={false}
-											keyboardType="email-address"
-											returnKeyType="next"
-										/>
-									</View>
-									{fieldErrors.email && (
-										<Text className="text-xs text-destructive">
-											{fieldErrors.email}
-										</Text>
-									)}
-								</View>
-								<View className="gap-2">
-									<Text
-										weight="medium"
-										className="text-xs text-muted-foreground">
-										Password
-									</Text>
-									<View
-										className={`flex-row items-center rounded-xl border ${
-											fieldErrors.password
-												? "border-destructive"
-												: "border-border"
-										} bg-card px-4 py-1.5 focus:border-primary`}>
+									}
+								/>
+
+								{/* Password Field */}
+								<NeoInput
+									label="PASSWORD"
+									placeholder="At least 8 characters"
+									value={password}
+									onChangeText={(text) => {
+										setPassword(text);
+										if (
+											fieldErrors.password ||
+											fieldErrors.confirmPassword ===
+												"Passwords do not match."
+										) {
+											setFieldErrors((prev) => ({
+												...prev,
+												password: undefined,
+												...(prev.confirmPassword ===
+												"Passwords do not match."
+													? {
+															confirmPassword:
+																undefined,
+														}
+													: {}),
+											}));
+										}
+										if (
+											errorMessage ===
+											"Passwords do not match."
+										) {
+											setErrorMessage(null);
+										}
+									}}
+									secureTextEntry={!showPassword}
+									autoCapitalize="none"
+									autoCorrect={false}
+									returnKeyType="next"
+									error={fieldErrors.password}
+									startContent={
 										<Lock
-											size={18}
-											strokeWidth={1.75}
-											className="mr-3 text-muted-foreground"
+											size={16}
+											color="#91e6b1"
+											strokeWidth={2.2}
 										/>
-										<TextInput
-											className="flex-1 text-base text-foreground"
-											placeholder="At least 8 characters"
-											placeholderTextColor="#686868"
-											value={password}
-											onChangeText={(text) => {
-												setPassword(text);
-												if (
-													fieldErrors.password ||
-													fieldErrors.confirmPassword ===
-														"Passwords do not match."
-												) {
-													setFieldErrors((prev) => ({
-														...prev,
-														password: undefined,
-														...(prev.confirmPassword ===
-														"Passwords do not match."
-															? {
-																	confirmPassword:
-																		undefined,
-																}
-															: {}),
-													}));
-												}
-												if (
-													errorMessage ===
-													"Passwords do not match."
-												) {
-													setErrorMessage(null);
-												}
-											}}
-											secureTextEntry={!showPassword}
-											autoCapitalize="none"
-											autoCorrect={false}
-											returnKeyType="next"
-										/>
-									</View>
-									{fieldErrors.password && (
-										<Text className="text-xs text-destructive">
-											{fieldErrors.password}
-										</Text>
-									)}
-								</View>
-								<View className="gap-2">
-									<Text
-										weight="medium"
-										className="text-xs text-muted-foreground">
-										Confirm Password
-									</Text>
-									<View
-										className={`flex-row items-center rounded-xl border ${
-											fieldErrors.confirmPassword
-												? "border-destructive"
-												: "border-border"
-										} bg-card px-4 py-1.5 focus:border-primary`}>
+									}
+								/>
+
+								{/* Confirm Password Field */}
+								<NeoInput
+									label="CONFIRM PASSWORD"
+									placeholder="Re-enter password"
+									value={confirmPassword}
+									onChangeText={(text) => {
+										setConfirmPassword(text);
+										if (fieldErrors.confirmPassword) {
+											setFieldErrors((prev) => ({
+												...prev,
+												confirmPassword: undefined,
+											}));
+										}
+										if (
+											errorMessage ===
+											"Passwords do not match."
+										) {
+											setErrorMessage(null);
+										}
+									}}
+									secureTextEntry={!showPassword}
+									autoCapitalize="none"
+									autoCorrect={false}
+									returnKeyType="done"
+									onSubmitEditing={handleContinueToId}
+									error={fieldErrors.confirmPassword}
+									startContent={
 										<Lock
-											size={18}
-											strokeWidth={1.75}
-											className="mr-3 text-muted-foreground"
+											size={16}
+											color="#91e6b1"
+											strokeWidth={2.2}
 										/>
-										<TextInput
-											className="flex-1 text-base text-foreground"
-											placeholder="Re-enter password"
-											placeholderTextColor="#686868"
-											value={confirmPassword}
-											onChangeText={(text) => {
-												setConfirmPassword(text);
-												if (
-													fieldErrors.confirmPassword
-												) {
-													setFieldErrors((prev) => ({
-														...prev,
-														confirmPassword:
-															undefined,
-													}));
-												}
-												if (
-													errorMessage ===
-													"Passwords do not match."
-												) {
-													setErrorMessage(null);
-												}
-											}}
-											secureTextEntry={!showPassword}
-											autoCapitalize="none"
-											autoCorrect={false}
-											returnKeyType="done"
-											onSubmitEditing={handleContinueToId}
-										/>
-									</View>
-									{fieldErrors.confirmPassword && (
-										<Text className="text-xs text-destructive">
-											{fieldErrors.confirmPassword}
-										</Text>
-									)}
-								</View>
+									}
+								/>
+
 								{/* Reveal Password Checkbox */}
 								<Pressable
 									onPress={() =>
@@ -635,9 +578,9 @@ export default function SignUpScreen() {
 									accessibilityState={{
 										checked: showPassword,
 									}}
-									className="flex-row items-center gap-2 self-start active:opacity-70">
+									className="min-h-11 flex-row items-center gap-2 self-start active:opacity-70">
 									<View
-										className={`h-4 w-4 items-center justify-center rounded border transition-colors ${
+										className={`size-4 items-center justify-center rounded-sm border-2 transition-colors ${
 											showPassword
 												? "border-primary bg-primary"
 												: "border-border bg-card"
@@ -645,117 +588,127 @@ export default function SignUpScreen() {
 										{showPassword && (
 											<Check
 												size={11}
-												strokeWidth={2.5}
-												className="text-primary-foreground"
+												strokeWidth={3}
+												color="#0a0a0c"
 											/>
 										)}
 									</View>
-									<Text
-										weight="medium"
-										className="text-xs text-muted-foreground select-none">
-										Reveal password
+									<Text className="font-mono text-xs text-muted-foreground uppercase select-none">
+										REVEAL PASSWORDS
 									</Text>
 								</Pressable>
-								<View className="pt-3">
-									<Button
+
+								{/* Continue CTA */}
+								<View className="pt-2">
+									<NeoButton
 										size="lg"
-										fullWidth
 										variant="primary"
+										className="w-full"
 										endContent={
 											<ChevronRight
 												size={18}
-												className="text-primary-foreground"
+												color="#0a0a0c"
+												strokeWidth={2.5}
 											/>
 										}
 										onPress={handleContinueToId}>
-										Continue to Verification
-									</Button>
+										CONTINUE TO VERIFICATION
+									</NeoButton>
 								</View>
 							</View>
+
+							{/* Switch to Sign In */}
 							<View className="mt-auto flex-row items-center justify-center pt-8">
-								<Text className="text-sm text-muted-foreground">
-									Already have an account?{" "}
+								<Text className="font-mono text-xs text-muted-foreground uppercase">
+									ALREADY HAVE AN ACCOUNT?{" "}
 								</Text>
 								<Pressable
 									onPress={() =>
 										router.push("/(auth)/sign-in")
 									}
 									hitSlop={8}
-									className="active:opacity-70">
-									<Text
-										weight="semibold"
-										className="text-sm text-foreground">
-										Log In
+									className="min-h-11 justify-center active:opacity-70">
+									<Text className="font-mono text-xs text-primary">
+										SIGN IN →
 									</Text>
 								</Pressable>
 							</View>
-						</View>
+						</Animated.View>
 					)}
-					{/* ID DOCUMENT UPLOAD STEP HERE */}
+
+					{/* STEP 2: ID DOCUMENT UPLOAD */}
 					{step === "id_upload" && (
-						<View className="flex-1">
+						<Animated.View
+							key="id_upload"
+							entering={
+								reduceMotion
+									? FadeIn.duration(180)
+									: FadeInDown.duration(240)
+							}
+							className="flex-1">
+							{/* Technical Header */}
 							<View className="pb-5">
-								<Text
-									weight="bold"
-									className="text-3xl tracking-tight text-foreground">
-									Verify your identity
+								<Text className="font-display text-3xl tracking-tight text-foreground uppercase">
+									VERIFY IDENTITY
 								</Text>
-								<Text className="mt-2 text-sm text-muted-foreground">
-									Upload your GCT Student ID
+								<Text className="mt-1.5 font-mono text-xs text-muted-foreground uppercase">
+									UPLOAD YOUR OFFICIAL GCT STUDENT ID CARD
 								</Text>
 							</View>
+
 							{!idAsset ? (
-								<View className="mb-5 items-center justify-center rounded-2xl border border-dashed border-border bg-card/60 p-6 py-8">
-									<View className="mb-3.5 h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
+								<View className="mb-5 items-center justify-center rounded-sm border-2 border-dashed border-border bg-card px-6 py-8 shadow-neo-sm">
+									<View className="mb-3.5 size-16 items-center justify-center rounded-sm border-2 border-primary/40 bg-primary/10">
 										<UploadCloud
 											size={30}
-											className="text-primary"
+											color="#91e6b1"
+											strokeWidth={2}
 										/>
 									</View>
-									<Text
-										weight="semibold"
-										className="text-base text-foreground">
-										Select your ID
+									<Text className="font-display text-base text-foreground uppercase">
+										STUDENT ID DOCUMENT
 									</Text>
-									<Text className="mt-1 text-center text-xs text-muted-foreground">
-										Supported: JPG, PNG · Clear, uncropped,
-										readable
+									<Text className="mt-1 text-center font-mono text-xs text-muted-foreground uppercase">
+										SUPPORTED: JPG, PNG · CLEAR, UNCROPPED,
+										READABLE
 									</Text>
 									{/* Action Buttons */}
 									<View className="mt-6 w-full flex-row gap-3">
-										<Pressable
-											onPress={handleTakePhoto}
-											className="min-h-12 flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 active:scale-[0.98] active:bg-popover">
-											<Camera
-												size={18}
-												strokeWidth={1.75}
-												className="text-foreground"
-											/>
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Take Photo
-											</Text>
-										</Pressable>
-										<Pressable
-											onPress={handlePickImage}
-											className="min-h-12 flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-border bg-card py-3 active:scale-[0.98] active:bg-popover">
-											<ImageIcon
-												size={18}
-												strokeWidth={1.75}
-												className="text-foreground"
-											/>
-											<Text
-												weight="semibold"
-												className="text-sm text-foreground">
-												Browse Gallery
-											</Text>
-										</Pressable>
+										<NeoButton
+											variant="outline"
+											size="md"
+											className="flex-1"
+											startContent={
+												<Camera
+													size={16}
+													color="#ffffff"
+													strokeWidth={2.2}
+												/>
+											}
+											onPress={handleTakePhoto}>
+											TAKE PHOTO
+										</NeoButton>
+										<NeoButton
+											variant="outline"
+											size="md"
+											className="flex-1"
+											startContent={
+												<ImageIcon
+													size={16}
+													color="#ffffff"
+													strokeWidth={2.2}
+												/>
+											}
+											onPress={handlePickImage}>
+											BROWSE
+										</NeoButton>
 									</View>
 								</View>
 							) : (
-								<View className="mb-5 rounded-3xl border border-border bg-card p-3">
-									<View className="overflow-hidden rounded-2xl border border-white/10 bg-background">
+								<NeoCard
+									variant="raised"
+									className="mb-5 p-3.5 shadow-neo">
+									<View className="overflow-hidden rounded-sm border-2 border-border bg-background">
 										<Image
 											source={{ uri: idAsset.uri }}
 											style={{
@@ -766,226 +719,225 @@ export default function SignUpScreen() {
 											transition={200}
 										/>
 									</View>
-									<View className="mt-3 flex-row items-center justify-between px-1">
+									<View className="mt-3 px-1">
 										<View className="flex-row items-center gap-2">
 											<FileText
 												size={16}
-												strokeWidth={1.75}
-												className="text-muted-foreground"
+												color="#9aa1b2"
+												strokeWidth={2}
 											/>
 											<Text
-												weight="medium"
-												className="text-sm text-foreground">
-												ID_Document.jpg
+												className="flex-1 font-mono text-xs text-foreground"
+												numberOfLines={1}
+												ellipsizeMode="middle">
+												{idAsset.fileName ||
+													"ID_DOCUMENT.JPG"}
 											</Text>
 										</View>
-										<View className="flex-row items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5">
-											<CheckCircle2
-												size={12}
-												color="#10b981"
-											/>
-											<Text className="font-medium text-xs text-emerald-400">
-												Attached
-											</Text>
-										</View>
+										<NeoBadge
+											variant="primary"
+											size="sm"
+											className="mt-2 self-start">
+											ATTACHED
+										</NeoBadge>
 									</View>
-									<View className="mt-3.5 flex-row gap-2.5 border-t border-border pt-3">
-										<Pressable
-											onPress={handleTakePhoto}
-											className="min-h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-border bg-popover py-2.5 active:scale-[0.98]">
-											<RotateCcw
-												size={15}
-												strokeWidth={1.75}
-												className="text-muted-foreground"
-											/>
-											<Text
-												weight="medium"
-												className="text-xs text-foreground">
-												Retake
-											</Text>
-										</Pressable>
-										<Pressable
-											onPress={handlePickImage}
-											className="min-h-11 flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-border bg-popover py-2.5 active:scale-[0.98]">
-											<ImageIcon
-												size={15}
-												strokeWidth={1.75}
-												className="text-muted-foreground"
-											/>
-											<Text
-												weight="medium"
-												className="text-xs text-foreground">
-												Choose Other
-											</Text>
-										</Pressable>
+									<View className="mt-3.5 flex-row gap-2.5 border-t-2 border-border pt-3">
+										<NeoButton
+											variant="outline"
+											size="sm"
+											className="flex-1"
+											startContent={
+												<RotateCcw
+													size={14}
+													color="#ffffff"
+													strokeWidth={2}
+												/>
+											}
+											onPress={handleTakePhoto}>
+											RETAKE
+										</NeoButton>
+										<NeoButton
+											variant="outline"
+											size="sm"
+											className="flex-1"
+											startContent={
+												<ImageIcon
+													size={14}
+													color="#ffffff"
+													strokeWidth={2}
+												/>
+											}
+											onPress={handlePickImage}>
+											CHOOSE OTHER
+										</NeoButton>
 									</View>
-								</View>
+								</NeoCard>
 							)}
-							<View className="mb-6 rounded-2xl border border-border bg-card p-4">
-								<Text
-									weight="medium"
-									className="mb-3 text-xs tracking-wider text-muted-foreground uppercase">
-									Guidelines for fast approval
+
+							{/* Guidelines Card */}
+							<NeoCard
+								variant="default"
+								className="mb-6 p-4 shadow-neo-sm">
+								<Text className="mb-3 font-mono text-xs tracking-wider text-muted-foreground uppercase">
+									GUIDELINES FOR FAST APPROVAL
 								</Text>
 								<View className="gap-2.5">
 									<View className="flex-row items-center gap-2.5">
 										<CheckCircle2
 											size={15}
-											className="text-primary"
+											color="#91e6b1"
+											strokeWidth={2.2}
 										/>
-										<Text className="text-xs text-muted-foreground">
-											Ensure all four corners of the ID
-											card are visible
+										<Text className="font-mono text-xs text-muted-foreground">
+											Ensure the front of your ID is
+											visible
 										</Text>
 									</View>
 									<View className="flex-row items-center gap-2.5">
 										<CheckCircle2
 											size={15}
-											className="text-primary"
+											color="#91e6b1"
+											strokeWidth={2.2}
 										/>
-										<Text className="text-xs text-muted-foreground">
+										<Text className="font-mono text-xs text-muted-foreground">
 											Avoid harsh lighting, glare, or
 											blurred captures
 										</Text>
 									</View>
 								</View>
-							</View>
+							</NeoCard>
+
 							{/* Submit CTA */}
 							<View className="mt-auto pt-2">
-								<Button
+								<NeoButton
 									size="lg"
-									fullWidth
 									variant="primary"
-									disabled={!idAsset}
+									className="w-full"
+									disabled={!idAsset || isSubmitting}
 									loading={isSubmitting}
 									onPress={handleSubmitVerification}>
-									Submit for Verification
-								</Button>
+									REGISTER ACCOUNT
+								</NeoButton>
 							</View>
-						</View>
+						</Animated.View>
 					)}
-					{/* APPROVAL SCREEN */}
+
+					{/* STEP 3: APPROVAL PENDING SCREEN */}
 					{step === "pending_approval" && (
-						<View className="flex-1 items-center justify-center py-6">
-							{/* Ambient Status Halo */}
-							<View className="relative mb-6 items-center justify-center">
-								<View className="h-24 w-24 items-center justify-center rounded-3xl border border-primary/30 bg-primary/10">
-									<Clock
-										size={44}
-										className="text-primary"
-										strokeWidth={1.75}
-									/>
-								</View>
+						<Animated.View
+							key="pending_approval"
+							entering={
+								reduceMotion
+									? FadeIn.duration(180)
+									: FadeInDown.duration(240)
+							}
+							className="flex-1 items-center justify-center py-6">
+							{/* Status Icon */}
+							<View className="mb-6 size-20 items-center justify-center rounded-sm border-2 border-primary/50 bg-primary/10 shadow-neo">
+								<Clock
+									size={38}
+									color="#91e6b1"
+									strokeWidth={2}
+								/>
 							</View>
-							<Text
-								weight="bold"
-								className="text-center text-3xl tracking-tight text-foreground">
-								Verification Pending
+							<Text className="text-center font-display text-3xl tracking-tight text-foreground uppercase">
+								VERIFICATION PENDING
 							</Text>
-							<Text
-								weight="semibold"
-								className="mt-1 text-center text-xs tracking-widest text-primary uppercase">
-								Application Under Review
+							<View className="mt-2">
+								<NeoBadge variant="primary" size="sm">
+									APPLICATION UNDER REVIEW
+								</NeoBadge>
+							</View>
+							<Text className="mt-3 px-2 text-center font-mono text-xs leading-relaxed text-muted-foreground">
+								Thank you for submitting your ID. Student
+								accounts are manually verified by administrators
+								to ensure platform safety.
 							</Text>
-							<Text className="mt-3 px-2 text-center text-sm leading-relaxed text-muted-foreground">
-								Thank you for submitting your ID. Our team
-								manually reviews all documentation to ensure
-								account safety and platform integrity.
-							</Text>
-							<View className="my-6 w-full gap-3 rounded-2xl border border-border bg-card p-4">
-								<View className="flex-row items-center justify-between border-b border-border pb-3">
-									<Text className="text-xs text-muted-foreground">
-										Account
+
+							{/* Status Bento Card */}
+							<NeoCard
+								variant="raised"
+								className="my-6 w-full gap-3 p-4 shadow-neo">
+								<View className="flex-row items-center justify-between border-b-2 border-border pb-3">
+									<Text className="font-mono text-xs text-muted-foreground uppercase">
+										ACCOUNT
 									</Text>
-									<Text
-										weight="medium"
-										className="text-xs text-foreground">
+									<Text className="font-mono text-xs text-foreground">
 										{email || "Registered account"}
 									</Text>
 								</View>
-								<View className="flex-row items-center justify-between border-b border-border pb-3">
-									<Text className="text-xs text-muted-foreground">
-										Typical Turnaround
+								<View className="flex-row items-center justify-between border-b-2 border-border pb-3">
+									<Text className="font-mono text-xs text-muted-foreground uppercase">
+										TYPICAL TURNAROUND
 									</Text>
-									<Text
-										weight="medium"
-										className="text-xs text-foreground">
+									<Text className="font-mono text-xs text-foreground">
 										Within 24 hours
 									</Text>
 								</View>
 								<View className="flex-row items-center justify-between pt-0.5">
-									<Text className="text-xs text-muted-foreground">
-										Status
+									<Text className="font-mono text-xs text-muted-foreground uppercase">
+										STATUS
 									</Text>
-									<View className="flex-row items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5">
-										<View className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-										<Text className="font-medium text-xs text-amber-400">
+									<View className="flex-row items-center gap-1.5 rounded-sm border-2 border-warning/50 bg-warning/15 px-2.5 py-0.5">
+										<View className="size-1.5 rounded-full bg-warning" />
+										<Text className="font-mono text-xs text-warning uppercase">
 											Pending Admin Approval
 										</Text>
 									</View>
 								</View>
-							</View>
-							<View className="mb-6 flex-row items-center gap-2.5 px-2">
-								<Text className="text-center text-xs text-muted-foreground">
-									You'll receive an email notification as soon
-									as an administrator activates your account.
-								</Text>
-							</View>
+							</NeoCard>
+
+							<Text className="mb-6 text-center font-mono text-xs text-muted-foreground">
+								You'll receive an email notification as soon as
+								an administrator activates your account.
+							</Text>
+
 							<View className="w-full gap-3">
-								<Button
+								<NeoButton
 									size="lg"
-									fullWidth
 									variant="primary"
+									className="w-full"
 									onPress={() =>
 										router.replace(
 											"/(onboarding)/onboarding",
 										)
 									}>
-									Back to Home
-								</Button>
-								<Button
+									BACK TO HOME
+								</NeoButton>
+								<NeoButton
 									size="lg"
-									fullWidth
 									variant="outline"
+									className="w-full"
 									onPress={() =>
 										router.replace("/(auth)/sign-in")
 									}>
-									Log In to Existing Account
-								</Button>
+									LOG IN TO EXISTING ACCOUNT
+								</NeoButton>
 							</View>
-						</View>
+						</Animated.View>
 					)}
 				</ScrollView>
 			</KeyboardAvoidingView>
-			<Dialog
+
+			<MobileAlertSheet
 				open={dialogState.open}
 				onOpenChange={(open) =>
 					setDialogState((prev) => ({ ...prev, open }))
-				}>
-				<Dialog.Content className="mx-4 max-w-sm rounded-2xl border border-border bg-card p-6">
-					<Dialog.Title
-						weight="bold"
-						className="text-xl text-foreground">
-						{dialogState.title}
-					</Dialog.Title>
-					<Dialog.Description className="mt-2 text-sm text-muted-foreground">
-						{dialogState.description}
-					</Dialog.Description>
-					<Dialog.Footer className="mt-6 flex-row justify-end">
-						<Button
-							size="md"
-							variant="primary"
-							onPress={() =>
-								setDialogState((prev) => ({
-									...prev,
-									open: false,
-								}))
-							}>
-							Okay
-						</Button>
-					</Dialog.Footer>
-				</Dialog.Content>
-			</Dialog>
+				}
+				title={dialogState.title}
+				description={dialogState.description}
+				actions={[
+					{
+						label: "Okay",
+						onPress: () =>
+							setDialogState((prev) => ({
+								...prev,
+								open: false,
+							})),
+						variant: "primary",
+					},
+				]}
+			/>
 		</View>
 	);
 }

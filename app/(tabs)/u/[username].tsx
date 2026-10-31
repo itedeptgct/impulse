@@ -11,21 +11,23 @@ import {
 	Flame,
 	PenSquare,
 	Share2,
+	Shield,
 } from "lucide-react-native";
-import { Button, Text } from "panelui-native";
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	Clipboard,
-	Pressable,
 	RefreshControl,
 	ScrollView,
 	Share,
+	Text,
 	View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { NeoBadge, NeoButton, NeoCard } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
+import { getGuildInfo } from "@/features/guilds/constants";
 import { fetchUserPosts, sharePost, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import { PostCommentsModal } from "@/features/posts/components/PostCommentsModal";
@@ -66,9 +68,24 @@ export default function UserProfileScreen() {
 	}, [username]);
 
 	useEffect(() => {
-		setIsLoading(true);
-		void loadData();
-	}, [loadData]);
+		let isMounted = true;
+		if (!username) return;
+		void (async () => {
+			const prof = await fetchProfileByUsername(username);
+			if (!isMounted) return;
+			setTargetProfile(prof);
+			if (prof?.id) {
+				const userPosts = await fetchUserPosts(prof.id);
+				if (isMounted) setPosts(userPosts);
+			} else {
+				if (isMounted) setPosts([]);
+			}
+			if (isMounted) setIsLoading(false);
+		})();
+		return () => {
+			isMounted = false;
+		};
+	}, [username]);
 
 	const onRefresh = () => {
 		setIsRefreshing(true);
@@ -167,14 +184,15 @@ export default function UserProfileScreen() {
 
 	const initials = displayName.slice(0, 2).toUpperCase();
 	const totalUpvotes = posts.reduce((acc, p) => acc + p.upvotes_count, 0);
+	const guildData = getGuildInfo(targetProfile?.guild);
 
 	return (
 		<View className="flex-1 bg-background text-foreground">
 			<StatusBar style="light" />
 
 			{copiedToast && (
-				<View className="fixed top-12 left-1/2 z-50 -translate-x-1/2 rounded-full border border-primary/30 bg-card/95 px-5 py-2 shadow-xl">
-					<Text weight="semibold" className="text-xs text-primary">
+				<View className="absolute top-12 left-1/2 z-50 -translate-x-1/2 rounded-sm border-2 border-primary bg-card px-4 py-2 shadow-neo-sm">
+					<Text className="font-mono text-xs text-primary">
 						{copiedToast}
 					</Text>
 				</View>
@@ -182,48 +200,53 @@ export default function UserProfileScreen() {
 
 			<ScrollView
 				contentContainerStyle={{
-					paddingTop: Math.max(insets.top, 16) + 12,
+					flexGrow: 1,
+					paddingTop: Math.max(insets.top, 16) + 8,
 					paddingBottom: Math.max(insets.bottom, 16) + 32,
 				}}
 				refreshControl={
 					<RefreshControl
 						refreshing={isRefreshing}
 						onRefresh={onRefresh}
-						tintColor="#10b981"
+						tintColor="#91e6b1"
 					/>
 				}
 				showsVerticalScrollIndicator={false}>
 				<View className="mx-auto w-full max-w-3xl px-4 sm:px-6">
 					{/* Top Navigation */}
 					<View className="mb-4 flex-row items-center justify-between">
-						<Pressable
-							onPress={() => router.back()}
-							className="h-9 w-9 items-center justify-center rounded-xl border border-border bg-card active:scale-[0.96]">
-							<ArrowLeft size={16} color="#ffffff" />
-						</Pressable>
-						<Text
-							weight="bold"
-							className="text-sm text-muted-foreground lowercase">
-							/u/{username}
+						<NeoButton
+							variant="outline"
+							size="sm"
+							className="size-9 px-0"
+							onPress={() => router.back()}>
+							<ArrowLeft
+								size={16}
+								color="#ffffff"
+								strokeWidth={2.5}
+							/>
+						</NeoButton>
+						<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+							USER INTEL // /u/{username}
 						</Text>
 						<View className="w-9" />
 					</View>
 
 					{isLoading ? (
 						<View className="items-center justify-center py-20">
-							<ActivityIndicator color="#10b981" size="large" />
+							<ActivityIndicator color="#91e6b1" size="large" />
 						</View>
 					) : (
 						<>
-							{/* Profile Card Header */}
-							<View className="mb-6 rounded-3xl border border-border bg-card p-6 shadow-sm">
+							{/* Identity Bento Hero Card */}
+							<NeoCard
+								variant="default"
+								className="mb-5 p-5 shadow-neo">
 								<View className="flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 									<View className="flex-row items-start gap-4">
 										{/* Avatar */}
-										<View className="h-16 w-16 items-center justify-center rounded-2xl border border-primary/25 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 shadow-sm">
-											<Text
-												weight="bold"
-												className="text-2xl text-primary">
+										<View className="size-16 items-center justify-center rounded-sm border-2 border-border bg-secondary shadow-neo-sm">
+											<Text className="font-mono text-2xl text-primary">
 												{initials}
 											</Text>
 										</View>
@@ -231,22 +254,21 @@ export default function UserProfileScreen() {
 										{/* Identity Info */}
 										<View className="flex-1">
 											<View className="flex-row flex-wrap items-center gap-2">
-												<Text
-													weight="bold"
-													className="text-xl tracking-tight text-foreground sm:text-2xl">
+												<Text className="font-display text-lg tracking-tight text-foreground sm:text-xl">
 													{displayName}
 												</Text>
-												<View className="flex-row items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5">
-													<CheckCircle2
-														size={11}
-														color="#10b981"
-													/>
-													<Text
-														weight="semibold"
-														className="text-[10px] text-emerald-400">
-														Verified Student
-													</Text>
-												</View>
+												<NeoBadge
+													variant="primary"
+													size="sm"
+													startContent={
+														<CheckCircle2
+															size={11}
+															color="#91e6b1"
+															strokeWidth={2.5}
+														/>
+													}>
+													VERIFIED
+												</NeoBadge>
 												{targetProfile?.guild && (
 													<GuildBadge
 														guildId={
@@ -256,6 +278,7 @@ export default function UserProfileScreen() {
 													/>
 												)}
 											</View>
+
 											<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
 												@
 												{targetProfile?.username ||
@@ -263,122 +286,156 @@ export default function UserProfileScreen() {
 											</Text>
 
 											{targetProfile?.major ? (
-												<View className="mt-2 flex-row items-center gap-1.5">
+												<View className="mt-2 flex-row items-center gap-1.5 self-start rounded-sm border-2 border-border bg-secondary px-2 py-0.5">
 													<BookOpen
-														size={12}
-														color="#a1a1aa"
+														size={11}
+														color="#91e6b1"
+														strokeWidth={2.2}
 													/>
-													<Text className="text-xs text-muted-foreground">
+													<Text className="font-mono text-[10px] text-primary uppercase">
 														{targetProfile.major}
 													</Text>
 												</View>
 											) : null}
 
 											{targetProfile?.bio ? (
-												<Text className="mt-2.5 text-xs leading-relaxed text-foreground/90 sm:text-sm">
+												<Text className="mt-2.5 font-sans text-xs leading-relaxed text-muted-foreground sm:text-sm">
 													{targetProfile.bio}
 												</Text>
 											) : (
-												<Text className="mt-2 text-xs text-muted-foreground italic">
+												<Text className="mt-2 font-mono text-xs text-muted-foreground italic">
 													No biography provided yet.
 												</Text>
 											)}
 										</View>
 									</View>
 
-									{/* Action button */}
+									{/* Action Button */}
 									<View className="self-start sm:self-auto">
 										{isOwnProfile ? (
-											<Button
+											<NeoButton
 												size="sm"
-												variant="primary"
+												variant="outline"
 												startContent={
 													<PenSquare
 														size={13}
 														color="#ffffff"
+														strokeWidth={2.2}
 													/>
 												}
 												onPress={() =>
 													setIsEditModalOpen(true)
 												}>
-												Edit Profile
-											</Button>
+												EDIT PROFILE
+											</NeoButton>
 										) : (
-											<Button
+											<NeoButton
 												size="sm"
 												variant="outline"
 												startContent={
 													<Share2
 														size={13}
 														color="#ffffff"
+														strokeWidth={2.2}
 													/>
 												}
 												onPress={handleShareProfile}>
-												Share
-											</Button>
+												SHARE
+											</NeoButton>
 										)}
 									</View>
 								</View>
+							</NeoCard>
 
-								{/* Metrics row */}
-								<View className="mt-6 grid grid-cols-2 gap-3 border-t border-border/70 pt-4 sm:grid-cols-3">
-									<View className="rounded-xl border border-border/60 bg-muted/20 p-3 text-center">
-										<Text
-											weight="bold"
-											className="font-mono text-lg text-foreground">
-											{posts.length}
-										</Text>
-										<Text className="text-[11px] text-muted-foreground">
-											Posts Published
-										</Text>
-									</View>
-									<View className="rounded-xl border border-border/60 bg-muted/20 p-3 text-center">
-										<Text
-											weight="bold"
-											className="font-mono text-lg text-emerald-400">
-											{totalUpvotes}
-										</Text>
-										<Text className="text-[11px] text-muted-foreground">
-											Reputation Karma
+							{/* Activity Bento Grid */}
+							<View className="mb-6 flex-row gap-3">
+								<NeoCard
+									variant="default"
+									className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
+									<View className="flex-row items-center gap-1.5">
+										<PenSquare
+											size={12}
+											color="#91e6b1"
+											strokeWidth={2.2}
+										/>
+										<Text className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+											POSTS
 										</Text>
 									</View>
-									<View className="col-span-2 rounded-xl border border-border/60 bg-muted/20 p-3 text-center sm:col-span-1">
-										<Text
-											weight="bold"
-											className="text-lg text-indigo-400 capitalize">
-											{targetProfile?.guild ||
-												"Unaffiliated"}
-										</Text>
-										<Text className="text-[11px] text-muted-foreground">
-											Faction Track
+									<Text className="mt-1 font-display text-2xl tracking-tight text-foreground">
+										{posts.length}
+									</Text>
+								</NeoCard>
+
+								<NeoCard
+									variant="default"
+									className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
+									<View className="flex-row items-center gap-1.5">
+										<Flame
+											size={12}
+											color="#91e6b1"
+											strokeWidth={2.2}
+										/>
+										<Text className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+											KARMA
 										</Text>
 									</View>
-								</View>
+									<Text className="mt-1 font-display text-2xl tracking-tight text-primary">
+										{totalUpvotes}
+									</Text>
+								</NeoCard>
+
+								<NeoCard
+									variant="default"
+									className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
+									<View className="flex-row items-center gap-1.5">
+										<Shield
+											size={12}
+											color="#38bdf8"
+											strokeWidth={2.2}
+										/>
+										<Text className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+											HOUSE
+										</Text>
+									</View>
+									<Text
+										className="mt-1 font-display text-xs tracking-tight text-foreground uppercase sm:text-sm"
+										numberOfLines={1}>
+										{guildData?.name || "Unaffiliated"}
+									</Text>
+								</NeoCard>
 							</View>
 
-							{/* Authored Posts Section */}
+							{/* Published Transmissions Stream */}
 							<View className="mb-6">
-								<View className="mb-3.5 flex-row items-center justify-between">
-									<Text
-										weight="bold"
-										className="text-base text-foreground">
-										Published Posts ({posts.length})
-									</Text>
+								<View className="mb-3.5 flex-row items-center justify-between border-b-2 border-border pb-2.5">
+									<View className="flex-row items-center gap-2">
+										<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+											TRANSMISSION ARCHIVE
+										</Text>
+										<NeoBadge variant="default" size="sm">
+											{posts.length}
+										</NeoBadge>
+									</View>
 								</View>
 
 								{posts.length === 0 ? (
-									<View className="items-center justify-center rounded-2xl border border-dashed border-border bg-card/60 p-8 text-center">
-										<Flame size={24} color="#a1a1aa" />
-										<Text
-											weight="semibold"
-											className="mt-2 text-sm text-foreground">
-											No posts yet
+									<NeoCard
+										variant="default"
+										className="items-center justify-center p-8 text-center shadow-neo">
+										<Flame
+											size={24}
+											color="#91e6b1"
+											strokeWidth={2.2}
+										/>
+										<Text className="mt-2 font-display text-sm text-foreground uppercase">
+											NO TRANSMISSIONS YET
 										</Text>
-										<Text className="mt-1 text-xs text-muted-foreground">
+										<Text className="mt-1 font-mono text-xs text-muted-foreground">
 											This student hasn't published any
 											discussions or code snippets yet.
 										</Text>
-									</View>
+									</NeoCard>
 								) : (
 									<View className="gap-4">
 										{posts.map((post) => (
