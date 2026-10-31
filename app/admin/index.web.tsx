@@ -14,9 +14,9 @@ import { useAdminStats } from "@/features/admin/hooks/useAdmin";
 
 export default function AdminWebScreen() {
 	const user = useAuthStore((state) => state.user);
-	const [activeSection, setActiveSection] = useState<"verifications" | "users">(
-		"verifications",
-	);
+	const [activeSection, setActiveSection] = useState<
+		"verifications" | "users"
+	>("verifications");
 
 	const { data: stats, isLoading: isStatsLoading } = useAdminStats();
 
@@ -46,8 +46,9 @@ export default function AdminWebScreen() {
 								</Text>
 							</View>
 							<Text className="mt-1 text-xs text-muted-foreground sm:text-sm">
-								Review student ID documents, audit verified credentials, and
-								manage campus member permissions.
+								Review student ID documents, audit verified
+								credentials, and manage campus member
+								permissions.
 							</Text>
 						</View>
 						{/* Quick section switcher */}
@@ -55,7 +56,9 @@ export default function AdminWebScreen() {
 							<Button
 								size="sm"
 								variant={
-									activeSection === "verifications" ? "primary" : "ghost"
+									activeSection === "verifications"
+										? "primary"
+										: "ghost"
 								}
 								className="rounded-lg transition-transform active:scale-[0.96]"
 								startContent={
@@ -68,11 +71,15 @@ export default function AdminWebScreen() {
 										}
 									/>
 								}
-								onPress={() => setActiveSection("verifications")}>
+								onPress={() =>
+									setActiveSection("verifications")
+								}>
 								<View className="flex-row items-center gap-1.5">
 									<Text
 										weight={
-											activeSection === "verifications" ? "semibold" : "normal"
+											activeSection === "verifications"
+												? "semibold"
+												: "normal"
 										}
 										className={
 											activeSection === "verifications"
@@ -94,7 +101,11 @@ export default function AdminWebScreen() {
 							</Button>
 							<Button
 								size="sm"
-								variant={activeSection === "users" ? "primary" : "ghost"}
+								variant={
+									activeSection === "users"
+										? "primary"
+										: "ghost"
+								}
 								className="rounded-lg transition-transform active:scale-[0.96]"
 								startContent={
 									<Users
@@ -108,7 +119,11 @@ export default function AdminWebScreen() {
 								}
 								onPress={() => setActiveSection("users")}>
 								<Text
-									weight={activeSection === "users" ? "semibold" : "normal"}
+									weight={
+										activeSection === "users"
+											? "semibold"
+											: "normal"
+									}
 									className={
 										activeSection === "users"
 											? "text-primary-foreground"
@@ -128,12 +143,15 @@ export default function AdminWebScreen() {
 						<View className="rounded-3xl border border-border bg-card p-6 shadow-sm">
 							<View className="mb-6 flex-row items-center justify-between border-b border-border pb-4">
 								<View>
-									<Text weight="bold" className="text-lg text-foreground">
+									<Text
+										weight="bold"
+										className="text-lg text-foreground">
 										Student ID Verification Queue
 									</Text>
 									<Text className="mt-0.5 text-xs text-muted-foreground">
-										Inspect submitted ID cards, verify credentials, and approve
-										or reject submissions.
+										Inspect submitted ID cards, verify
+										credentials, and approve or reject
+										submissions.
 									</Text>
 								</View>
 							</View>
@@ -146,12 +164,14 @@ export default function AdminWebScreen() {
 						<View className="rounded-3xl border border-border bg-card p-6 shadow-sm">
 							<View className="mb-6 flex-row items-center justify-between border-b border-border pb-4">
 								<View>
-									<Text weight="bold" className="text-lg text-foreground">
+									<Text
+										weight="bold"
+										className="text-lg text-foreground">
 										Campus Member Directory
 									</Text>
 									<Text className="mt-0.5 text-xs text-muted-foreground">
-										Search registered student profiles and adjust network access
-										roles.
+										Search registered student profiles and
+										adjust network access roles.
 									</Text>
 								</View>
 							</View>

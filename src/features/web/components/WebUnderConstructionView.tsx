@@ -16,7 +16,7 @@ export function WebUnderConstructionView() {
 	};
 
 	const handleAdminPortal = () => {
-		router.replace("/(admin)");
+		router.replace("/admin");
 	};
 
 	return (

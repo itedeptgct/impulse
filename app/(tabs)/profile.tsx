@@ -678,7 +678,7 @@ export default function ProfileScreen() {
 							<Pressable
 								onPress={() => {
 									setIsAccountActionsOpen(false);
-									router.push("/(admin)");
+									router.push("/admin");
 								}}
 								className="flex-row items-center justify-between rounded-xl border border-primary/30 bg-primary/10 p-3">
 								<View className="flex-row items-center gap-2">

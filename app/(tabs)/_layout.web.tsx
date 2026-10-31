@@ -277,7 +277,7 @@ export default function TabsWebLayout() {
 									{isAdmin && (
 										<Pressable
 											onPress={() =>
-												router.push("/(admin)")
+												router.push("/admin")
 											}
 											className="flex-row items-center gap-3 rounded-xl px-3 py-2.5 transition-all hover:bg-muted/50 active:scale-[0.98]">
 											<ShieldCheck

@@ -43,6 +43,12 @@ const queryClient = new QueryClient({
 	},
 });
 
+// oxlint-disable-next-line react/only-export-components
+export const unstable_settings = {
+	anchor: "(tabs)",
+	initialRouteName: "(tabs)",
+};
+
 export default function RootLayout() {
 	const [fontsLoaded] = useFonts({
 		DMSans_400Regular,

@@ -18,12 +18,15 @@ export default function AdminNativeScreen() {
 				<View className="mb-4 h-16 w-16 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
 					<Monitor size={32} className="text-primary" />
 				</View>
-				<Text weight="bold" className="text-center text-xl text-foreground">
+				<Text
+					weight="bold"
+					className="text-center text-xl text-foreground">
 					Web Only
 				</Text>
 				<Text className="mt-2 text-center text-xs leading-relaxed text-muted-foreground">
-					The Impulse Admin moderation desk is optimized for desktop browsers.
-					Please access this portal via your computer or web browser.
+					The Impulse Admin moderation desk is optimized for desktop
+					browsers. Please access this portal via your computer or web
+					browser.
 				</Text>
 				<View className="mt-6 w-full">
 					<Button
@@ -32,7 +35,10 @@ export default function AdminNativeScreen() {
 						variant="primary"
 						className="transition-transform active:scale-[0.96]"
 						startContent={
-							<ArrowLeft size={16} className="text-primary-foreground" />
+							<ArrowLeft
+								size={16}
+								className="text-primary-foreground"
+							/>
 						}
 						onPress={() => router.replace("/(tabs)")}>
 						Return to Student Portal
