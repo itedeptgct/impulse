@@ -25,7 +25,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { MobileSheet, NeoBadge, NeoButton, NeoInput } from "@/components/ui";
+import { MobileSheet, NeoButton, NeoInput } from "@/components/ui";
 
 export default function SignInScreen() {
 	const insets = useSafeAreaInsets();

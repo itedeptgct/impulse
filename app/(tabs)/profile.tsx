@@ -23,7 +23,6 @@ import {
 	PenSquare,
 	Plus,
 	Settings,
-	Share2,
 	ShieldAlert,
 	ShieldCheck,
 	UploadCloud,
@@ -49,7 +48,6 @@ import {
 } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import { GuildSelectionModal } from "@/features/guilds/components/GuildSelectionModal";
-import { getGuildInfo } from "@/features/guilds/constants";
 import { fetchUserPosts, sharePost, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import { PostCommentsModal } from "@/features/posts/components/PostCommentsModal";
@@ -131,7 +129,7 @@ export default function ProfileScreen() {
 	const role = profile?.role || "user";
 	const verificationStatus = verification?.status || "pending";
 	const isAdmin = role === "admin";
-	const guildInfo = getGuildInfo(profile?.guild);
+	// const guildInfo = getGuildInfo(profile?.guild);
 
 	const handleConfirmSignOut = async () => {
 		setIsSigningOut(true);
@@ -227,18 +225,18 @@ export default function ProfileScreen() {
 		}
 	};
 
-	const handleShareProfile = async () => {
-		const message = `Check out @${profile?.username || "student"} on Impulse!`;
-		try {
-			if (Share && Share.share) {
-				await Share.share({ message });
-			} else {
-				Clipboard.setString(message);
-			}
-		} catch {
-			Clipboard.setString(message);
-		}
-	};
+	// const handleShareProfile = async () => {
+	// 	const message = `Check out @${profile?.username || "student"} on Impulse!`;
+	// 	try {
+	// 		if (Share && Share.share) {
+	// 			await Share.share({ message });
+	// 		} else {
+	// 			Clipboard.setString(message);
+	// 		}
+	// 	} catch {
+	// 		Clipboard.setString(message);
+	// 	}
+	// };
 
 	const handleOpenComments = (post: Post) => {
 		setActiveCommentPost(post);
