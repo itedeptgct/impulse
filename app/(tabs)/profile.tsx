@@ -510,7 +510,7 @@ export default function ProfileScreen() {
 									variant="secondary"
 									className="px-3"
 									onPress={() => setIsGuildModalOpen(true)}>
-									<Text className="font-mono text-xs text-foreground">
+									<Text className="font-display text-xs text-foreground">
 										SWITCH HOUSE
 									</Text>
 								</NeoButton>

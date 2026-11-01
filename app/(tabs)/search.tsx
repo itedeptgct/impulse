@@ -4,14 +4,7 @@ import type { Profile } from "@auth/types";
 import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import {
-	CheckCircle2,
-	FileText,
-	Hash,
-	Search,
-	Users,
-	X,
-} from "lucide-react-native";
+import { CheckCircle2, FileText, Search, Users, X } from "lucide-react-native";
 import { useCallback, useRef, useState } from "react";
 import {
 	ActivityIndicator,
@@ -30,16 +23,16 @@ import type { Post } from "@/features/posts/types";
 
 type SearchFilterTab = "all" | "posts" | "users";
 
-const QUICK_TAGS = [
-	"react",
-	"algorithms",
-	"webdev",
-	"security",
-	"ui",
-	"python",
-	"mobile",
-	"database",
-];
+// const QUICK_TAGS = [
+// 	"react",
+// 	"algorithms",
+// 	"webdev",
+// 	"security",
+// 	"ui",
+// 	"python",
+// 	"mobile",
+// 	"database",
+// ];
 
 export default function SearchScreen() {
 	const insets = useSafeAreaInsets();
@@ -110,10 +103,10 @@ export default function SearchScreen() {
 		setIsSearching(false);
 	};
 
-	const handleTagPress = (tag: string) => {
-		setQuery(tag);
-		void executeSearch(tag);
-	};
+	// const handleTagPress = (tag: string) => {
+	// 	setQuery(tag);
+	// 	void executeSearch(tag);
+	// };
 
 	const handleVote = async (post: Post, targetVote: 1 | -1) => {
 		if (!user?.id) return;
@@ -251,7 +244,7 @@ export default function SearchScreen() {
 					}}
 					keyboardShouldPersistTaps="handled">
 					{/* Quick Topic Tags */}
-					<View className="rounded-sm border-2 border-border bg-card p-4 shadow-neo-sm">
+					{/* <View className="rounded-sm border-2 border-border bg-card p-4 shadow-neo-sm">
 						<View className="mb-3 flex-row items-center gap-2">
 							<Hash size={14} color="#91e6b1" strokeWidth={2.2} />
 							<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
@@ -270,7 +263,7 @@ export default function SearchScreen() {
 								</Pressable>
 							))}
 						</View>
-					</View>
+					</View> */}
 
 					{/* Discovery Hints Card */}
 					<View className="mt-4 rounded-sm border-2 border-border bg-card p-4 shadow-neo-sm">

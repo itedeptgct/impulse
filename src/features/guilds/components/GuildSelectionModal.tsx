@@ -98,10 +98,10 @@ export function GuildSelectionModal({
 					<View className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3.5 shadow-neo-sm">
 						<View className="flex-1 pr-3">
 							<Text className="font-display text-lg tracking-tight text-foreground uppercase">
-								SELECT CAMPUS HOUSE
+								SELECT HOUSE
 							</Text>
 							<Text className="font-mono text-xs text-muted-foreground">
-								Select your track to unlock specialized
+								Select your house to unlock specialized
 								transmissions and lore.
 							</Text>
 						</View>
@@ -240,12 +240,12 @@ export function GuildSelectionModal({
 															color="#0a0a0c"
 															strokeWidth={2.5}
 														/>
-														<Text className="font-mono text-xs tracking-wider text-primary-foreground uppercase">
+														<Text className="font-display text-xs tracking-wider text-primary-foreground uppercase">
 															SELECTED HOUSE
 														</Text>
 													</>
 												) : (
-													<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+													<Text className="font-display text-xs tracking-wider text-muted-foreground uppercase">
 														SELECT {guild.name}
 													</Text>
 												)}
@@ -260,7 +260,7 @@ export function GuildSelectionModal({
 					{/* Sticky Bottom Actions */}
 					<View className="border-t-2 border-border bg-card p-4 shadow-neo-sm">
 						<View className="mb-3 flex-row items-center justify-between">
-							<Text className="font-mono text-xs text-muted-foreground uppercase">
+							<Text className="font-display text-xs text-muted-foreground uppercase">
 								SELECTED HOUSE:
 							</Text>
 							<GuildBadge

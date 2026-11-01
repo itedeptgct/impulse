@@ -344,7 +344,7 @@ export default function PostDetailScreen() {
 
 								{post.visibility === "house" && (
 									<View className="rounded-sm border border-amber-500/50 bg-amber-500/10 px-2 py-0.5">
-										<Text className="font-bold font-mono text-[10px] text-amber-400 uppercase">
+										<Text className="font-mono text-[10px] text-amber-400 uppercase">
 											HOUSE ONLY
 										</Text>
 									</View>
@@ -441,7 +441,7 @@ export default function PostDetailScreen() {
 									</Pressable>
 									<View className="min-w-8 items-center justify-center px-2">
 										<Text
-											className={`font-bold font-mono text-sm tabular-nums ${
+											className={`font-mono text-sm tabular-nums ${
 												isUpvoted
 													? "text-primary"
 													: isDownvoted
@@ -477,10 +477,10 @@ export default function PostDetailScreen() {
 										color="#9aa1b2"
 										strokeWidth={2.2}
 									/>
-									<Text className="font-bold font-mono text-xs text-foreground tabular-nums">
+									<Text className="font-display text-xs text-foreground tabular-nums">
 										{post.comments_count}
 									</Text>
-									<Text className="font-mono text-xs text-muted-foreground uppercase">
+									<Text className="font-display text-xs text-muted-foreground uppercase">
 										RESPONSES
 									</Text>
 								</View>
@@ -521,10 +521,27 @@ export default function PostDetailScreen() {
 											}`}>
 											<View className="flex-row items-center justify-between">
 												<View className="flex-row items-center gap-2">
-													<View className="size-6 items-center justify-center rounded-xs bg-secondary">
-														<Text className="font-mono text-[10px] text-foreground">
-															{cInitials}
-														</Text>
+													<View className="size-6 items-center justify-center overflow-hidden rounded-xs bg-secondary">
+														{comment.author?.avatar_url?.startsWith(
+															"http",
+														) ? (
+															<ExpoImage
+																source={{
+																	uri: comment
+																		.author
+																		.avatar_url,
+																}}
+																style={{
+																	width: "100%",
+																	height: "100%",
+																}}
+																contentFit="cover"
+															/>
+														) : (
+															<Text className="font-mono text-[10px] text-foreground">
+																{cInitials}
+															</Text>
+														)}
 													</View>
 													<Text className="font-display text-xs text-foreground">
 														{comment.author

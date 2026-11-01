@@ -161,7 +161,7 @@ export default function FeedScreen() {
 					className="mb-4"
 					onPress={() => router.push("/(tabs)/profile")}>
 					<View className="flex-row items-center justify-between">
-						<View className="flex-row items-center gap-3">
+						<View className="min-w-0 flex-1 flex-row items-center gap-3">
 							<Sparkles
 								size={18}
 								color="#91e6b1"
@@ -176,7 +176,7 @@ export default function FeedScreen() {
 								</Text>
 							</View>
 						</View>
-						<Text className="font-mono text-xs text-primary">
+						<Text className="ml-2 shrink-0 font-mono text-xs text-primary">
 							SELECT →
 						</Text>
 					</View>

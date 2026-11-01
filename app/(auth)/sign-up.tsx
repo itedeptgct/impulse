@@ -148,7 +148,6 @@ export default function SignUpScreen() {
 
 			const result = await ImagePicker.launchCameraAsync({
 				allowsEditing: true,
-				aspect: [4, 3],
 				quality: 0.85,
 			});
 
@@ -179,7 +178,6 @@ export default function SignUpScreen() {
 			const result = await ImagePicker.launchImageLibraryAsync({
 				mediaTypes: ["images"],
 				allowsEditing: true,
-				aspect: [4, 3],
 				quality: 0.85,
 			});
 
@@ -390,17 +388,11 @@ export default function SignUpScreen() {
 						) : (
 							<View className="size-10" />
 						)}
-						{step !== "pending_approval" ? (
-							<NeoBadge variant="primary" size="sm">
-								{step === "credentials"
-									? "STEP 1/2: CREDENTIALS"
-									: "STEP 2/2: ID VERIFICATION"}
-							</NeoBadge>
-						) : (
-							<Text className="text-bold text-2xl text-foreground">
-								impulse<Text className="text-primary">.</Text>
-							</Text>
-						)}
+						<NeoBadge variant="primary" size="sm">
+							{step === "credentials"
+								? "STEP 1/2: CREDENTIALS"
+								: "STEP 2/2: ID VERIFICATION"}
+						</NeoBadge>
 						<View className="w-10" />
 					</View>
 

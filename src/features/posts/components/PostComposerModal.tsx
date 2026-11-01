@@ -92,7 +92,6 @@ export function PostComposerModal({
 		const result = await ImagePicker.launchImageLibraryAsync({
 			mediaTypes: ["images"],
 			allowsEditing: true,
-			aspect: [16, 9],
 			quality: 0.8,
 		});
 		if (!result.canceled) setImageUrl(result.assets[0]?.uri || null);
@@ -253,7 +252,7 @@ export function PostComposerModal({
 												strokeWidth={2.5}
 											/>
 											<Text
-												className={`font-bold font-mono text-xs ${
+												className={`font-display text-xs ${
 													visibility === "public"
 														? "text-black"
 														: "text-foreground"
@@ -287,14 +286,12 @@ export function PostComposerModal({
 												strokeWidth={2.5}
 											/>
 											<Text
-												className={`font-bold font-mono text-xs ${
+												className={`font-display text-xs ${
 													visibility === "house"
 														? "text-black"
 														: "text-foreground"
 												}`}>
-												{profile?.guild
-													? `${profile.guild.toUpperCase()} ONLY`
-													: "HOUSE-ONLY"}
+												HOUSE-ONLY (PRIVATE)
 											</Text>
 										</Pressable>
 									</View>
@@ -326,7 +323,7 @@ export function PostComposerModal({
 														onOpenGuildModal();
 													}}
 													className="rounded-sm bg-amber-400 px-2 py-1">
-													<Text className="font-bold font-mono text-[10px] text-black">
+													<Text className="font-display text-[10px] text-black">
 														JOIN
 													</Text>
 												</Pressable>
@@ -453,12 +450,12 @@ export function PostComposerModal({
 
 									{/* Selected Tag Pills */}
 									{selectedTags.length > 0 && (
-										<View className="mb-2.5 flex-row flex-wrap items-center gap-1.5">
+										<View className="fonlylex-wrap mb-2.5 flex-row items-center gap-1.5">
 											{selectedTags.map((tag) => (
 												<View
 													key={tag}
 													className="flex-row items-center gap-1.5 rounded-sm border-2 border-primary bg-primary/10 px-2 py-1 shadow-neo-sm">
-													<Text className="font-bold font-mono text-xs text-primary">
+													<Text className="font-mono text-xs text-primary">
 														{tag}
 													</Text>
 													<Pressable

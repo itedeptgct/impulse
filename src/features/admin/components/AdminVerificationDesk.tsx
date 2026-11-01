@@ -72,7 +72,7 @@ export function AdminVerificationDesk({
 			<NeoInput
 				value={search}
 				onChangeText={setSearch}
-				placeholder="Search by student username, email, ID..."
+				placeholder="Search by username, email, ID..."
 				startContent={
 					<Search size={15} color="#9aa1b2" strokeWidth={2.5} />
 				}

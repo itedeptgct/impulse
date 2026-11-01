@@ -43,6 +43,12 @@ CREATE POLICY "Users can update their own profile"
     TO authenticated
     USING (auth.uid() = id);
 
+CREATE POLICY "Admins can update profiles"
+    ON public.profiles FOR UPDATE
+    TO authenticated
+    USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
+    WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+
 -- -----------------------------------------------------------------------------
 -- 2. POSTS TABLE
 -- -----------------------------------------------------------------------------

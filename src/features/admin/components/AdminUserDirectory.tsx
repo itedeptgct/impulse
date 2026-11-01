@@ -248,6 +248,7 @@ export function AdminUserDirectory() {
 										<NeoButton
 											size="sm"
 											variant="outline"
+											disabled={verifStatus === "pending"}
 											onPress={() =>
 												handleOpenRoleDialog(u, "user")
 											}>
@@ -257,6 +258,7 @@ export function AdminUserDirectory() {
 										<NeoButton
 											size="sm"
 											variant="outline"
+											disabled={verifStatus === "pending"}
 											onPress={() =>
 												handleOpenRoleDialog(u, "admin")
 											}>

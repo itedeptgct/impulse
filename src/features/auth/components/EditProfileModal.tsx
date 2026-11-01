@@ -57,6 +57,13 @@ export function EditProfileModal({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [initialValues, setInitialValues] = useState({
+		displayName: profile?.display_name || profile?.username || "",
+		course: profile?.course || null,
+		yearLevel: profile?.year_level || null,
+		bio: profile?.bio || "",
+		avatarUrl: profile?.avatar_url || "",
+	});
 
 	const prevOpenRef = useRef(open);
 
@@ -67,10 +74,24 @@ export function EditProfileModal({
 			setYearLevel(profile.year_level || null);
 			setBio(profile.bio || "");
 			setAvatarUrl(profile.avatar_url || "");
+			setInitialValues({
+				displayName: profile.display_name || profile.username || "",
+				course: profile.course || null,
+				yearLevel: profile.year_level || null,
+				bio: profile.bio || "",
+				avatarUrl: profile.avatar_url || "",
+			});
 			setError(null);
 		}
 		prevOpenRef.current = open;
 	}, [open, profile]);
+
+	const hasChanges =
+		displayName.trim() !== initialValues.displayName.trim() ||
+		course !== initialValues.course ||
+		yearLevel !== initialValues.yearLevel ||
+		bio.trim() !== initialValues.bio.trim() ||
+		avatarUrl.trim() !== initialValues.avatarUrl.trim();
 
 	const handlePickAvatar = async () => {
 		try {
@@ -173,7 +194,7 @@ export function EditProfileModal({
 					className="flex-1 bg-background"
 					edges={["top", "bottom"]}>
 					{/* Top Header Bar */}
-					<View className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
+					<View className="relative flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
 						<NeoButton
 							variant="secondary"
 							size="sm"
@@ -181,18 +202,18 @@ export function EditProfileModal({
 							CANCEL
 						</NeoButton>
 
-						<Text className="font-display text-base tracking-tight text-foreground uppercase">
+						<Text className="absolute inset-x-0 text-center font-display text-base tracking-tight text-foreground uppercase">
 							EDIT PROFILE
 						</Text>
 
-						<NeoButton
+						{/* <NeoButton
 							variant="primary"
 							size="sm"
 							loading={isSubmitting || isUploadingAvatar}
 							disabled={isSubmitting || isUploadingAvatar}
 							onPress={handleSave}>
 							SAVE
-						</NeoButton>
+						</NeoButton> */}
 					</View>
 
 					{error && (
@@ -254,7 +275,7 @@ export function EditProfileModal({
 												/>
 											) : (
 												<View className="flex-1 items-center justify-center">
-													<Text className="font-bold text-2xl text-foreground">
+													<Text className="font-mono text-2xl text-foreground">
 														{initials}
 													</Text>
 												</View>
@@ -347,7 +368,7 @@ export function EditProfileModal({
 																: "border-border bg-secondary"
 														}`}>
 														<Text
-															className={`font-bold text-xs ${
+															className={`font-display text-xs ${
 																isSelected
 																	? "text-black"
 																	: "text-foreground"
@@ -404,7 +425,7 @@ export function EditProfileModal({
 																: "border-border bg-secondary"
 														}`}>
 														<Text
-															className={`font-bold text-xs ${
+															className={`font-display text-xs ${
 																isSelected
 																	? "text-black"
 																	: "text-foreground"
@@ -451,7 +472,9 @@ export function EditProfileModal({
 											isSubmitting || isUploadingAvatar
 										}
 										disabled={
-											isSubmitting || isUploadingAvatar
+											!hasChanges ||
+											isSubmitting ||
+											isUploadingAvatar
 										}
 										onPress={handleSave}
 										className="w-full">

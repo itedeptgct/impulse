@@ -159,7 +159,7 @@ export default function AdminScreen() {
 						<View className="mt-2 gap-4">
 							<View>
 								<Text className="font-display text-lg tracking-tight text-foreground uppercase">
-									Student Verification Queue
+									Verification Queue
 								</Text>
 								<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
 									Inspect submitted ID cards, verify
@@ -193,7 +193,7 @@ export default function AdminScreen() {
 						<View className="mt-2 gap-4">
 							<View>
 								<Text className="font-display text-lg tracking-tight text-foreground uppercase">
-									Campus User Directory
+									User Directory
 								</Text>
 								<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
 									Search registered student profiles and

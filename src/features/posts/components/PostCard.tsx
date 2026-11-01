@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
 import {
 	ArrowDown,
@@ -75,9 +76,25 @@ export function PostCard({
 					}}
 					className="flex-row items-center gap-2.5 active:opacity-75">
 					<View className="size-10 items-center justify-center rounded-sm border-2 border-border bg-secondary">
-						<Text className="font-mono text-xs text-foreground">
-							{authorInitials}
-						</Text>
+						{post.author?.avatar_url &&
+						post.author.avatar_url.startsWith("http") ? (
+							<ExpoImage
+								source={{
+									uri: post.author.avatar_url,
+								}}
+								style={{
+									width: "100%",
+									height: "100%",
+								}}
+								contentFit="cover"
+							/>
+						) : (
+							<View className="flex-1 items-center justify-center">
+								<Text className="font-mono text-sm text-foreground">
+									{authorInitials}
+								</Text>
+							</View>
+						)}
 					</View>
 					<View>
 						<View className="flex-row items-center gap-1.5">
@@ -100,7 +117,7 @@ export function PostCard({
 				<View className="flex-row items-center gap-1.5">
 					{post.visibility === "house" && (
 						<View className="rounded-sm border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5">
-							<Text className="font-bold font-mono text-[9px] text-amber-400 uppercase">
+							<Text className="font-display text-[9px] text-amber-400 uppercase">
 								HOUSE ONLY
 							</Text>
 						</View>
