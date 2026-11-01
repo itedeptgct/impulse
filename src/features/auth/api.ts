@@ -16,13 +16,18 @@ export async function signUp(
 	username: string,
 	email: string,
 	password: string,
+	displayName?: string,
 ) {
+	const normalizedUsername = username.toLowerCase().trim();
+	const trimmedDisplayName = (displayName || username).trim();
+
 	const { data, error } = await supabase.auth.signUp({
 		email: email,
 		password: password,
 		options: {
 			data: {
-				username: username,
+				username: normalizedUsername,
+				display_name: trimmedDisplayName,
 			},
 		},
 	});

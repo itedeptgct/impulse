@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import {
 	AlertCircle,
 	ArrowLeft,
+	AtSign,
 	Camera,
 	Check,
 	CheckCircle2,
@@ -45,6 +46,7 @@ import {
 	NeoCard,
 	NeoInput,
 } from "@/components/ui";
+import { PasswordRequirementsList } from "@/features/auth/components/PasswordRequirementsList";
 
 // Sign up flow steps
 type SignUpStep = "credentials" | "id_upload" | "pending_approval";
@@ -55,6 +57,7 @@ export default function SignUpScreen() {
 	const [step, setStep] = useState<SignUpStep>("credentials");
 
 	// credentials form state
+	const [displayName, setDisplayName] = useState("");
 	const [username, setUsername] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
@@ -66,6 +69,7 @@ export default function SignUpScreen() {
 	const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [fieldErrors, setFieldErrors] = useState<{
+		displayName?: string;
 		username?: string;
 		email?: string;
 		password?: string;
@@ -96,12 +100,14 @@ export default function SignUpScreen() {
 		setErrorMessage(null);
 		setFieldErrors({});
 
+		const trimmedDisplayName = displayName.trim();
+		const trimmedUsername = username.trim().toLowerCase().replace(/^@/, "");
 		const trimmedEmail = email.trim();
-		const trimmedUsername = username.trim();
 		const trimmedPassword = password.trim();
 		const trimmedConfirmPassword = confirmPassword.trim();
 
 		const validation = signUpCredentialsSchema.safeParse({
+			displayName: trimmedDisplayName,
 			username: trimmedUsername,
 			email: trimmedEmail,
 			password: trimmedPassword,
@@ -111,6 +117,7 @@ export default function SignUpScreen() {
 		if (!validation.success) {
 			const formatted = validation.error.flatten().fieldErrors;
 			setFieldErrors({
+				displayName: formatted.displayName?.[0],
 				username: formatted.username?.[0],
 				email: formatted.email?.[0],
 				password: formatted.password?.[0],
@@ -214,12 +221,14 @@ export default function SignUpScreen() {
 			return;
 		}
 
+		const trimmedDisplayName = displayName.trim();
+		const trimmedUsername = username.trim().toLowerCase().replace(/^@/, "");
 		const trimmedEmail = email.trim();
-		const trimmedUsername = username.trim();
 		const trimmedPassword = password.trim();
 		const trimmedConfirmPassword = confirmPassword.trim();
 
 		const credValidation = signUpCredentialsSchema.safeParse({
+			displayName: trimmedDisplayName,
 			username: trimmedUsername,
 			email: trimmedEmail,
 			password: trimmedPassword,
@@ -230,6 +239,7 @@ export default function SignUpScreen() {
 			setStep("credentials");
 			const formatted = credValidation.error.flatten().fieldErrors;
 			setFieldErrors({
+				displayName: formatted.displayName?.[0],
 				username: formatted.username?.[0],
 				email: formatted.email?.[0],
 				password: formatted.password?.[0],
@@ -251,6 +261,7 @@ export default function SignUpScreen() {
 			// if user was not yet registered in this session, perform sign up
 			if (!currentUserId || registeredEmail !== trimmedEmail) {
 				const signUpData = await signUpMutation.mutateAsync({
+					displayName: trimmedDisplayName,
 					username: trimmedUsername,
 					email: trimmedEmail,
 					password: trimmedPassword,
@@ -429,13 +440,43 @@ export default function SignUpScreen() {
 							)}
 
 							<View className="gap-4">
-								{/* Name Field */}
+								{/* Display Name Field */}
 								<NeoInput
-									label="FULL NAME / USERNAME"
+									label="DISPLAY NAME"
 									placeholder="Jane Doe"
+									value={displayName}
+									onChangeText={(text) => {
+										setDisplayName(text);
+										if (fieldErrors.displayName) {
+											setFieldErrors((prev) => ({
+												...prev,
+												displayName: undefined,
+											}));
+										}
+									}}
+									autoCapitalize="words"
+									autoCorrect={false}
+									returnKeyType="next"
+									error={fieldErrors.displayName}
+									startContent={
+										<User
+											size={16}
+											color="#91e6b1"
+											strokeWidth={2.2}
+										/>
+									}
+								/>
+
+								{/* Username (Handle) Field */}
+								<NeoInput
+									label="USERNAME (HANDLE)"
+									placeholder="janedoe"
 									value={username}
 									onChangeText={(text) => {
-										setUsername(text);
+										const clean = text
+											.toLowerCase()
+											.replace(/[^a-z0-9_]/g, "");
+										setUsername(clean);
 										if (fieldErrors.username) {
 											setFieldErrors((prev) => ({
 												...prev,
@@ -443,12 +484,12 @@ export default function SignUpScreen() {
 											}));
 										}
 									}}
-									autoCapitalize="words"
+									autoCapitalize="none"
 									autoCorrect={false}
 									returnKeyType="next"
 									error={fieldErrors.username}
 									startContent={
-										<User
+										<AtSign
 											size={16}
 											color="#91e6b1"
 											strokeWidth={2.2}
@@ -532,6 +573,9 @@ export default function SignUpScreen() {
 										/>
 									}
 								/>
+
+								{/* Interactive Password Requirements Checklist */}
+								<PasswordRequirementsList password={password} />
 
 								{/* Confirm Password Field */}
 								<NeoInput

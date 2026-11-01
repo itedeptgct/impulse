@@ -6,12 +6,14 @@ export function useSignUp() {
 	return useMutation({
 		mutationFn: ({
 			username,
+			displayName,
 			email,
 			password,
 		}: {
 			username: string;
+			displayName?: string;
 			email: string;
 			password: string;
-		}) => signUp(username, email, password),
+		}) => signUp(username, email, password, displayName),
 	});
 }
