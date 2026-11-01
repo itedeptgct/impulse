@@ -253,9 +253,11 @@ export function EditProfileModal({
 													contentFit="cover"
 												/>
 											) : (
-												<Text className="font-bold font-mono text-2xl text-foreground">
-													{initials}
-												</Text>
+												<View className="flex-1 items-center justify-center">
+													<Text className="font-bold text-2xl text-foreground">
+														{initials}
+													</Text>
+												</View>
 											)}
 										</View>
 
@@ -345,7 +347,7 @@ export function EditProfileModal({
 																: "border-border bg-secondary"
 														}`}>
 														<Text
-															className={`font-bold font-mono text-xs ${
+															className={`font-bold text-xs ${
 																isSelected
 																	? "text-black"
 																	: "text-foreground"
