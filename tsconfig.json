@@ -10,7 +10,8 @@
 			"@theme/*": ["./src/theme/*"]
 		},
 		"allowImportingTsExtensions": true,
-		"noUncheckedSideEffectImports": false
+		"noUncheckedSideEffectImports": false,
+		"types": ["@types/node"]
 	},
 	"include": [
 		"app/**/*.ts",

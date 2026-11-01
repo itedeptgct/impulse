@@ -139,7 +139,12 @@ export async function uploadIdDocument(
 	uri: string,
 	originalName?: string | null,
 ): Promise<string> {
-	const extension = originalName?.split(".").pop() || "jpg";
+	const extFromName = originalName?.split(".").pop()?.toLowerCase();
+	const extFromUri = uri.split("?")[0].split(".").pop()?.toLowerCase();
+	const extension =
+		(extFromName && extFromName.length <= 5 ? extFromName : null) ||
+		(extFromUri && extFromUri.length <= 5 ? extFromUri : null) ||
+		"jpg";
 	const filePath = `${userId}/${Date.now()}.${extension}`;
 	const contentType = getContentTypeFromExtension(extension);
 
@@ -161,7 +166,12 @@ export async function uploadAvatar(
 	uri: string,
 	originalName?: string | null,
 ): Promise<string> {
-	const extension = originalName?.split(".").pop() || "jpg";
+	const extFromName = originalName?.split(".").pop()?.toLowerCase();
+	const extFromUri = uri.split("?")[0].split(".").pop()?.toLowerCase();
+	const extension =
+		(extFromName && extFromName.length <= 5 ? extFromName : null) ||
+		(extFromUri && extFromUri.length <= 5 ? extFromUri : null) ||
+		"jpg";
 	const filePath = `${userId}/${Date.now()}.${extension}`;
 	const contentType = getContentTypeFromExtension(extension);
 

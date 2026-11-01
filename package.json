@@ -61,6 +61,7 @@
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.4",
 		"@commitlint/config-conventional": "^21.2.4",
+		"@types/node": "^26.6.6",
 		"@types/react": "~19.2.2",
 		"husky": "^9.1.7",
 		"lint-staged": "^17.6.0",
