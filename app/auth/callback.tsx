@@ -47,7 +47,9 @@ export default function AuthCallbackScreen() {
 				<View className="mb-6 h-16 w-16 items-center justify-center rounded-2xl border border-destructive/30 bg-destructive/10">
 					<AlertCircle size={32} className="text-destructive" />
 				</View>
-				<Text weight="bold" className="text-center text-2xl text-foreground">
+				<Text
+					weight="bold"
+					className="text-center text-2xl text-foreground">
 					Authentication Failed
 				</Text>
 				<Text className="mt-2 text-center text-sm text-muted-foreground">
@@ -69,7 +71,9 @@ export default function AuthCallbackScreen() {
 	return (
 		<View className="flex-1 items-center justify-center bg-background px-6">
 			<ActivityIndicator size="large" color="#5e6ad2" />
-			<Text weight="medium" className="mt-4 text-sm text-muted-foreground">
+			<Text
+				weight="medium"
+				className="mt-4 text-sm text-muted-foreground">
 				Completing sign in...
 			</Text>
 		</View>
