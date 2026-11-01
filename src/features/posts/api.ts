@@ -109,7 +109,9 @@ async function saveCachedVotes(
 }
 
 import { filterPostsForUser } from "./utils/filter";
-export { filterPostsForUser };
+import { filterPostsByQuery } from "./utils/search-filter";
+
+export { filterPostsForUser, filterPostsByQuery };
 
 /**
  * Fetch posts with audience visibility filtering, sorting, and user vote status.
@@ -504,4 +506,66 @@ export async function addPostComment(
 export async function fetchUserPosts(userId: string): Promise<Post[]> {
 	const allPosts = await fetchFeedPosts("all", "new", userId);
 	return allPosts.filter((p) => p.author_id === userId);
+}
+
+/**
+ * Search posts by query string (matching title, content, or tags),
+ * strictly observing house audience boundaries.
+ */
+export async function searchPosts(
+	query: string,
+	userId?: string,
+	userGuild?: string | null,
+): Promise<Post[]> {
+	const trimmed = query.trim();
+	if (!trimmed) return [];
+
+	let posts: Post[] = [];
+	let userVotes: Record<string, VoteType> = {};
+
+	if (userId) {
+		userVotes = await getCachedVotes(userId);
+	}
+
+	try {
+		let supabaseQuery = supabase
+			.from("posts")
+			.select(
+				"*, author:author_id(id, username, display_name, avatar_url, email, role, guild)",
+			)
+			.or(`title.ilike.%${trimmed}%,content.ilike.%${trimmed}%`);
+
+		if (userGuild) {
+			supabaseQuery = supabaseQuery.or(
+				`visibility.eq.public,and(visibility.eq.house,guild.eq.${userGuild})`,
+			);
+		} else {
+			supabaseQuery = supabaseQuery.eq("visibility", "public");
+		}
+
+		const { data, error } = await supabaseQuery.limit(30);
+		if (!error && data) {
+			posts = data.map((item: any) => ({
+				...item,
+				author: item.author || {
+					id: item.author_id,
+					username: "Student",
+					display_name: "Student",
+					role: "user",
+				},
+				user_vote: userVotes[item.id] ?? 0,
+			}));
+		} else {
+			const cached = await getCachedPosts();
+			posts = filterPostsByQuery(cached, trimmed, userGuild);
+		}
+	} catch {
+		const cached = await getCachedPosts();
+		posts = filterPostsByQuery(cached, trimmed, userGuild);
+	}
+
+	return filterPostsByQuery(posts, trimmed, userGuild).map((p) => ({
+		...p,
+		user_vote: userVotes[p.id] ?? p.user_vote ?? 0,
+	}));
 }

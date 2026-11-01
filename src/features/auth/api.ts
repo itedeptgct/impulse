@@ -447,3 +447,43 @@ export async function updateUserGuild(
 		// Handled gracefully if remote schema is pending migration
 	}
 }
+
+/**
+ * Search student profiles by username or display name.
+ */
+export async function searchUsers(query: string): Promise<Profile[]> {
+	const trimmed = query.trim().toLowerCase();
+	if (!trimmed) return [];
+
+	try {
+		const { data, error } = await supabase
+			.from("profiles")
+			.select("*")
+			.or(`username.ilike.%${trimmed}%,display_name.ilike.%${trimmed}%`)
+			.limit(20);
+
+		if (!error && data && data.length > 0) {
+			return data as Profile[];
+		}
+	} catch {
+		// Fallback to local memory
+	}
+
+	// Local fallback for in-memory session profile
+	const results: Profile[] = [];
+	try {
+		const { useAuthStore } = require("./store");
+		const current = useAuthStore?.getState?.()?.profile;
+		if (
+			current &&
+			(current.username?.toLowerCase().includes(trimmed) ||
+				current.display_name?.toLowerCase().includes(trimmed))
+		) {
+			results.push(current);
+		}
+	} catch {
+		// Store not initialized
+	}
+
+	return results;
+}
