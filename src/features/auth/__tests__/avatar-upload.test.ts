@@ -1,4 +1,5 @@
 import {
+	blobToArrayBuffer,
 	getContentTypeFromExtension,
 	readUriAsBinary,
 } from "../utils/upload-utils.ts";
@@ -35,6 +36,55 @@ export async function testUploadUtils() {
 	}
 	if (!result.contentType.includes("image/png")) {
 		throw new Error(`Unexpected content type: ${result.contentType}`);
+	}
+
+	// 3. Test React Native Blob behavior where blob.arrayBuffer is undefined
+	const simulatedRnBlob: any = new Blob(["hello-world"], {
+		type: "text/plain",
+	});
+	// Delete or set arrayBuffer to undefined to mirror React Native Hermes
+	simulatedRnBlob.arrayBuffer = undefined;
+
+	// Mock React Native FileReader
+	const originalFileReader = (globalThis as any).FileReader;
+	class MockRnFileReader {
+		result: ArrayBuffer | null = null;
+		onload: (() => void) | null = null;
+		onerror: ((e: any) => void) | null = null;
+
+		readAsArrayBuffer(_blob: any) {
+			const text = "hello-world";
+			const buf = new ArrayBuffer(text.length);
+			const view = new Uint8Array(buf);
+			for (let i = 0; i < text.length; i++) {
+				view[i] = text.charCodeAt(i);
+			}
+			this.result = buf;
+			setTimeout(() => {
+				this.onload?.();
+			}, 0);
+		}
+	}
+	(globalThis as any).FileReader = MockRnFileReader;
+
+	try {
+		const convertedBuffer = await blobToArrayBuffer(simulatedRnBlob);
+		if (!(convertedBuffer instanceof ArrayBuffer)) {
+			throw new Error(
+				"blobToArrayBuffer failed on simulated RN Blob with FileReader",
+			);
+		}
+		if (convertedBuffer.byteLength !== 11) {
+			throw new Error(
+				`Expected 11 bytes, got ${convertedBuffer.byteLength} bytes`,
+			);
+		}
+	} finally {
+		if (originalFileReader) {
+			(globalThis as any).FileReader = originalFileReader;
+		} else {
+			delete (globalThis as any).FileReader;
+		}
 	}
 
 	console.log("Upload utils and binary reading tests passed successfully!");
