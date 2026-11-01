@@ -150,6 +150,33 @@ export async function uploadIdDocument(
 	return data.path;
 }
 
+export async function uploadAvatar(
+	userId: string,
+	uri: string,
+	originalName?: string | null,
+): Promise<string> {
+	const extension = originalName?.split(".").pop() || "jpg";
+	const filePath = `${userId}/${Date.now()}.${extension}`;
+
+	const response = await fetch(uri);
+	const blob = await response.blob();
+
+	const { data, error } = await supabase.storage
+		.from("avatars")
+		.upload(filePath, blob, {
+			contentType: blob.type || "image/jpeg",
+			upsert: true,
+		});
+
+	if (error) throw error;
+
+	const { data: publicData } = supabase.storage
+		.from("avatars")
+		.getPublicUrl(data.path);
+
+	return publicData.publicUrl;
+}
+
 export async function createIdVerification(
 	userId: string,
 	documentUrl: string,
