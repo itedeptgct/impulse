@@ -230,6 +230,7 @@ export async function fetchUserProfile(
 		return {
 			id: userId,
 			username: "student",
+			display_name: "Student",
 			email: "",
 			role: "user",
 			guild: localGuild as any,
@@ -263,6 +264,7 @@ export async function updateUserProfile(
 	const current = (await fetchUserProfile(userId)) || {
 		id: userId,
 		username: updates.username || "student",
+		display_name: updates.display_name || "Student",
 		email: updates.email || "",
 		role: "user" as const,
 		created_at: new Date().toISOString(),
@@ -272,6 +274,11 @@ export async function updateUserProfile(
 	const updated: Profile = {
 		...current,
 		...updates,
+		display_name:
+			updates.display_name ||
+			current.display_name ||
+			current.username ||
+			"Student",
 		updated_at: new Date().toISOString(),
 	};
 

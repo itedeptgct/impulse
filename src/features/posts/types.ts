@@ -1,10 +1,13 @@
 import type { GuildId } from "@/features/guilds/types";
 
 export type VoteType = 1 | -1 | 0;
+export type PostVisibility = "public" | "house";
 
 export interface PostAuthor {
 	id: string;
 	username: string;
+	display_name?: string | null;
+	avatar_url?: string | null;
 	email?: string;
 	role?: string;
 	guild?: GuildId | null;
@@ -16,6 +19,7 @@ export interface Post {
 	author: PostAuthor;
 	title: string;
 	content: string;
+	visibility: PostVisibility;
 	code_snippet?: string | null;
 	code_language?: string | null;
 	image_url?: string | null;
@@ -47,6 +51,7 @@ export type FeedGuildFilter = "all" | GuildId;
 export interface CreatePostInput {
 	title: string;
 	content: string;
+	visibility?: PostVisibility;
 	guild?: GuildId | null;
 	code_snippet?: string | null;
 	code_language?: string | null;

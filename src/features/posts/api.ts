@@ -202,6 +202,7 @@ export async function createPost(
 		author,
 		title: input.title.trim(),
 		content: input.content.trim(),
+		visibility: input.visibility || "public",
 		code_snippet: input.code_snippet?.trim() || null,
 		code_language: input.code_language || null,
 		image_url: input.image_url || null,

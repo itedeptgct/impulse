@@ -2,17 +2,21 @@ import type { GuildId } from "@/features/guilds/types";
 
 export type UserRole = "user" | "admin";
 export type VerificationStatus = "pending" | "approved" | "rejected";
+export type Course = "BSIT" | "BSCS";
+export type YearLevel = 1 | 2 | 3 | 4;
 
 export interface Profile {
 	id: string;
 	username: string;
+	display_name: string;
 	email: string;
 	role: UserRole;
 	guild?: GuildId | null;
-	display_name?: string | null;
+	course?: Course | null;
+	year_level?: YearLevel | null;
 	bio?: string | null;
-	major?: string | null;
 	avatar_url?: string | null;
+	major?: string | null; // Deprecated: replaced by course & year_level
 	created_at: string;
 	updated_at: string;
 }
