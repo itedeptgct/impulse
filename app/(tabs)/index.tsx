@@ -4,18 +4,11 @@ import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Clock, Flame, Plus, Sparkles, Trophy } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
-import {
-	Clipboard,
-	FlatList,
-	RefreshControl,
-	Share,
-	Text,
-	View,
-} from "react-native";
+import { FlatList, RefreshControl, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NeoBadge, NeoButton, NeoCard } from "@/components/ui";
-import { fetchFeedPosts, sharePost, votePost } from "@/features/posts/api";
+import { fetchFeedPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import { PostCommentsModal } from "@/features/posts/components/PostCommentsModal";
 import { PostComposerModal } from "@/features/posts/components/PostComposerModal";
@@ -47,7 +40,6 @@ export default function FeedScreen() {
 		null,
 	);
 	const [isCommentsOpen, setIsCommentsOpen] = useState(false);
-	const [copiedToast, setCopiedToast] = useState<string | null>(null);
 
 	const loadData = useCallback(async () => {
 		if (!user?.id) return;
@@ -123,32 +115,6 @@ export default function FeedScreen() {
 					: p,
 			),
 		);
-	};
-
-	// Handle post share
-	const handleShare = async (post: Post) => {
-		const message = `[Impulse] ${post.title} — Shared from IT/CS Student Network`;
-		try {
-			if (Share && Share.share) {
-				await Share.share({ message });
-			} else {
-				Clipboard.setString(message);
-			}
-		} catch {
-			Clipboard.setString(message);
-		}
-
-		await sharePost(post.id);
-		setPosts((prev) =>
-			prev.map((p) =>
-				p.id === post.id
-					? { ...p, shares_count: p.shares_count + 1 }
-					: p,
-			),
-		);
-
-		setCopiedToast("Post link copied to clipboard!");
-		setTimeout(() => setCopiedToast(null), 2500);
 	};
 
 	const isApproved = verification?.status === "approved";
@@ -315,15 +281,6 @@ export default function FeedScreen() {
 		<View className="flex-1 bg-background text-foreground">
 			<StatusBar style="light" />
 
-			{/* Toast notification */}
-			{copiedToast && (
-				<View className="absolute top-12 left-1/2 z-50 -translate-x-1/2 rounded-sm border-2 border-primary bg-card px-4 py-2 shadow-neo-sm">
-					<Text className="font-mono text-xs text-primary">
-						{copiedToast}
-					</Text>
-				</View>
-			)}
-
 			<FlatList
 				data={posts}
 				keyExtractor={(item) => item.id}
@@ -332,7 +289,6 @@ export default function FeedScreen() {
 						post={item}
 						onVote={handleVote}
 						onOpenComments={handleOpenComments}
-						onShare={handleShare}
 					/>
 				)}
 				ListHeaderComponent={renderHeader}

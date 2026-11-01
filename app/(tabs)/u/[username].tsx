@@ -10,16 +10,13 @@ import {
 	CheckCircle2,
 	Flame,
 	PenSquare,
-	Share2,
 	Shield,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
-	Clipboard,
 	RefreshControl,
 	ScrollView,
-	Share,
 	Text,
 	View,
 } from "react-native";
@@ -28,7 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NeoBadge, NeoButton, NeoCard } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import { getGuildInfo } from "@/features/guilds/constants";
-import { fetchUserPosts, sharePost, votePost } from "@/features/posts/api";
+import { fetchUserPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import { PostCommentsModal } from "@/features/posts/components/PostCommentsModal";
 import type { Post } from "@/features/posts/types";
@@ -48,7 +45,6 @@ export default function UserProfileScreen() {
 		null,
 	);
 	const [isCommentsOpen, setIsCommentsOpen] = useState(false);
-	const [copiedToast, setCopiedToast] = useState<string | null>(null);
 
 	const loadData = useCallback(async () => {
 		if (!username) return;
@@ -122,54 +118,6 @@ export default function UserProfileScreen() {
 		await votePost(post.id, currentUser.id, targetVote);
 	};
 
-	const handleShare = async (post: Post) => {
-		const text = `[Impulse] ${post.title} — Shared from IT/CS Student Network`;
-		try {
-			if (Share && Share.share) {
-				await Share.share({ message: text });
-			} else if (
-				typeof navigator !== "undefined" &&
-				navigator.clipboard
-			) {
-				await navigator.clipboard.writeText(text);
-			} else {
-				Clipboard.setString(text);
-			}
-		} catch {
-			Clipboard.setString(text);
-		}
-		await sharePost(post.id);
-		setPosts((prev) =>
-			prev.map((p) =>
-				p.id === post.id
-					? { ...p, shares_count: p.shares_count + 1 }
-					: p,
-			),
-		);
-		setCopiedToast("Post link copied to clipboard!");
-		setTimeout(() => setCopiedToast(null), 2500);
-	};
-
-	const handleShareProfile = async () => {
-		const text = `Check out @${targetProfile?.username || username} on Impulse!`;
-		try {
-			if (Share && Share.share) {
-				await Share.share({ message: text });
-			} else if (
-				typeof navigator !== "undefined" &&
-				navigator.clipboard
-			) {
-				await navigator.clipboard.writeText(text);
-			} else {
-				Clipboard.setString(text);
-			}
-		} catch {
-			Clipboard.setString(text);
-		}
-		setCopiedToast("Profile link copied!");
-		setTimeout(() => setCopiedToast(null), 2500);
-	};
-
 	const isOwnProfile =
 		currentUser?.id && targetProfile?.id
 			? currentUser.id === targetProfile.id
@@ -189,14 +137,6 @@ export default function UserProfileScreen() {
 	return (
 		<View className="flex-1 bg-background text-foreground">
 			<StatusBar style="light" />
-
-			{copiedToast && (
-				<View className="absolute top-12 left-1/2 z-50 -translate-x-1/2 rounded-sm border-2 border-primary bg-card px-4 py-2 shadow-neo-sm">
-					<Text className="font-mono text-xs text-primary">
-						{copiedToast}
-					</Text>
-				</View>
-			)}
 
 			<ScrollView
 				contentContainerStyle={{
@@ -341,21 +281,7 @@ export default function UserProfileScreen() {
 												}>
 												EDIT PROFILE
 											</NeoButton>
-										) : (
-											<NeoButton
-												size="sm"
-												variant="outline"
-												startContent={
-													<Share2
-														size={13}
-														color="#ffffff"
-														strokeWidth={2.2}
-													/>
-												}
-												onPress={handleShareProfile}>
-												SHARE
-											</NeoButton>
-										)}
+										) : null}
 									</View>
 								</View>
 							</NeoCard>
@@ -460,7 +386,6 @@ export default function UserProfileScreen() {
 													setActiveCommentPost(p);
 													setIsCommentsOpen(true);
 												}}
-												onShare={handleShare}
 											/>
 										))}
 									</View>

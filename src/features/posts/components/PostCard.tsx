@@ -5,7 +5,6 @@ import {
 	ArrowUp,
 	CheckCircle2,
 	MessageSquare,
-	Share2,
 } from "lucide-react-native";
 import {
 	Image,
@@ -25,7 +24,7 @@ interface PostCardProps {
 	post: Post;
 	onVote: (post: Post, vote: 1 | -1) => void;
 	onOpenComments: (post: Post) => void;
-	onShare: (post: Post) => void;
+	onPress?: (post: Post) => void;
 }
 
 function formatRelativeTime(isoString: string): string {
@@ -41,12 +40,7 @@ function formatRelativeTime(isoString: string): string {
 	return `${diffDays}d ago`;
 }
 
-export function PostCard({
-	post,
-	onVote,
-	onOpenComments,
-	onShare,
-}: PostCardProps) {
+export function PostCard({ post, onVote, onOpenComments }: PostCardProps) {
 	const score = post.upvotes_count - post.downvotes_count;
 	const isUpvoted = post.user_vote === 1;
 	const isDownvoted = post.user_vote === -1;
@@ -210,7 +204,7 @@ export function PostCard({
 					</Pressable>
 				</View>
 
-				{/* Right Actions: Comment & Share */}
+				{/* Right Actions: Comment */}
 				<View className="flex-row items-center gap-2">
 					{/* Comment Trigger */}
 					<Pressable
@@ -234,23 +228,6 @@ export function PostCard({
 						</Text>
 						<Text className="hidden font-mono text-xs text-muted-foreground sm:inline">
 							REPLIES
-						</Text>
-					</Pressable>
-					{/* Share Trigger */}
-					<Pressable
-						accessibilityLabel="Share post"
-						onPress={() => {
-							if (Platform.OS !== "web") {
-								Haptics.impactAsync(
-									Haptics.ImpactFeedbackStyle.Light,
-								).catch(() => {});
-							}
-							onShare(post);
-						}}
-						className="flex-row items-center gap-1.5 rounded-sm border-2 border-border bg-secondary px-3 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px active:shadow-none">
-						<Share2 size={14} color="#9aa1b2" strokeWidth={2.2} />
-						<Text className="font-mono text-xs text-foreground tabular-nums">
-							{post.shares_count}
 						</Text>
 					</Pressable>
 				</View>

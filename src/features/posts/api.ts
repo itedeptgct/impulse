@@ -211,7 +211,6 @@ export async function createPost(
 		upvotes_count: 1, // Author upvotes by default
 		downvotes_count: 0,
 		comments_count: 0,
-		shares_count: 0,
 		user_vote: 1,
 		created_at: new Date().toISOString(),
 	};
@@ -412,31 +411,6 @@ export async function addPostComment(
 	}
 
 	return newComment;
-}
-
-/**
- * Share a post.
- */
-export async function sharePost(postId: string): Promise<number> {
-	const posts = await getCachedPosts();
-	const post = posts.find((p) => p.id === postId);
-	let newCount = post ? post.shares_count + 1 : 1;
-
-	if (post) {
-		post.shares_count = newCount;
-		await saveCachedPosts(posts);
-	}
-
-	try {
-		await supabase
-			.from("posts")
-			.update({ shares_count: newCount })
-			.eq("id", postId);
-	} catch {
-		// Handled gracefully
-	}
-
-	return newCount;
 }
 
 /**

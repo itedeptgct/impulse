@@ -30,10 +30,8 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
-	Clipboard,
 	RefreshControl,
 	ScrollView,
-	Share,
 	Text,
 	View,
 } from "react-native";
@@ -48,7 +46,7 @@ import {
 } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import { GuildSelectionModal } from "@/features/guilds/components/GuildSelectionModal";
-import { fetchUserPosts, sharePost, votePost } from "@/features/posts/api";
+import { fetchUserPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import { PostCommentsModal } from "@/features/posts/components/PostCommentsModal";
 import { PostComposerModal } from "@/features/posts/components/PostComposerModal";
@@ -209,20 +207,6 @@ export default function ProfileScreen() {
 		);
 
 		await votePost(post.id, user.id, targetVote);
-	};
-
-	const handleShare = async (post: Post) => {
-		const message = `Check out this Impulse post: ${post.title}`;
-		try {
-			if (Share && Share.share) {
-				await Share.share({ message });
-			} else {
-				Clipboard.setString(message);
-			}
-			await sharePost(post.id);
-		} catch {
-			Clipboard.setString(message);
-		}
 	};
 
 	// const handleShareProfile = async () => {
@@ -668,7 +652,6 @@ export default function ProfileScreen() {
 										post={post}
 										onVote={handleVote}
 										onOpenComments={handleOpenComments}
-										onShare={handleShare}
 									/>
 								))}
 							</View>

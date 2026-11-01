@@ -28,7 +28,6 @@ export interface Post {
 	upvotes_count: number;
 	downvotes_count: number;
 	comments_count: number;
-	shares_count: number;
 	user_vote?: VoteType;
 	created_at: string;
 	updated_at?: string;
