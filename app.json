@@ -1,39 +1,49 @@
 {
-	"expo": {
-		"name": "impulse",
-		"slug": "impulse",
-		"scheme": "impulse",
-		"version": "1.0.0",
-		"orientation": "portrait",
-		"icon": "./assets/icon.png",
-		"userInterfaceStyle": "light",
-		"ios": {
-			"supportsTablet": true
-		},
-		"android": {
-			"adaptiveIcon": {
-				"backgroundColor": "#E6F4FE",
-				"foregroundImage": "./assets/android-icon-foreground.png",
-				"backgroundImage": "./assets/android-icon-background.png",
-				"monochromeImage": "./assets/android-icon-monochrome.png"
-			},
-			"predictiveBackGestureEnabled": false
-		},
-		"web": {
-			"favicon": "./assets/favicon.png"
-		},
-		"plugins": [
-			"expo-router",
-			"expo-status-bar",
-			"expo-image",
-			[
-				"expo-image-picker",
-				{
-					"photosPermission": "Allow Impulse to access your photos so you can attach media to posts."
-				}
-			],
-			"expo-font",
-			"expo-web-browser"
-		]
-	}
+  "expo": {
+    "name": "impulse",
+    "slug": "impulse",
+    "scheme": "impulse",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.janleigh.impulse"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-image",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Impulse to access your photos so you can attach media to posts."
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9a4799d7-c269-4a7c-93b8-09fec77e0b50"
+      }
+    }
+  }
 }

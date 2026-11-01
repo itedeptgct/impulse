@@ -167,7 +167,7 @@ export default function UserProfileScreen() {
 							/>
 						</NeoButton>
 						<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-							USER INTEL // /u/{username}
+							/u/{username}
 						</Text>
 						<View className="w-9" />
 					</View>

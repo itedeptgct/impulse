@@ -78,6 +78,7 @@ export const GUILDS: Record<GuildId, GuildInfo> = {
 // Backwards-compatible lookup with hyphen and spelling aliases
 const GUILDS_RECORD = GUILDS as Record<string, GuildInfo>;
 GUILDS_RECORD["blue-jays"] = GUILDS.blue_jays;
+GUILDS_RECORD["bluejays"] = GUILDS.blue_jays;
 GUILDS_RECORD["octogram"] = GUILDS.octagram;
 
 export const GUILD_LIST: GuildInfo[] = [
@@ -87,7 +88,7 @@ export const GUILD_LIST: GuildInfo[] = [
 ];
 
 export function getGuildInfo(guildId?: string | null): GuildInfo | null {
-	if (!guildId) return null;
+	if (!guildId || typeof guildId !== "string") return null;
 	const normalized = guildId.replace("-", "_") as GuildId;
 	return GUILDS[normalized] || GUILDS_RECORD[guildId] || null;
 }

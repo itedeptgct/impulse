@@ -465,7 +465,9 @@ export async function searchUsers(query: string): Promise<Profile[]> {
 		const { data, error } = await supabase
 			.from("profiles")
 			.select("*")
-			.or(`username.ilike.%${trimmed}%,display_name.ilike.%${trimmed}%`)
+			.or(
+				`username.ilike.%${trimmed}%,display_name.ilike.%${trimmed}%,guild.ilike.%${trimmed}%`,
+			)
 			.limit(20);
 
 		if (!error && data && data.length > 0) {
@@ -483,7 +485,8 @@ export async function searchUsers(query: string): Promise<Profile[]> {
 		if (
 			current &&
 			(current.username?.toLowerCase().includes(trimmed) ||
-				current.display_name?.toLowerCase().includes(trimmed))
+				current.display_name?.toLowerCase().includes(trimmed) ||
+				current.guild?.toLowerCase().includes(trimmed))
 		) {
 			results.push(current);
 		}
