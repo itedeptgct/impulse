@@ -104,7 +104,7 @@ export default function RootLayout() {
 	}
 
 	return (
-		<GestureHandlerRootView>
+		<GestureHandlerRootView style={{ flex: 1 }}>
 			<PanelUIProvider>
 				<SafeAreaProvider>
 					<QueryClientProvider client={queryClient}>

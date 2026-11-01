@@ -108,10 +108,10 @@ async function saveCachedVotes(
 	}
 }
 
-import { filterPostsForUser } from "./utils/filter";
+import { filterPostsForUser, isPostRestricted } from "./utils/filter";
 import { filterPostsByQuery } from "./utils/search-filter";
 
-export { filterPostsForUser, filterPostsByQuery };
+export { filterPostsForUser, filterPostsByQuery, isPostRestricted };
 
 /**
  * Fetch posts with audience visibility filtering, sorting, and user vote status.
@@ -157,16 +157,21 @@ export async function fetchFeedPosts(
 
 		const { data, error } = await query;
 		if (!error && data && data.length > 0) {
-			posts = data.map((item: any) => ({
-				...item,
-				author: item.author || {
-					id: item.author_id,
-					username: "Student",
-					display_name: "Student",
-					role: "user",
-				},
-				user_vote: userVotes[item.id] ?? 0,
-			}));
+			posts = data.map((item: any) => {
+				const authorObj = Array.isArray(item.author)
+					? item.author[0]
+					: item.author;
+				return {
+					...item,
+					author: authorObj || {
+						id: item.author_id,
+						username: "User",
+						display_name: "User",
+						role: "user",
+					},
+					user_vote: userVotes[item.id] ?? 0,
+				};
+			});
 		} else {
 			// Fallback to cache if table doesn't exist or is empty
 			posts = await getCachedPosts();
@@ -298,12 +303,15 @@ export async function fetchPostById(
 			.maybeSingle();
 
 		if (!error && data) {
+			const authorObj = Array.isArray(data.author)
+				? data.author[0]
+				: data.author;
 			post = {
 				...data,
-				author: data.author || {
+				author: authorObj || {
 					id: data.author_id,
-					username: "Student",
-					display_name: "Student",
+					username: "User",
+					display_name: "User",
 					role: "user",
 				},
 				user_vote: userVotes[data.id] ?? 0,
@@ -329,10 +337,18 @@ export async function fetchPostById(
 	}
 
 	// Audience privacy check: house-only posts are restricted to house members
-	if (
-		post.visibility === "house" &&
-		(!userGuild || post.guild !== userGuild)
-	) {
+	let activeUserGuild = userGuild;
+	if (!activeUserGuild && userId) {
+		try {
+			activeUserGuild = await AsyncStorage.getItem(
+				`impulse_user_guild_${userId}`,
+			);
+		} catch {
+			// ignore
+		}
+	}
+
+	if (isPostRestricted(post, userId, activeUserGuild)) {
 		return { post: null, isRestricted: true };
 	}
 
@@ -414,19 +430,25 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
 	try {
 		const { data, error } = await supabase
 			.from("comments")
-			.select("*, author:author_id(id, username, guild)")
+			.select("*, author:author_id(id, username, display_name, guild)")
 			.eq("post_id", postId)
 			.order("created_at", { ascending: true });
 
 		if (!error && data && data.length > 0) {
-			return data.map((item: any) => ({
-				...item,
-				author: item.author || {
-					id: item.author_id,
-					username: "Student",
-					guild: null,
-				},
-			}));
+			return data.map((item: any) => {
+				const authorObj = Array.isArray(item.author)
+					? item.author[0]
+					: item.author;
+				return {
+					...item,
+					author: authorObj || {
+						id: item.author_id,
+						username: "User",
+						display_name: "User",
+						guild: null,
+					},
+				};
+			});
 		}
 	} catch {
 		// Local fallback
@@ -545,16 +567,21 @@ export async function searchPosts(
 
 		const { data, error } = await supabaseQuery.limit(30);
 		if (!error && data) {
-			posts = data.map((item: any) => ({
-				...item,
-				author: item.author || {
-					id: item.author_id,
-					username: "Student",
-					display_name: "Student",
-					role: "user",
-				},
-				user_vote: userVotes[item.id] ?? 0,
-			}));
+			posts = data.map((item: any) => {
+				const authorObj = Array.isArray(item.author)
+					? item.author[0]
+					: item.author;
+				return {
+					...item,
+					author: authorObj || {
+						id: item.author_id,
+						username: "User",
+						display_name: "User",
+						role: "user",
+					},
+					user_vote: userVotes[item.id] ?? 0,
+				};
+			});
 		} else {
 			const cached = await getCachedPosts();
 			posts = filterPostsByQuery(cached, trimmed, userGuild);

@@ -285,7 +285,7 @@ export default function ProfileScreen() {
 					<View className="mb-5 flex-row items-center justify-between">
 						<View>
 							<Text className="font-display text-xl tracking-tight text-foreground uppercase">
-								STUDENT PROFILE
+								PROFILE
 							</Text>
 						</View>
 

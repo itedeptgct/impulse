@@ -165,10 +165,10 @@ export default function SearchScreen() {
 				style={{ paddingTop: Math.max(insets.top, 16) + 4 }}
 				className="border-b-2 border-border bg-card px-4 pb-4 shadow-neo-sm">
 				<Text className="font-display text-xl tracking-tight text-foreground uppercase">
-					CAMPUS DISCOVERY
+					DISCOVERY
 				</Text>
 				<Text className="mt-0.5 font-mono text-xs text-muted-foreground uppercase">
-					SEARCH TRANSMISSIONS, TOPICS, AND STUDENTS
+					SEARCH TRANSMISSIONS, TOPICS, AND USERS
 				</Text>
 
 				{/* Search Input Bar */}
@@ -205,7 +205,7 @@ export default function SearchScreen() {
 									? "ALL RESULTS"
 									: tab === "posts"
 										? `POSTS (${postResults.length})`
-										: `STUDENTS (${userResults.length})`;
+										: `USERS (${userResults.length})`;
 
 							return (
 								<Pressable
@@ -217,7 +217,7 @@ export default function SearchScreen() {
 											: "border-border bg-secondary"
 									}`}>
 									<Text
-										className={`font-bold font-mono text-[10px] uppercase ${
+										className={`font-mono text-[10px] uppercase ${
 											isSelected
 												? "text-black"
 												: "text-foreground"
@@ -275,9 +275,9 @@ export default function SearchScreen() {
 					{/* Discovery Hints Card */}
 					<View className="mt-4 rounded-sm border-2 border-border bg-card p-4 shadow-neo-sm">
 						<Text className="font-mono text-xs leading-relaxed text-muted-foreground">
-							Search across public campus transmissions and your
-							house feed. Enter student names, handles, or
-							technical topics to find collaborators.
+							Search across public transmissions and your house
+							feed. Enter user names, handles, or technical topics
+							to find collaborators.
 						</Text>
 					</View>
 				</ScrollView>
@@ -292,14 +292,14 @@ export default function SearchScreen() {
 						{activeTab === "posts"
 							? `NO TRANSMISSIONS MATCHING "${query}"`
 							: activeTab === "users"
-								? `NO STUDENTS MATCHING "${query}"`
+								? `NO USERS MATCHING "${query}"`
 								: `NO RESULTS MATCHING "${query}"`}
 					</Text>
 					<Text className="mt-1 text-center font-mono text-xs leading-relaxed text-muted-foreground">
 						{activeTab === "posts"
 							? "No matching transmissions found in your house or public feed."
 							: activeTab === "users"
-								? "No student profiles found matching this name, handle, or house."
+								? "No profiles found matching this name, handle, or house."
 								: "Check your keyword or try searching by popular topics like algorithms, mobile, or react."}
 					</Text>
 				</View>
@@ -324,7 +324,7 @@ export default function SearchScreen() {
 									strokeWidth={2.2}
 								/>
 								<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-									STUDENTS ({userResults.length})
+									USERS ({userResults.length})
 								</Text>
 							</View>
 
@@ -333,7 +333,7 @@ export default function SearchScreen() {
 									const uName =
 										usr.display_name ||
 										usr.username ||
-										"Student";
+										"User";
 									const uInitials = (uName || "S")
 										.slice(0, 2)
 										.toUpperCase();
@@ -343,7 +343,7 @@ export default function SearchScreen() {
 											key={
 												usr.id ||
 												usr.username ||
-												`student-${index}`
+												`user-${index}`
 											}
 											onPress={() => {
 												if (usr.username) {
@@ -354,7 +354,7 @@ export default function SearchScreen() {
 											}}
 											className="flex-row items-center justify-between rounded-sm border-2 border-border bg-card p-3 shadow-neo-sm active:translate-x-px active:translate-y-px active:border-primary">
 											<View className="flex-1 flex-row items-center gap-3">
-												{/* Student Avatar */}
+												{/* User Avatar */}
 												<View className="size-11 items-center justify-center overflow-hidden rounded-sm border-2 border-border bg-secondary shadow-neo-sm">
 													{usr.avatar_url &&
 													usr.avatar_url.startsWith(
@@ -371,7 +371,7 @@ export default function SearchScreen() {
 															contentFit="cover"
 														/>
 													) : (
-														<Text className="font-bold font-mono text-xs text-foreground">
+														<Text className="font-mono text-xs text-foreground">
 															{uInitials}
 														</Text>
 													)}
@@ -394,7 +394,7 @@ export default function SearchScreen() {
 													<Text className="font-mono text-xs text-muted-foreground">
 														@
 														{usr.username ||
-															"student"}
+															"someone"}
 													</Text>
 													{(usr.course ||
 														usr.year_level) && (
