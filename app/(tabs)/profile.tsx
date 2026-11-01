@@ -497,7 +497,6 @@ export default function ProfileScreen() {
 								onPress={() => setIsEditProfileOpen(true)}>
 								EDIT PROFILE
 							</NeoButton>
-							// TODO!
 							{/* <NeoButton
 								size="sm"
 								variant="outline"
@@ -804,25 +803,6 @@ export default function ProfileScreen() {
 							className="flex-1"
 							onPress={() => setIsAccountActionsOpen(false)}>
 							CLOSE
-						</NeoButton>
-						<NeoButton
-							size="md"
-							variant="destructive"
-							className="flex-1"
-							startContent={
-								<LogOut
-									size={14}
-									color="#ffffff"
-									strokeWidth={2.2}
-								/>
-							}
-							onPress={() => {
-								setIsAccountActionsOpen(false);
-								setIsSignOutDialogOpen(true);
-							}}>
-							<Text className="font-mono text-xs text-primary uppercase">
-								SIGN OUT
-							</Text>
 						</NeoButton>
 					</View>
 				</View>

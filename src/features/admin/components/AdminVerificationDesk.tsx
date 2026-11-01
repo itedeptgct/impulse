@@ -310,6 +310,7 @@ export function AdminVerificationDesk({
 														strokeWidth={2.5}
 													/>
 												}
+												textClassName="text-inset"
 												onPress={() =>
 													handleOpenInspector(item)
 												}>

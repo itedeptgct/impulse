@@ -5,7 +5,7 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "start:tunnel": "EXPO_TUNNEL_SUBDOMAIN='sussy-baka-jnlghmz-8081' expo start -c --tunnel",
+    "start:tunnel": "EXPO_TUNNEL_SUBDOMAIN='sussy-baka-jnlghmz-8081' expo start --tunnel",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

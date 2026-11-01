@@ -192,7 +192,7 @@ export default function FeedScreen() {
 									YOU ARE APPROVED! CHOOSE YOUR HOUSE
 								</Text>
 								<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
-									Choose Octogram, Chameleon, or BlueJays.
+									Choose Octogram, Chameleon, or Blue Jays.
 								</Text>
 							</View>
 						</View>

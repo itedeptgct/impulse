@@ -318,6 +318,7 @@ export function DocumentInspectorModal({
 										size="sm"
 										variant="destructive"
 										loading={isProcessing}
+										textClassName="text-inset"
 										onPress={handleConfirmReject}>
 										Confirm Rejection
 									</NeoButton>
@@ -342,6 +343,7 @@ export function DocumentInspectorModal({
 											strokeWidth={2.5}
 										/>
 									}
+									textClassName="text-inset"
 									onPress={() => setIsRejecting(true)}>
 									Reject
 								</NeoButton>

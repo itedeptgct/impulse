@@ -1,7 +1,7 @@
 import { signOut } from "@auth/api";
 import { useAuthStore } from "@auth/store";
 import { router } from "expo-router";
-import { ArrowLeft, LogOut, RefreshCw } from "lucide-react-native";
+import { ArrowLeft, RefreshCw } from "lucide-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
@@ -16,15 +16,10 @@ export function AdminHeader({
 	onRefresh,
 	isRefreshing = false,
 }: AdminHeaderProps) {
-	const profile = useAuthStore((state) => state.profile);
-	const user = useAuthStore((state) => state.user);
 	const clearSession = useAuthStore((state) => state.clearSession);
 
 	const [isSignOutOpen, setIsSignOutOpen] = useState(false);
 	const [isSigningOut, setIsSigningOut] = useState(false);
-
-	const adminName =
-		profile?.username || user?.email?.split("@")[0] || "Admin";
 
 	const handleSignOut = async () => {
 		setIsSigningOut(true);
@@ -65,9 +60,6 @@ export function AdminHeader({
 								ADMIN
 							</NeoBadge>
 						</View>
-						<Text className="font-mono text-[10px] text-muted-foreground">
-							{adminName} • Console
-						</Text>
 					</View>
 				</View>
 
@@ -88,15 +80,6 @@ export function AdminHeader({
 							/>
 						</NeoButton>
 					) : null}
-
-					<NeoButton
-						size="sm"
-						variant="destructive"
-						className="h-9 w-9 px-0"
-						onPress={() => setIsSignOutOpen(true)}
-						accessibilityLabel="Sign out">
-						<LogOut size={14} color="#ffffff" strokeWidth={2.5} />
-					</NeoButton>
 				</View>
 			</View>
 
