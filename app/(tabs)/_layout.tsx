@@ -1,6 +1,6 @@
 import { useAuthStore } from "@auth/store";
 import { Redirect, Tabs } from "expo-router";
-import { Flame, MessageSquare, User } from "lucide-react-native";
+import { Flame, MessageSquare, Search, User } from "lucide-react-native";
 import { ActivityIndicator, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -55,6 +55,19 @@ export default function TabsLayout() {
 					title: "Feed",
 					tabBarIcon: ({ color, size }) => (
 						<Flame
+							size={size || 20}
+							color={color}
+							strokeWidth={2.2}
+						/>
+					),
+				}}
+			/>
+			<Tabs.Screen
+				name="search"
+				options={{
+					title: "Search",
+					tabBarIcon: ({ color, size }) => (
+						<Search
 							size={size || 20}
 							color={color}
 							strokeWidth={2.2}

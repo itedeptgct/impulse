@@ -54,6 +54,9 @@ export default function PostDetailScreen() {
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 
+	const userId = user?.id;
+	const userGuild = profile?.guild;
+
 	const [post, setPost] = useState<Post | null>(null);
 	const [comments, setComments] = useState<Comment[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -71,7 +74,7 @@ export default function PostDetailScreen() {
 		setIsLoading(true);
 		setError(null);
 		try {
-			const res = await fetchPostById(id, user?.id, profile?.guild);
+			const res = await fetchPostById(id, userId, userGuild);
 			if (res.isRestricted) {
 				setIsRestricted(true);
 				setPost(null);
@@ -90,7 +93,7 @@ export default function PostDetailScreen() {
 		} finally {
 			setIsLoading(false);
 		}
-	}, [id, user?.id, profile?.guild]);
+	}, [id, userId, userGuild]);
 
 	useEffect(() => {
 		void loadPostData();
