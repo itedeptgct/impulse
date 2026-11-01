@@ -40,15 +40,28 @@ function formatRelativeTime(isoString: string): string {
 	return `${diffDays}d ago`;
 }
 
-export function PostCard({ post, onVote, onOpenComments }: PostCardProps) {
+export function PostCard({
+	post,
+	onVote,
+	onOpenComments,
+	onPress,
+}: PostCardProps) {
 	const score = post.upvotes_count - post.downvotes_count;
 	const isUpvoted = post.user_vote === 1;
 	const isDownvoted = post.user_vote === -1;
 	const formattedTime = formatRelativeTime(post.created_at);
 
-	const authorInitials = post.author?.username
-		? post.author.username.slice(0, 2).toUpperCase()
-		: "ST";
+	const authorDisplayName =
+		post.author?.display_name || post.author?.username || "Impulse Student";
+	const authorInitials = authorDisplayName.slice(0, 2).toUpperCase();
+
+	const handleCardPress = () => {
+		if (onPress) {
+			onPress(post);
+		} else {
+			router.push(`/post/${post.id}` as any);
+		}
+	};
 
 	return (
 		<NeoCard variant="default" className="mb-4">
@@ -69,7 +82,7 @@ export function PostCard({ post, onVote, onOpenComments }: PostCardProps) {
 					<View>
 						<View className="flex-row items-center gap-1.5">
 							<Text className="font-display text-sm text-foreground">
-								{post.author?.username || "Impulse Student"}
+								{authorDisplayName}
 							</Text>
 							<CheckCircle2
 								size={13}
@@ -82,71 +95,86 @@ export function PostCard({ post, onVote, onOpenComments }: PostCardProps) {
 						</Text>
 					</View>
 				</Pressable>
-				{/* Guild Badge */}
-				{post.guild && <GuildBadge guildId={post.guild} size="sm" />}
+
+				{/* Guild & Visibility Badges */}
+				<View className="flex-row items-center gap-1.5">
+					{post.visibility === "house" && (
+						<View className="rounded-sm border border-amber-500/50 bg-amber-500/10 px-1.5 py-0.5">
+							<Text className="font-bold font-mono text-[9px] text-amber-400 uppercase">
+								HOUSE ONLY
+							</Text>
+						</View>
+					)}
+					{post.guild && (
+						<GuildBadge guildId={post.guild} size="sm" />
+					)}
+				</View>
 			</View>
 
-			{/* Post Title */}
-			<Text className="font-display text-base text-foreground sm:text-lg">
-				{post.title}
-			</Text>
+			{/* Interactive Body Pressable (Reddit-style Maximized Post trigger) */}
+			<Pressable onPress={handleCardPress} className="active:opacity-85">
+				{/* Post Title */}
+				<Text className="font-display text-base text-foreground sm:text-lg">
+					{post.title}
+				</Text>
 
-			{/* Post Content */}
-			<Text className="mt-2 font-sans text-xs leading-relaxed text-muted-foreground sm:text-sm">
-				{post.content}
-			</Text>
+				{/* Post Content */}
+				<Text className="mt-2 font-sans text-xs leading-relaxed text-muted-foreground sm:text-sm">
+					{post.content}
+				</Text>
 
-			{/* Code Snippet if present */}
-			{post.code_snippet && (
-				<View className="my-3 overflow-hidden rounded-sm border-2 border-border bg-[#0d0e12]">
-					<View className="flex-row items-center justify-between border-b-2 border-border bg-secondary px-3 py-1.5">
-						<View className="flex-row items-center gap-1.5">
-							<View className="size-2 rounded-none bg-destructive" />
-							<View className="size-2 rounded-none bg-amber-400" />
-							<View className="size-2 rounded-none bg-primary" />
+				{/* Code Snippet if present */}
+				{post.code_snippet && (
+					<View className="my-3 overflow-hidden rounded-sm border-2 border-border bg-[#0d0e12]">
+						<View className="flex-row items-center justify-between border-b-2 border-border bg-secondary px-3 py-1.5">
+							<View className="flex-row items-center gap-1.5">
+								<View className="size-2 rounded-none bg-destructive" />
+								<View className="size-2 rounded-none bg-amber-400" />
+								<View className="size-2 rounded-none bg-primary" />
+							</View>
+							<View className="rounded-sm border border-border bg-card px-1.5 py-0.5">
+								<Text className="font-mono text-[10px] tracking-wider text-primary uppercase">
+									{post.code_language || "terminal"}
+								</Text>
+							</View>
 						</View>
-						<View className="rounded-sm border border-border bg-card px-1.5 py-0.5">
-							<Text className="font-mono text-[10px] tracking-wider text-primary uppercase">
-								{post.code_language || "terminal"}
+						<ScrollView
+							horizontal
+							showsHorizontalScrollIndicator={false}
+							className="p-3">
+							<Text className="font-mono text-xs leading-relaxed text-primary">
+								{post.code_snippet}
 							</Text>
-						</View>
+						</ScrollView>
 					</View>
-					<ScrollView
-						horizontal
-						showsHorizontalScrollIndicator={false}
-						className="p-3">
-						<Text className="font-mono text-xs leading-relaxed text-primary">
-							{post.code_snippet}
-						</Text>
-					</ScrollView>
-				</View>
-			)}
+				)}
 
-			{/* Image Attachment if present */}
-			{post.image_url && (
-				<View className="my-3 overflow-hidden rounded-sm border-2 border-border bg-black">
-					<Image
-						source={{ uri: post.image_url }}
-						className="h-56 w-full"
-						resizeMode="cover"
-					/>
-				</View>
-			)}
+				{/* Image Attachment if present */}
+				{post.image_url && (
+					<View className="my-3 overflow-hidden rounded-sm border-2 border-border bg-black">
+						<Image
+							source={{ uri: post.image_url }}
+							className="h-56 w-full"
+							resizeMode="cover"
+						/>
+					</View>
+				)}
 
-			{/* Tags list */}
-			{post.tags && post.tags.length > 0 && (
-				<View className="mt-2 flex-row flex-wrap items-center gap-1.5">
-					{post.tags.map((tag) => (
-						<View
-							key={tag}
-							className="rounded-sm border border-border bg-secondary px-2 py-0.5">
-							<Text className="font-mono text-[10px] text-muted-foreground">
-								{tag}
-							</Text>
-						</View>
-					))}
-				</View>
-			)}
+				{/* Tags list */}
+				{post.tags && post.tags.length > 0 && (
+					<View className="mt-2 flex-row flex-wrap items-center gap-1.5">
+						{post.tags.map((tag) => (
+							<View
+								key={tag}
+								className="rounded-sm border border-border bg-secondary px-2 py-0.5">
+								<Text className="font-mono text-[10px] text-muted-foreground">
+									{tag}
+								</Text>
+							</View>
+						))}
+					</View>
+				)}
+			</Pressable>
 
 			{/* Bottom Action Controls: Reddit Upvote/Downvote Pill + Comments + Share */}
 			<View className="mt-4 flex-row items-center justify-between border-t-2 border-border pt-3">

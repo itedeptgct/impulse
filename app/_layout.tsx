@@ -108,7 +108,16 @@ export default function RootLayout() {
 			<PanelUIProvider>
 				<SafeAreaProvider>
 					<QueryClientProvider client={queryClient}>
-						<Stack screenOptions={{ headerShown: false }} />
+						<Stack screenOptions={{ headerShown: false }}>
+							<Stack.Screen
+								name="(tabs)"
+								options={{ headerShown: false }}
+							/>
+							<Stack.Screen
+								name="post/[id]"
+								options={{ headerShown: false }}
+							/>
+						</Stack>
 					</QueryClientProvider>
 				</SafeAreaProvider>
 			</PanelUIProvider>

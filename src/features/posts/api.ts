@@ -272,6 +272,72 @@ export async function createPost(
 }
 
 /**
+ * Fetch a single post by ID with audience visibility check and user vote.
+ */
+export async function fetchPostById(
+	postId: string,
+	userId?: string,
+	userGuild?: string | null,
+): Promise<{ post: Post | null; isRestricted?: boolean }> {
+	let post: Post | null = null;
+	let userVotes: Record<string, VoteType> = {};
+
+	if (userId) {
+		userVotes = await getCachedVotes(userId);
+	}
+
+	try {
+		const { data, error } = await supabase
+			.from("posts")
+			.select(
+				"*, author:author_id(id, username, display_name, avatar_url, email, role, guild)",
+			)
+			.eq("id", postId)
+			.maybeSingle();
+
+		if (!error && data) {
+			post = {
+				...data,
+				author: data.author || {
+					id: data.author_id,
+					username: "Student",
+					display_name: "Student",
+					role: "user",
+				},
+				user_vote: userVotes[data.id] ?? 0,
+			};
+		}
+	} catch {
+		// Fallback to cache
+	}
+
+	if (!post) {
+		const cached = await getCachedPosts();
+		const found = cached.find((p) => p.id === postId);
+		if (found) {
+			post = {
+				...found,
+				user_vote: userVotes[found.id] ?? found.user_vote ?? 0,
+			};
+		}
+	}
+
+	if (!post) {
+		return { post: null, isRestricted: false };
+	}
+
+	// Audience privacy check: house-only posts are restricted to house members
+	if (
+		post.visibility === "house" &&
+		(!userGuild || post.guild !== userGuild)
+	) {
+		return { post: null, isRestricted: true };
+	}
+
+	return { post, isRestricted: false };
+}
+
+/**
  * Handle Upvote / Downvote toggle logic
  */
 export async function votePost(
