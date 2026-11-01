@@ -46,6 +46,7 @@ yarn-error.*
 skills-lock.json
 DESIGN.*
 backup/
-supabase
+supabase/*
+!supabase/schema.sql
 docs/superpowers
 .superpowers
