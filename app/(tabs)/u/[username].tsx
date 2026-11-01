@@ -24,7 +24,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NeoBadge, NeoButton, NeoCard } from "@/components/ui";
-import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import { getGuildInfo } from "@/features/guilds/constants";
 import { fetchUserPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
@@ -151,8 +150,8 @@ export default function UserProfileScreen() {
 			<ScrollView
 				contentContainerStyle={{
 					flexGrow: 1,
-					paddingTop: Math.max(insets.top, 16) + 8,
-					paddingBottom: Math.max(insets.bottom, 16) + 32,
+					paddingTop: Math.max(insets.top, 12) + 4,
+					paddingBottom: Math.max(insets.bottom, 12) + 16,
 				}}
 				refreshControl={
 					<RefreshControl
@@ -164,7 +163,7 @@ export default function UserProfileScreen() {
 				showsVerticalScrollIndicator={false}>
 				<View className="mx-auto w-full max-w-3xl px-4 sm:px-6">
 					{/* Top Navigation */}
-					<View className="mb-4 flex-row items-center justify-between">
+					<View className="mb-3 flex-row items-center justify-between">
 						<NeoButton
 							variant="outline"
 							size="sm"
@@ -191,9 +190,9 @@ export default function UserProfileScreen() {
 							{/* Identity Bento Hero Card */}
 							<NeoCard
 								variant="default"
-								className="mb-5 p-5 shadow-neo">
-								<View className="flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-									<View className="flex-row items-start gap-4">
+								className="mb-4 p-4 shadow-neo">
+								<View className="flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+									<View className="flex-row items-start gap-3">
 										{/* Avatar */}
 										{targetProfile?.avatar_url?.startsWith(
 											"http",
@@ -241,14 +240,6 @@ export default function UserProfileScreen() {
 														VERIFIED
 													</NeoBadge>
 												)}
-												{targetProfile?.guild && (
-													<GuildBadge
-														guildId={
-															targetProfile.guild
-														}
-														size="sm"
-													/>
-												)}
 											</View>
 
 											<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
@@ -260,13 +251,16 @@ export default function UserProfileScreen() {
 											{(targetProfile?.course ||
 												targetProfile?.year_level ||
 												targetProfile?.major) && (
-												<View className="mt-2 flex-row items-center gap-1.5 self-start rounded-sm border-2 border-border bg-secondary px-2 py-0.5 shadow-neo-sm">
+												<View className="mt-1.5 flex-row items-center gap-1.5 self-start rounded-sm border-2 border-border bg-secondary px-2 py-0.5 shadow-neo-sm">
 													<BookOpen
 														size={11}
 														color="#91e6b1"
 														strokeWidth={2.2}
 													/>
-													<Text className="font-mono text-[10px] text-primary uppercase">
+													<Text
+														className="font-mono text-[10px] text-primary uppercase"
+														numberOfLines={1}
+														ellipsizeMode="tail">
 														{[
 															targetProfile.course,
 															targetProfile.year_level
@@ -284,11 +278,11 @@ export default function UserProfileScreen() {
 											)}
 
 											{targetProfile?.bio ? (
-												<Text className="mt-2.5 font-sans text-xs leading-relaxed text-muted-foreground sm:text-sm">
+												<Text className="mt-2 font-sans text-xs leading-relaxed text-muted-foreground sm:text-sm">
 													{targetProfile.bio}
 												</Text>
 											) : (
-												<Text className="mt-2 font-mono text-xs text-muted-foreground italic">
+												<Text className="mt-1.5 font-mono text-xs text-muted-foreground italic">
 													No biography provided yet.
 												</Text>
 											)}
@@ -319,10 +313,10 @@ export default function UserProfileScreen() {
 							</NeoCard>
 
 							{/* Activity Bento Grid */}
-							<View className="mb-6 flex-row gap-3">
+							<View className="mb-4 flex-row gap-2.5">
 								<NeoCard
 									variant="default"
-									className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
+									className="flex-1 items-center justify-center p-3 shadow-neo-sm">
 									<View className="flex-row items-center gap-1.5">
 										<PenSquare
 											size={12}
@@ -340,7 +334,7 @@ export default function UserProfileScreen() {
 
 								<NeoCard
 									variant="default"
-									className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
+									className="flex-1 items-center justify-center p-3 shadow-neo-sm">
 									<View className="flex-row items-center gap-1.5">
 										<Flame
 											size={12}
@@ -358,7 +352,7 @@ export default function UserProfileScreen() {
 
 								<NeoCard
 									variant="default"
-									className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
+									className="flex-1 items-center justify-center p-3 shadow-neo-sm">
 									<View className="flex-row items-center gap-1.5">
 										<Shield
 											size={12}
@@ -378,8 +372,8 @@ export default function UserProfileScreen() {
 							</View>
 
 							{/* Published Transmissions Stream */}
-							<View className="mb-6">
-								<View className="mb-3.5 flex-row items-center justify-between border-b-2 border-border pb-2.5">
+							<View className="mb-4">
+								<View className="mb-2.5 flex-row items-center justify-between border-b-2 border-border pb-2">
 									<View className="flex-row items-center gap-2">
 										<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
 											TRANSMISSION ARCHIVE
@@ -393,7 +387,7 @@ export default function UserProfileScreen() {
 								{posts.length === 0 ? (
 									<NeoCard
 										variant="default"
-										className="items-center justify-center p-8 text-center shadow-neo">
+										className="items-center justify-center p-6 text-center shadow-neo">
 										<Flame
 											size={24}
 											color="#91e6b1"
