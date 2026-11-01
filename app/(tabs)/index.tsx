@@ -44,19 +44,33 @@ export default function FeedScreen() {
 	const loadData = useCallback(async () => {
 		if (!user?.id) return;
 		try {
-			const [prof, verif, feedPosts] = await Promise.all([
+			const [prof, verif] = await Promise.all([
 				fetchUserProfile(user.id),
 				fetchUserVerification(user.id),
-				fetchFeedPosts(selectedGuild, selectedSort, user.id),
 			]);
 			if (prof) setProfile(prof);
 			if (verif) setVerification(verif);
+
+			const activeGuild = prof?.guild ?? profile?.guild;
+			const feedPosts = await fetchFeedPosts(
+				selectedGuild,
+				selectedSort,
+				user.id,
+				activeGuild,
+			);
 			setPosts(feedPosts);
 		} finally {
 			setIsLoading(false);
 			setIsRefreshing(false);
 		}
-	}, [user?.id, selectedGuild, selectedSort, setProfile, setVerification]);
+	}, [
+		user?.id,
+		selectedGuild,
+		selectedSort,
+		profile?.guild,
+		setProfile,
+		setVerification,
+	]);
 
 	useEffect(() => {
 		void loadData();

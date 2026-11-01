@@ -108,13 +108,17 @@ async function saveCachedVotes(
 	}
 }
 
+import { filterPostsForUser } from "./utils/filter";
+export { filterPostsForUser };
+
 /**
- * Fetch posts with filtering, sorting, and user vote status.
+ * Fetch posts with audience visibility filtering, sorting, and user vote status.
  */
 export async function fetchFeedPosts(
 	filter: FeedGuildFilter = "all",
 	sort: FeedSort = "new",
 	userId?: string,
+	userGuild?: string | null,
 ): Promise<Post[]> {
 	let posts: Post[] = [];
 	let userVotes: Record<string, VoteType> = {};
@@ -127,7 +131,17 @@ export async function fetchFeedPosts(
 		// 1. Attempt Supabase query
 		let query = supabase
 			.from("posts")
-			.select("*, author:author_id(id, username, email, role, guild)");
+			.select(
+				"*, author:author_id(id, username, display_name, avatar_url, email, role, guild)",
+			);
+
+		if (userGuild) {
+			query = query.or(
+				`visibility.eq.public,and(visibility.eq.house,guild.eq.${userGuild})`,
+			);
+		} else {
+			query = query.eq("visibility", "public");
+		}
 
 		if (filter !== "all") {
 			query = query.eq("guild", filter);
@@ -146,6 +160,7 @@ export async function fetchFeedPosts(
 				author: item.author || {
 					id: item.author_id,
 					username: "Student",
+					display_name: "Student",
 					role: "user",
 				},
 				user_vote: userVotes[item.id] ?? 0,
@@ -158,6 +173,9 @@ export async function fetchFeedPosts(
 		// Network or remote schema error: fallback to local cache
 		posts = await getCachedPosts();
 	}
+
+	// Filter by audience visibility for cached or returned posts
+	posts = filterPostsForUser(posts, userGuild);
 
 	// Attach user votes to cached posts
 	posts = posts.map((p) => ({
