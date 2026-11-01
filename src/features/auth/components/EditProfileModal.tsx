@@ -1,17 +1,21 @@
-import { updateUserProfile } from "@auth/api";
+import { updateUserProfile, uploadAvatar } from "@auth/api";
 import { useAuthStore } from "@auth/store";
-import type { Profile } from "@auth/types";
+import type { Course, Profile, YearLevel } from "@auth/types";
+import { Image as ExpoImage } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import {
 	AlertCircle,
 	BookOpen,
-	Check,
+	Camera,
 	FileText,
-	Palette,
+	GraduationCap,
+	Trash2,
 	User,
 	X,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
+	ActivityIndicator,
 	KeyboardAvoidingView,
 	Modal,
 	Platform,
@@ -30,14 +34,6 @@ export interface EditProfileModalProps {
 	onProfileUpdated?: (updatedProfile: Profile) => void;
 }
 
-const AVATAR_PRESETS = [
-	{ label: "terminal", color: "bg-emerald-500", desc: "Emerald Matrix" },
-	{ label: "cyber", color: "bg-cyan-500", desc: "Cyan Circuit" },
-	{ label: "matrix", color: "bg-lime-400", desc: "Neon Phosphor" },
-	{ label: "void", color: "bg-purple-600", desc: "Deep Void" },
-	{ label: "neural", color: "bg-rose-500", desc: "Neural Pink" },
-];
-
 export function EditProfileModal({
 	open,
 	onOpenChange,
@@ -47,19 +43,28 @@ export function EditProfileModal({
 	const profile = useAuthStore((state) => state.profile);
 	const setProfile = useAuthStore((state) => state.setProfile);
 
-	const [displayName, setDisplayName] = useState(profile?.display_name || "");
-	const [major, setMajor] = useState(profile?.major || "");
+	const [displayName, setDisplayName] = useState(
+		profile?.display_name || profile?.username || "",
+	);
+	const [course, setCourse] = useState<Course | null>(
+		profile?.course || null,
+	);
+	const [yearLevel, setYearLevel] = useState<YearLevel | null>(
+		profile?.year_level || null,
+	);
 	const [bio, setBio] = useState(profile?.bio || "");
 	const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	const prevOpenRef = useRef(open);
 
 	useEffect(() => {
 		if (open && !prevOpenRef.current && profile) {
-			setDisplayName(profile.display_name || "");
-			setMajor(profile.major || "");
+			setDisplayName(profile.display_name || profile.username || "");
+			setCourse(profile.course || null);
+			setYearLevel(profile.year_level || null);
 			setBio(profile.bio || "");
 			setAvatarUrl(profile.avatar_url || "");
 			setError(null);
@@ -67,10 +72,59 @@ export function EditProfileModal({
 		prevOpenRef.current = open;
 	}, [open, profile]);
 
+	const handlePickAvatar = async () => {
+		try {
+			const permission =
+				await ImagePicker.requestMediaLibraryPermissionsAsync();
+			if (!permission.granted) {
+				setError(
+					"Photo library permission is required to select an avatar.",
+				);
+				return;
+			}
+
+			const result = await ImagePicker.launchImageLibraryAsync({
+				mediaTypes: ["images"],
+				allowsEditing: true,
+				aspect: [1, 1],
+				quality: 0.85,
+			});
+
+			if (!result.canceled && result.assets[0]?.uri && user?.id) {
+				setIsUploadingAvatar(true);
+				setError(null);
+				try {
+					const publicUrl = await uploadAvatar(
+						user.id,
+						result.assets[0].uri,
+						result.assets[0].fileName,
+					);
+					setAvatarUrl(publicUrl);
+				} catch (err: unknown) {
+					const e = err as Error;
+					setError(e.message || "Failed to upload avatar image.");
+				} finally {
+					setIsUploadingAvatar(false);
+				}
+			}
+		} catch (err: unknown) {
+			const e = err as Error;
+			setError(e.message || "Unable to open photo picker.");
+		}
+	};
+
+	const handleRemoveAvatar = () => {
+		setAvatarUrl("");
+	};
+
 	const handleSave = async () => {
 		if (!user?.id) return;
 		if (displayName.trim().length > 50) {
 			setError("Display name must be 50 characters or less.");
+			return;
+		}
+		if (displayName.trim().length < 2) {
+			setError("Display name must be at least 2 characters.");
 			return;
 		}
 		if (bio.trim().length > 250) {
@@ -84,7 +138,8 @@ export function EditProfileModal({
 		try {
 			const updated = await updateUserProfile(user.id, {
 				display_name: displayName.trim(),
-				major: major.trim(),
+				course: course,
+				year_level: yearLevel,
 				bio: bio.trim(),
 				avatar_url: avatarUrl.trim() || null,
 			});
@@ -98,6 +153,10 @@ export function EditProfileModal({
 			setIsSubmitting(false);
 		}
 	};
+
+	const initials = (displayName || profile?.username || "ST")
+		.slice(0, 2)
+		.toUpperCase();
 
 	return (
 		<Modal
@@ -129,8 +188,8 @@ export function EditProfileModal({
 						<NeoButton
 							variant="primary"
 							size="sm"
-							loading={isSubmitting}
-							disabled={isSubmitting}
+							loading={isSubmitting || isUploadingAvatar}
+							disabled={isSubmitting || isUploadingAvatar}
 							onPress={handleSave}>
 							SAVE
 						</NeoButton>
@@ -162,6 +221,72 @@ export function EditProfileModal({
 							keyboardShouldPersistTaps="handled"
 							className="flex-1 px-4 pt-4">
 							<View className="gap-5">
+								{/* Custom Profile Photo Upload Section */}
+								<View className="rounded-sm border-2 border-border bg-card p-4 shadow-neo-sm">
+									<View className="mb-3 flex-row items-center gap-2">
+										<Camera
+											size={15}
+											color="#91e6b1"
+											strokeWidth={2.2}
+										/>
+										<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+											PROFILE PICTURE
+										</Text>
+									</View>
+
+									<View className="flex-row items-center gap-4">
+										{/* Avatar Image or Initials Box */}
+										<View className="size-20 items-center justify-center overflow-hidden rounded-sm border-2 border-border bg-secondary shadow-neo-sm">
+											{isUploadingAvatar ? (
+												<ActivityIndicator
+													color="#91e6b1"
+													size="small"
+												/>
+											) : avatarUrl &&
+											  avatarUrl.startsWith("http") ? (
+												<ExpoImage
+													source={{ uri: avatarUrl }}
+													style={{
+														width: "100%",
+														height: "100%",
+													}}
+													contentFit="cover"
+												/>
+											) : (
+												<Text className="font-bold font-mono text-2xl text-foreground">
+													{initials}
+												</Text>
+											)}
+										</View>
+
+										{/* Photo Actions */}
+										<View className="flex-1 gap-2">
+											<NeoButton
+												variant="secondary"
+												size="sm"
+												loading={isUploadingAvatar}
+												disabled={isUploadingAvatar}
+												onPress={handlePickAvatar}
+												className="w-full">
+												CHOOSE NEW PHOTO
+											</NeoButton>
+											{avatarUrl ? (
+												<Pressable
+													onPress={handleRemoveAvatar}
+													className="flex-row items-center justify-center gap-1.5 py-1">
+													<Trash2
+														size={12}
+														color="#ff5c5c"
+													/>
+													<Text className="font-mono text-[11px] text-destructive uppercase">
+														REMOVE PHOTO
+													</Text>
+												</Pressable>
+											) : null}
+										</View>
+									</View>
+								</View>
+
 								{/* Display Name */}
 								<NeoInput
 									label="DISPLAY NAME"
@@ -178,21 +303,118 @@ export function EditProfileModal({
 									}
 								/>
 
-								{/* Academic Specialization / Major */}
-								<NeoInput
-									label="ACADEMIC MAJOR / SPECIALIZATION"
-									value={major}
-									onChangeText={setMajor}
-									placeholder="e.g. Computer Science, Systems Engineering"
-									maxLength={80}
-									startContent={
-										<BookOpen
-											size={15}
-											color="#91e6b1"
-											strokeWidth={2.2}
-										/>
-									}
-								/>
+								{/* Course Selector (BSIT vs BSCS) */}
+								<View className="rounded-sm border-2 border-border bg-card p-3 shadow-neo-sm">
+									<View className="mb-2 flex-row items-center justify-between">
+										<View className="flex-row items-center gap-2">
+											<GraduationCap
+												size={15}
+												color="#91e6b1"
+												strokeWidth={2.2}
+											/>
+											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+												DEGREE COURSE
+											</Text>
+										</View>
+										{course && (
+											<NeoBadge
+												variant="primary"
+												size="sm">
+												{course}
+											</NeoBadge>
+										)}
+									</View>
+
+									<View className="flex-row gap-2">
+										{(["BSIT", "BSCS"] as Course[]).map(
+											(c) => {
+												const isSelected = course === c;
+												return (
+													<Pressable
+														key={c}
+														onPress={() =>
+															setCourse(
+																isSelected
+																	? null
+																	: c,
+															)
+														}
+														className={`flex-1 items-center justify-center rounded-sm border-2 py-2.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
+															isSelected
+																? "border-primary bg-primary text-black"
+																: "border-border bg-secondary"
+														}`}>
+														<Text
+															className={`font-bold font-mono text-xs ${
+																isSelected
+																	? "text-black"
+																	: "text-foreground"
+															}`}>
+															{c}
+														</Text>
+													</Pressable>
+												);
+											},
+										)}
+									</View>
+								</View>
+
+								{/* Year Level Selector (1 to 4) */}
+								<View className="rounded-sm border-2 border-border bg-card p-3 shadow-neo-sm">
+									<View className="mb-2 flex-row items-center justify-between">
+										<View className="flex-row items-center gap-2">
+											<BookOpen
+												size={15}
+												color="#91e6b1"
+												strokeWidth={2.2}
+											/>
+											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+												YEAR LEVEL
+											</Text>
+										</View>
+										{yearLevel && (
+											<NeoBadge
+												variant="default"
+												size="sm">
+												YEAR {yearLevel}
+											</NeoBadge>
+										)}
+									</View>
+
+									<View className="flex-row gap-2">
+										{([1, 2, 3, 4] as YearLevel[]).map(
+											(yl) => {
+												const isSelected =
+													yearLevel === yl;
+												return (
+													<Pressable
+														key={yl}
+														onPress={() =>
+															setYearLevel(
+																isSelected
+																	? null
+																	: yl,
+															)
+														}
+														className={`flex-1 items-center justify-center rounded-sm border-2 py-2.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
+															isSelected
+																? "border-primary bg-primary text-black"
+																: "border-border bg-secondary"
+														}`}>
+														<Text
+															className={`font-bold font-mono text-xs ${
+																isSelected
+																	? "text-black"
+																	: "text-foreground"
+															}`}>
+															{yl}
+														</Text>
+													</Pressable>
+												);
+											},
+										)}
+									</View>
+								</View>
 
 								{/* Bio / Intel */}
 								<NeoInput
@@ -218,87 +440,17 @@ export function EditProfileModal({
 									helperText={`${bio.length}/250 characters`}
 								/>
 
-								{/* Avatar Theme Presets */}
-								<View>
-									<View className="mb-2 flex-row items-center justify-between">
-										<View className="flex-row items-center gap-1.5">
-											<Palette
-												size={14}
-												color="#91e6b1"
-												strokeWidth={2.2}
-											/>
-											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-												AVATAR THEME PRESET
-											</Text>
-										</View>
-										{avatarUrl ? (
-											<NeoBadge
-												variant="primary"
-												size="sm">
-												{avatarUrl.toUpperCase()}
-											</NeoBadge>
-										) : null}
-									</View>
-
-									<View className="gap-2">
-										{AVATAR_PRESETS.map((preset) => {
-											const isSelected =
-												avatarUrl === preset.label;
-											return (
-												<Pressable
-													key={preset.label}
-													onPress={() =>
-														setAvatarUrl(
-															preset.label,
-														)
-													}
-													className={`flex-row items-center justify-between rounded-sm border-2 p-3 active:translate-x-0.5 active:translate-y-0.5 active:shadow-none ${
-														isSelected
-															? "border-primary bg-primary/10 shadow-neo-sm"
-															: "border-border bg-card shadow-neo-sm"
-													}`}>
-													<View className="flex-row items-center gap-3">
-														<View
-															className={`size-6 rounded-sm border-2 border-border ${preset.color}`}
-														/>
-														<View>
-															<Text
-																className={`font-mono text-xs uppercase ${
-																	isSelected
-																		? "text-primary"
-																		: "text-foreground"
-																}`}>
-																{preset.label}
-															</Text>
-															<Text className="font-mono text-[10px] text-muted-foreground">
-																{preset.desc}
-															</Text>
-														</View>
-													</View>
-													{isSelected ? (
-														<View className="size-6 items-center justify-center rounded-sm border-2 border-primary bg-primary">
-															<Check
-																size={14}
-																color="#0a0a0c"
-																strokeWidth={3}
-															/>
-														</View>
-													) : (
-														<View className="size-6 rounded-sm border-2 border-border bg-secondary" />
-													)}
-												</Pressable>
-											);
-										})}
-									</View>
-								</View>
-
 								{/* Bottom Save Action */}
-								<View className="mt-4 gap-3 border-t-2 border-border pt-4">
+								<View className="mt-2 gap-3 border-t-2 border-border pt-4">
 									<NeoButton
 										variant="primary"
 										size="md"
-										loading={isSubmitting}
-										disabled={isSubmitting}
+										loading={
+											isSubmitting || isUploadingAvatar
+										}
+										disabled={
+											isSubmitting || isUploadingAvatar
+										}
 										onPress={handleSave}
 										className="w-full">
 										SAVE CHANGES

@@ -453,15 +453,28 @@ export default function ProfileScreen() {
 										</NeoButton>
 									)}
 
-									{profile.major && (
-										<View className="flex-row items-center gap-1.5 rounded-sm border-2 border-border bg-secondary px-2 py-0.5">
+									{(profile.course ||
+										profile.year_level ||
+										profile.major) && (
+										<View className="flex-row items-center gap-1.5 rounded-sm border-2 border-border bg-secondary px-2 py-0.5 shadow-neo-sm">
 											<BookOpen
 												size={11}
 												color="#91e6b1"
 												strokeWidth={2.2}
 											/>
 											<Text className="font-mono text-[10px] text-primary uppercase">
-												{profile.major}
+												{[
+													profile.course,
+													profile.year_level
+														? `YEAR ${profile.year_level}`
+														: null,
+													!profile.course &&
+													!profile.year_level
+														? profile.major
+														: null,
+												]
+													.filter(Boolean)
+													.join(" • ")}
 											</Text>
 										</View>
 									)}

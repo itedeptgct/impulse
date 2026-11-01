@@ -285,18 +285,31 @@ export default function UserProfileScreen() {
 													username}
 											</Text>
 
-											{targetProfile?.major ? (
-												<View className="mt-2 flex-row items-center gap-1.5 self-start rounded-sm border-2 border-border bg-secondary px-2 py-0.5">
+											{(targetProfile?.course ||
+												targetProfile?.year_level ||
+												targetProfile?.major) && (
+												<View className="mt-2 flex-row items-center gap-1.5 self-start rounded-sm border-2 border-border bg-secondary px-2 py-0.5 shadow-neo-sm">
 													<BookOpen
 														size={11}
 														color="#91e6b1"
 														strokeWidth={2.2}
 													/>
 													<Text className="font-mono text-[10px] text-primary uppercase">
-														{targetProfile.major}
+														{[
+															targetProfile.course,
+															targetProfile.year_level
+																? `YEAR ${targetProfile.year_level}`
+																: null,
+															!targetProfile.course &&
+															!targetProfile.year_level
+																? targetProfile.major
+																: null,
+														]
+															.filter(Boolean)
+															.join(" • ")}
 													</Text>
 												</View>
-											) : null}
+											)}
 
 											{targetProfile?.bio ? (
 												<Text className="mt-2.5 font-sans text-xs leading-relaxed text-muted-foreground sm:text-sm">
