@@ -1,79 +1,88 @@
 {
-  "name": "impulse",
-  "version": "1.0.0",
-  "private": true,
-  "main": "expo-router/entry",
-  "scripts": {
-    "start": "expo start",
-    "start:tunnel": "EXPO_TUNNEL_SUBDOMAIN='sussy-baka-jnlghmz-8081' expo start --tunnel",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
-    "lint": "oxlint",
-    "fmt": "oxfmt",
-    "prepare": "husky"
-  },
-  "dependencies": {
-    "@expo-google-fonts/dm-sans": "^0.4.2",
-    "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
-    "@expo-google-fonts/space-grotesk": "^0.4.1",
-    "@gorhom/bottom-sheet": "^5.2.14",
-    "@hookform/resolvers": "^5.9.1",
-    "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-masked-view/masked-view": "0.3.2",
-    "@shopify/flash-list": "2.0.2",
-    "@supabase/supabase-js": "^2.118.0",
-    "@tanstack/react-query": "^5.104.5",
-    "expo": "~57.0.31",
-    "expo-av": "^16.0.8",
-    "expo-blob": "^58.0.3",
-    "expo-constants": "~57.0.22",
-    "expo-dev-client": "~57.0.20",
-    "expo-device": "~57.0.2",
-    "expo-font": "~57.0.4",
-    "expo-haptics": "~57.0.3",
-    "expo-image": "~57.0.5",
-    "expo-image-picker": "~57.0.20",
-    "expo-linear-gradient": "~57.0.2",
-    "expo-linking": "~57.0.13",
-    "expo-notifications": "~57.0.24",
-    "expo-router": "~57.0.29",
-    "expo-status-bar": "~57.0.1",
-    "expo-web-browser": "~57.0.3",
-    "lucide-react-native": "^1.61.0",
-    "panelui-native": "^0.85.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-hook-form": "^7.91.0",
-    "react-native": "0.86.3",
-    "react-native-gesture-handler": "~2.32.0",
-    "react-native-reanimated": "4.5.1",
-    "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0",
-    "react-native-svg": "15.15.4",
-    "react-native-url-polyfill": "^4.0.0",
-    "react-native-web": "^0.21.4",
-    "react-native-worklets": "0.10.1",
-    "tailwindcss": "^4.3.3",
-    "uniwind": "^1.13.0",
-    "zod": "^4.6.7",
-    "zustand": "^5.0.16"
-  },
-  "devDependencies": {
-    "@commitlint/cli": "^21.2.4",
-    "@commitlint/config-conventional": "^21.2.4",
-    "@types/react": "~19.2.2",
-    "husky": "^9.1.7",
-    "lint-staged": "^17.6.0",
-    "oxfmt": "^0.74.0",
-    "oxlint": "^1.89.0",
-    "oxlint-tsgolint": "^7.0.2005",
-    "typescript": "~6.0.3"
-  },
-  "lint-staged": {
-    "*.{js,jsx,ts,tsx}": [
-      "oxlint",
-      "oxfmt"
-    ]
-  }
+	"name": "impulse",
+	"version": "1.0.0",
+	"private": true,
+	"main": "expo-router/entry",
+	"scripts": {
+		"start": "expo start",
+		"start:tunnel": "EXPO_TUNNEL_SUBDOMAIN='sussy-baka-jnlghmz-8081' expo start --tunnel",
+		"android": "expo start --android",
+		"ios": "expo start --ios",
+		"web": "expo start --web",
+		"lint": "oxlint",
+		"fmt": "oxfmt",
+		"prepare": "husky"
+	},
+	"dependencies": {
+		"@expo-google-fonts/dm-sans": "^0.4.2",
+		"@expo-google-fonts/ibm-plex-mono": "^0.4.1",
+		"@expo-google-fonts/space-grotesk": "^0.4.1",
+		"@gorhom/bottom-sheet": "^5.2.14",
+		"@hookform/resolvers": "^5.9.1",
+		"@react-native-async-storage/async-storage": "2.2.0",
+		"@react-native-masked-view/masked-view": "0.3.2",
+		"@shopify/flash-list": "2.0.2",
+		"@supabase/supabase-js": "^2.118.0",
+		"@tanstack/react-query": "^5.104.5",
+		"expo": "~57.0.31",
+		"expo-blob": "^58.0.3",
+		"expo-constants": "~57.0.22",
+		"expo-dev-client": "~57.0.20",
+		"expo-device": "~57.0.2",
+		"expo-font": "~57.0.4",
+		"expo-haptics": "~57.0.3",
+		"expo-image": "~57.0.5",
+		"expo-image-picker": "~57.0.20",
+		"expo-linear-gradient": "~57.0.2",
+		"expo-linking": "~57.0.13",
+		"expo-notifications": "~57.0.24",
+		"expo-router": "~57.0.29",
+		"expo-status-bar": "~57.0.1",
+		"expo-web-browser": "~57.0.3",
+		"lucide-react-native": "^1.61.0",
+		"panelui-native": "^0.85.0",
+		"react": "19.2.3",
+		"react-dom": "19.2.3",
+		"react-hook-form": "^7.91.0",
+		"react-native": "0.86.3",
+		"react-native-gesture-handler": "~2.32.0",
+		"react-native-reanimated": "4.5.1",
+		"react-native-safe-area-context": "~5.7.0",
+		"react-native-screens": "~4.26.0",
+		"react-native-svg": "15.15.4",
+		"react-native-url-polyfill": "^4.0.0",
+		"react-native-web": "^0.21.4",
+		"react-native-worklets": "0.10.1",
+		"tailwindcss": "^4.3.3",
+		"uniwind": "^1.13.0",
+		"zod": "^4.6.7",
+		"zustand": "^5.0.16"
+	},
+	"devDependencies": {
+		"@commitlint/cli": "^21.2.4",
+		"@commitlint/config-conventional": "^21.2.4",
+		"@types/react": "~19.2.2",
+		"husky": "^9.1.7",
+		"lint-staged": "^17.6.0",
+		"oxfmt": "^0.74.0",
+		"oxlint": "^1.89.0",
+		"oxlint-tsgolint": "^7.0.2005",
+		"typescript": "~6.0.3"
+	},
+	"lint-staged": {
+		"*.{js,jsx,ts,tsx}": [
+			"oxlint",
+			"oxfmt"
+		]
+	},
+	"expo": {
+		"doctor": {
+			"reactNativeDirectoryCheck": {
+				"exclude": [
+					"expo-blob"
+				],
+				"listUnknownPackages": false
+			}
+		}
+	}
 }

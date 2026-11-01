@@ -4,7 +4,7 @@ import { ArrowRight, LogIn, UserPlus } from "lucide-react-native";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { NeoBadge, NeoButton } from "@/components/ui";
+import { NeoButton } from "@/components/ui";
 
 export default function OnboardingScreen() {
 	const insets = useSafeAreaInsets();
@@ -20,13 +20,13 @@ export default function OnboardingScreen() {
 				}}
 				showsVerticalScrollIndicator={false}>
 				{/* Hero & Feature Section */}
-				<View className="items-center px-6">
+				<View className="items-center pt-48">
 					{/* Status Pill */}
-					<View className="mb-4">
+					{/* <View className="mb-4">
 						<NeoBadge variant="accent" size="sm">
 							// by sir boogs and psits team
 						</NeoBadge>
-					</View>
+					</View> */}
 
 					{/* Giant Brand Mark */}
 					<Text className="text-center font-display text-5xl tracking-tighter text-foreground uppercase sm:text-6xl">
