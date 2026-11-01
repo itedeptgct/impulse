@@ -2,6 +2,12 @@ import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import type { IdVerification, Profile } from "./types";
+import {
+	getContentTypeFromExtension,
+	readUriAsBinary,
+} from "./utils/upload-utils";
+
+export { getContentTypeFromExtension, readUriAsBinary };
 
 export async function signIn(email: string, password: string) {
 	const { data, error } = await supabase.auth.signInWithPassword({
@@ -132,17 +138,17 @@ export async function uploadIdDocument(
 	userId: string,
 	uri: string,
 	originalName?: string | null,
-) {
+): Promise<string> {
 	const extension = originalName?.split(".").pop() || "jpg";
 	const filePath = `${userId}/${Date.now()}.${extension}`;
+	const contentType = getContentTypeFromExtension(extension);
 
-	const response = await fetch(uri);
-	const blob = await response.blob();
+	const { data: binaryData } = await readUriAsBinary(uri, contentType);
 
 	const { data, error } = await supabase.storage
 		.from("id-documents")
-		.upload(filePath, blob, {
-			contentType: blob.type || "image/jpeg",
+		.upload(filePath, binaryData, {
+			contentType,
 			upsert: true,
 		});
 
@@ -157,14 +163,14 @@ export async function uploadAvatar(
 ): Promise<string> {
 	const extension = originalName?.split(".").pop() || "jpg";
 	const filePath = `${userId}/${Date.now()}.${extension}`;
+	const contentType = getContentTypeFromExtension(extension);
 
-	const response = await fetch(uri);
-	const blob = await response.blob();
+	const { data: binaryData } = await readUriAsBinary(uri, contentType);
 
 	const { data, error } = await supabase.storage
 		.from("avatars")
-		.upload(filePath, blob, {
-			contentType: blob.type || "image/jpeg",
+		.upload(filePath, binaryData, {
+			contentType,
 			upsert: true,
 		});
 
