@@ -80,17 +80,46 @@ export const NeoBadge = React.forwardRef(function NeoBadge(
 		.filter(Boolean)
 		.join(" ");
 
+	const renderContent = () => {
+		if (children == null) return null;
+
+		if (React.isValidElement(children)) {
+			return children;
+		}
+
+		if (Array.isArray(children)) {
+			const isAllElements = children.every(
+				(child) => React.isValidElement(child) || child == null,
+			);
+			if (isAllElements) {
+				return children;
+			}
+		}
+
+		return (
+			<Text className={textClasses} style={textStyle}>
+				{children}
+			</Text>
+		);
+	};
+
+	const renderAdornment = (content: React.ReactNode) => {
+		if (content == null) return null;
+		if (typeof content === "string" || typeof content === "number") {
+			return (
+				<Text className={textClasses} style={textStyle}>
+					{content}
+				</Text>
+			);
+		}
+		return content;
+	};
+
 	return (
 		<View ref={ref} className={containerClasses} style={style} {...rest}>
-			{startContent}
-			{typeof children === "string" || typeof children === "number" ? (
-				<Text className={textClasses} style={textStyle}>
-					{children}
-				</Text>
-			) : (
-				children
-			)}
-			{endContent}
+			{renderAdornment(startContent)}
+			{renderContent()}
+			{renderAdornment(endContent)}
 		</View>
 	);
 });

@@ -376,7 +376,7 @@ export function EditProfileModal({
 											<NeoBadge
 												variant="default"
 												size="sm">
-												YEAR {yearLevel}
+												{`YEAR ${yearLevel}`}
 											</NeoBadge>
 										)}
 									</View>
@@ -402,7 +402,7 @@ export function EditProfileModal({
 																: "border-border bg-secondary"
 														}`}>
 														<Text
-															className={`font-bold font-mono text-xs ${
+															className={`font-bold text-xs ${
 																isSelected
 																	? "text-black"
 																	: "text-foreground"
