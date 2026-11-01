@@ -36,12 +36,12 @@ export function MobileSheet({
 						{title && (
 							<Text
 								weight="bold"
-								className="font-mono text-lg text-foreground">
+								className="font-display text-lg text-foreground">
 								{title}
 							</Text>
 						)}
 						{subtitle && (
-							<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
+							<Text className="mt-0.5 font-display text-xs text-muted-foreground">
 								{subtitle}
 							</Text>
 						)}

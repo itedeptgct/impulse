@@ -28,20 +28,12 @@ export function isPostRestricted(
 
 /**
  * Filter posts by audience visibility for a specific user house affiliation.
- * Returns public posts plus posts belonging to the user's house.
+ * Returns public posts plus posts belonging to the user's house, or all posts if author is viewing.
  */
 export function filterPostsForUser(
 	posts: Post[],
 	userGuild?: string | null,
+	userId?: string,
 ): Post[] {
-	const normUserGuild = (userGuild || "").replace("-", "_").toLowerCase();
-	return posts.filter((p) => {
-		if (p.visibility === "house") {
-			const normPostGuild = (p.guild || "")
-				.replace("-", "_")
-				.toLowerCase();
-			return Boolean(normUserGuild && normPostGuild === normUserGuild);
-		}
-		return true; // public
-	});
+	return posts.filter((p) => !isPostRestricted(p, userId, userGuild));
 }

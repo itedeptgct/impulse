@@ -94,7 +94,7 @@ export default function ProfileScreen() {
 			const [prof, verif, userPosts] = await Promise.all([
 				fetchUserProfile(user.id),
 				fetchUserVerification(user.id),
-				fetchUserPosts(user.id),
+				fetchUserPosts(user.id, user.id, profile?.guild),
 			]);
 			if (prof) setProfile(prof);
 			if (verif) setVerification(verif);
@@ -102,7 +102,7 @@ export default function ProfileScreen() {
 		} finally {
 			setIsRefreshing(false);
 		}
-	}, [user?.id, setProfile, setVerification]);
+	}, [user?.id, profile?.guild, setProfile, setVerification]);
 
 	useEffect(() => {
 		if (user?.id) {
@@ -780,8 +780,8 @@ export default function ProfileScreen() {
 									color="#91e6b1"
 									strokeWidth={2.2}
 								/>
-								<Text className="font-mono text-xs text-primary uppercase">
-									Admin Moderation Desk
+								<Text className="font-display text-xs text-primary uppercase">
+									Admin Moderation
 								</Text>
 							</View>
 							<ArrowUpRight

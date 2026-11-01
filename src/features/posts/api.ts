@@ -182,7 +182,7 @@ export async function fetchFeedPosts(
 	}
 
 	// Filter by audience visibility for cached or returned posts
-	posts = filterPostsForUser(posts, userGuild);
+	posts = filterPostsForUser(posts, userGuild, userId);
 
 	// Attach user votes to cached posts
 	posts = posts.map((p) => ({
@@ -524,10 +524,115 @@ export async function addPostComment(
 
 /**
  * Fetch all posts published by a specific user.
+ * If viewing as the author, includes all of their transmissions (both public and house-only).
+ * If viewing as another user, respects house audience boundaries.
  */
-export async function fetchUserPosts(userId: string): Promise<Post[]> {
-	const allPosts = await fetchFeedPosts("all", "new", userId);
-	return allPosts.filter((p) => p.author_id === userId);
+export async function fetchUserPosts(
+	authorId: string,
+	viewerId?: string,
+	viewerGuild?: string | null,
+): Promise<Post[]> {
+	let posts: Post[] = [];
+	let userVotes: Record<string, VoteType> = {};
+
+	const activeViewerId = viewerId ?? authorId;
+	if (activeViewerId) {
+		userVotes = await getCachedVotes(activeViewerId);
+	}
+
+	let activeViewerGuild = viewerGuild;
+	if (!activeViewerGuild && viewerId) {
+		try {
+			activeViewerGuild = await AsyncStorage.getItem(
+				`impulse_user_guild_${viewerId}`,
+			);
+		} catch {
+			// ignore
+		}
+	}
+
+	const isViewingSelf = Boolean(viewerId && viewerId === authorId);
+
+	try {
+		let query = supabase
+			.from("posts")
+			.select(
+				"*, author:author_id(id, username, display_name, avatar_url, email, role, guild)",
+			)
+			.eq("author_id", authorId);
+
+		if (isViewingSelf) {
+			// Author has full clearance to all their own transmissions (public and house)
+		} else if (activeViewerGuild) {
+			const normGuild = activeViewerGuild.replace("_", "-");
+			query = query.or(
+				`visibility.eq.public,and(visibility.eq.house,or(guild.eq.${activeViewerGuild},guild.eq.${normGuild}))`,
+			);
+		} else {
+			query = query.eq("visibility", "public");
+		}
+
+		query = query.order("created_at", { ascending: false });
+
+		const { data, error } = await query;
+		if (!error && data && data.length > 0) {
+			const remotePosts = data.map((item: any) => {
+				const authorObj = Array.isArray(item.author)
+					? item.author[0]
+					: item.author;
+				return {
+					...item,
+					author: authorObj || {
+						id: item.author_id,
+						username: "User",
+						display_name: "User",
+						role: "user",
+					},
+					user_vote: userVotes[item.id] ?? 0,
+				};
+			});
+			const cached = await getCachedPosts();
+			const cachedUserPosts = cached.filter(
+				(p) => p.author_id === authorId,
+			);
+			const seenIds = new Set(remotePosts.map((p: Post) => p.id));
+			const missingLocals = cachedUserPosts.filter(
+				(p) => !seenIds.has(p.id),
+			);
+			posts = [...remotePosts, ...missingLocals];
+		} else {
+			// Fallback to cache if table doesn't exist, has network error, or returns empty
+			const cached = await getCachedPosts();
+			posts = cached.filter((p) => p.author_id === authorId);
+		}
+	} catch {
+		// Network or remote schema error: fallback to local cache
+		const cached = await getCachedPosts();
+		posts = cached.filter((p) => p.author_id === authorId);
+	}
+
+	// Filter by audience visibility for cached or returned posts
+	if (isViewingSelf) {
+		posts = posts.filter((p) => p.author_id === authorId);
+	} else {
+		posts = posts.filter(
+			(p) => !isPostRestricted(p, viewerId, activeViewerGuild),
+		);
+	}
+
+	// Attach user votes to posts
+	posts = posts.map((p) => ({
+		...p,
+		user_vote: userVotes[p.id] ?? p.user_vote ?? 0,
+	}));
+
+	// Sort chronologically (newest first)
+	posts.sort(
+		(a, b) =>
+			new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+	);
+
+	return posts;
 }
 
 /**

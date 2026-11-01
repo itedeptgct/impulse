@@ -1,7 +1,8 @@
-import { fetchProfileByUsername } from "@auth/api";
+import { fetchProfileByUsername, fetchUserVerification } from "@auth/api";
 import { EditProfileModal } from "@auth/components/EditProfileModal";
 import { useAuthStore } from "@auth/store";
 import type { Profile } from "@auth/types";
+import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -37,6 +38,9 @@ export default function UserProfileScreen() {
 	const currentProfile = useAuthStore((state) => state.profile);
 
 	const [targetProfile, setTargetProfile] = useState<Profile | null>(null);
+	const [verificationStatus, setVerificationStatus] = useState<
+		"pending" | "approved" | "rejected" | null
+	>(null);
 	const [posts, setPosts] = useState<Post[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
@@ -52,36 +56,42 @@ export default function UserProfileScreen() {
 			const prof = await fetchProfileByUsername(username);
 			setTargetProfile(prof);
 			if (prof?.id) {
-				const userPosts = await fetchUserPosts(prof.id);
+				const isSelf = Boolean(
+					(currentUser?.id && prof.id === currentUser.id) ||
+					(currentProfile?.username &&
+						currentProfile.username.toLowerCase() ===
+							username.toLowerCase()),
+				);
+				const viewerId = isSelf ? prof.id : currentUser?.id;
+				const viewerGuild = isSelf
+					? (currentProfile?.guild ?? prof.guild)
+					: currentProfile?.guild;
+
+				const [userPosts, verification] = await Promise.all([
+					fetchUserPosts(prof.id, viewerId, viewerGuild),
+					fetchUserVerification(prof.id),
+				]);
 				setPosts(userPosts);
+				setVerificationStatus(verification?.status ?? null);
 			} else {
 				setPosts([]);
+				setVerificationStatus(null);
 			}
 		} finally {
 			setIsLoading(false);
 			setIsRefreshing(false);
 		}
-	}, [username]);
+	}, [
+		username,
+		currentUser?.id,
+		currentProfile?.username,
+		currentProfile?.guild,
+	]);
 
 	useEffect(() => {
-		let isMounted = true;
 		if (!username) return;
-		void (async () => {
-			const prof = await fetchProfileByUsername(username);
-			if (!isMounted) return;
-			setTargetProfile(prof);
-			if (prof?.id) {
-				const userPosts = await fetchUserPosts(prof.id);
-				if (isMounted) setPosts(userPosts);
-			} else {
-				if (isMounted) setPosts([]);
-			}
-			if (isMounted) setIsLoading(false);
-		})();
-		return () => {
-			isMounted = false;
-		};
-	}, [username]);
+		void loadData();
+	}, [loadData, username]);
 
 	const onRefresh = () => {
 		setIsRefreshing(true);
@@ -185,11 +195,28 @@ export default function UserProfileScreen() {
 								<View className="flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 									<View className="flex-row items-start gap-4">
 										{/* Avatar */}
-										<View className="size-16 items-center justify-center rounded-sm border-2 border-border bg-secondary shadow-neo-sm">
-											<Text className="font-mono text-2xl text-primary">
-												{initials}
-											</Text>
-										</View>
+										{targetProfile?.avatar_url?.startsWith(
+											"http",
+										) ? (
+											<Image
+												source={{
+													uri: targetProfile.avatar_url,
+												}}
+												style={{
+													width: 64,
+													height: 64,
+													borderWidth: 2,
+													borderColor: "#2a2d3d",
+												}}
+												contentFit="cover"
+											/>
+										) : (
+											<View className="size-16 items-center justify-center rounded-sm border-2 border-border bg-secondary shadow-neo-sm">
+												<Text className="font-mono text-2xl text-primary">
+													{initials}
+												</Text>
+											</View>
+										)}
 
 										{/* Identity Info */}
 										<View className="flex-1">
@@ -197,18 +224,23 @@ export default function UserProfileScreen() {
 												<Text className="font-display text-lg tracking-tight text-foreground sm:text-xl">
 													{displayName}
 												</Text>
-												<NeoBadge
-													variant="primary"
-													size="sm"
-													startContent={
-														<CheckCircle2
-															size={11}
-															color="#91e6b1"
-															strokeWidth={2.5}
-														/>
-													}>
-													VERIFIED
-												</NeoBadge>
+												{verificationStatus ===
+													"approved" && (
+													<NeoBadge
+														variant="primary"
+														size="sm"
+														startContent={
+															<CheckCircle2
+																size={11}
+																color="#91e6b1"
+																strokeWidth={
+																	2.5
+																}
+															/>
+														}>
+														VERIFIED
+													</NeoBadge>
+												)}
 												{targetProfile?.guild && (
 													<GuildBadge
 														guildId={
@@ -401,6 +433,7 @@ export default function UserProfileScreen() {
 				onOpenChange={setIsEditModalOpen}
 				onProfileUpdated={(updated) => {
 					setTargetProfile(updated);
+					void loadData();
 				}}
 			/>
 
