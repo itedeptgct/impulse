@@ -222,6 +222,7 @@ export async function createPost(
 				author_id: author.id,
 				title: newPost.title,
 				content: newPost.content,
+				visibility: newPost.visibility,
 				code_snippet: newPost.code_snippet,
 				code_language: newPost.code_language,
 				image_url: newPost.image_url,
