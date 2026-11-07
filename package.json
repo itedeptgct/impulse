@@ -65,7 +65,7 @@
 		"@types/react": "~19.2.2",
 		"husky": "^9.1.7",
 		"lint-staged": "^17.6.0",
-		"oxfmt": "^0.74.0",
+		"oxfmt": "^0.77.0",
 		"oxlint": "^1.89.0",
 		"oxlint-tsgolint": "^7.0.2005",
 		"typescript": "~6.0.3"
