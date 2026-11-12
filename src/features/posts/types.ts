@@ -2,6 +2,7 @@ import type { GuildId } from "@/features/guilds/types";
 
 export type VoteType = 1 | -1 | 0;
 export type PostVisibility = "public" | "house";
+export type PostType = "post" | "dispatch";
 
 export interface PostAuthor {
 	id: string;
@@ -31,6 +32,9 @@ export interface Post {
 	comments_count: number;
 	user_vote?: VoteType;
 	is_edited?: boolean;
+	post_type?: PostType;
+	event_date?: string | null;
+	event_location?: string | null;
 	created_at: string;
 	updated_at?: string;
 }
@@ -65,6 +69,9 @@ export interface CreatePostInput {
 	image_url?: string | null;
 	image_urls?: string[];
 	tags?: string[];
+	post_type?: PostType;
+	event_date?: string | null;
+	event_location?: string | null;
 }
 
 export type UpdatePostInput = Partial<CreatePostInput>;

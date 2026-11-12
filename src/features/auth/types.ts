@@ -1,6 +1,6 @@
 import type { GuildId } from "@/features/guilds/types";
 
-export type UserRole = "user" | "admin";
+export type UserRole = "user" | "house_mod" | "mod" | "admin";
 export type VerificationStatus = "pending" | "approved" | "rejected";
 export type Course = "BSIT" | "BSCS";
 export type YearLevel = 1 | 2 | 3 | 4;
