@@ -259,6 +259,14 @@ export default function UserProfileScreen() {
 	const initials = displayName.slice(0, 2).toUpperCase();
 	const totalUpvotes = posts.reduce((acc, p) => acc + p.upvotes_count, 0);
 	const guildData = getGuildInfo(targetProfile?.guild);
+	const trunGuildName =
+		guildData?.name === "Octagram"
+			? "OCTA"
+			: guildData?.name === "Chameleon"
+				? "CHAM"
+				: guildData?.name === "Blue Jays"
+					? "BLJY"
+					: "N/A";
 
 	return (
 		<View className="flex-1 bg-background text-foreground">
@@ -478,7 +486,7 @@ export default function UserProfileScreen() {
 										<Text
 											className="mt-1 font-display text-2xl tracking-tight text-foreground uppercase sm:text-sm"
 											numberOfLines={1}>
-											{guildData?.name || "N/A"}
+											{trunGuildName}
 										</Text>
 									</NeoCard>
 								</View>

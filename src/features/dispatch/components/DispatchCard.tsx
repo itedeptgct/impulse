@@ -1,5 +1,3 @@
-import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
-import { canManagePost } from "@/features/auth/permissions";
 import { useAuthStore } from "@auth/store";
 import { formatRelativeTime } from "@lib/date";
 import * as Haptics from "expo-haptics";
@@ -23,16 +21,17 @@ import {
 	NeoButton,
 	TerminalCodeViewport,
 } from "@/components/ui";
-
+import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
+import { canManagePost } from "@/features/auth/permissions";
 import {
 	deletePost,
 	normalizePostMedia,
 	normalizePostTags,
 } from "@/features/posts/api";
-import type { Post } from "@/features/posts/types";
-import { sharePost } from "@/features/posts/utils/share";
 import { PostMediaCarousel } from "@/features/posts/components/PostMediaCarousel";
 import { PostMediaLightboxModal } from "@/features/posts/components/PostMediaLightboxModal";
+import type { Post } from "@/features/posts/types";
+import { sharePost } from "@/features/posts/utils/share";
 
 export interface DispatchCardProps {
 	post: Post;
@@ -50,20 +49,20 @@ const HOUSE_DISPATCH_META: Record<
 	octagram: {
 		name: "OCTOGRAM",
 		badge: "0x",
-		bg: "bg-primary",
-		textClass: "text-neo-yellow",
+		bg: "bg-[#008033]",
+		textClass: "text-[#00FF66]",
 	},
 	chameleon: {
 		name: "CHAMELEON",
 		badge: "★",
-		bg: "bg-neo-magenta",
+		bg: "bg-[#FF007A]",
 		textClass: "text-primary-foreground",
 	},
 	blue_jays: {
 		name: "BLUE JAYS",
 		badge: "BJ",
-		bg: "bg-[#003B22]",
-		textClass: "text-neo-green",
+		bg: "bg-[#4c4546]",
+		textClass: "text-[#00E5FF]",
 	},
 };
 
@@ -144,13 +143,14 @@ function DispatchCardComponent({
 						</View>
 						<Text
 							className={`font-bold text-xs tracking-wider uppercase ${
-								guildMeta?.textClass ?? "text-primary-foreground"
+								guildMeta?.textClass ??
+								"text-primary-foreground"
 							}`}>
 							{guildMeta?.name ?? "HOUSE"} // OFFICIAL DISPATCH
 						</Text>
 					</View>
 					<View className="border border-border bg-surface px-1.5 py-0.5">
-						<Text className="font-bold text-3xs tracking-widest uppercase text-foreground">
+						<Text className="font-bold text-3xs tracking-widest text-foreground uppercase">
 							OFFICIAL
 						</Text>
 					</View>
@@ -159,12 +159,12 @@ function DispatchCardComponent({
 				<View className="flex-row items-center justify-between border-2 border-b-0 border-border bg-primary px-3 py-2">
 					<View className="flex-row items-center gap-2">
 						<Radio size={14} color="#FFE600" strokeWidth={2.5} />
-						<Text className="font-bold text-xs tracking-wider uppercase text-neo-yellow">
-							GLOBAL DISPATCH // OFFICIAL WIRE
+						<Text className="font-bold text-xs tracking-wider text-[#FFE600] uppercase">
+							GLOBAL DISPATCH
 						</Text>
 					</View>
-					<View className="border border-border bg-neo-yellow px-1.5 py-0.5">
-						<Text className="font-bold text-3xs tracking-widest uppercase text-foreground">
+					<View className="border border-border bg-[#FFE600] px-1.5 py-0.5">
+						<Text className="font-bold text-3xs tracking-widest text-foreground uppercase">
 							CAMPUS-WIDE
 						</Text>
 					</View>
@@ -203,7 +203,7 @@ function DispatchCardComponent({
 					<View className="min-w-0 flex-1 flex-row items-center gap-1.5">
 						<Text
 							numberOfLines={1}
-							className="shrink font-bold text-xs tracking-wider uppercase text-foreground">
+							className="shrink font-bold text-xs tracking-wider text-foreground uppercase">
 							@{authorUsername}
 						</Text>
 						<UserRoleBadge
@@ -216,7 +216,7 @@ function DispatchCardComponent({
 				</Pressable>
 
 				<View className="shrink-0 flex-row items-center gap-1.5">
-					<Text className="font-bold text-xs tabular-nums text-foreground/75">
+					<Text className="font-bold text-xs text-foreground/75 tabular-nums">
 						{relativeTime}
 					</Text>
 
@@ -245,7 +245,7 @@ function DispatchCardComponent({
 				<Pressable
 					onPress={handleCardPress}
 					className="active:opacity-95">
-					<Text className="mb-2.5 font-display text-2xl leading-tight tracking-tight uppercase text-foreground">
+					<Text className="mb-2.5 font-display text-2xl leading-tight tracking-tight text-foreground uppercase">
 						{post.title}
 					</Text>
 
@@ -259,7 +259,7 @@ function DispatchCardComponent({
 										color="#000000"
 										strokeWidth={2.4}
 									/>
-									<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
+									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 										{post.event_date}
 									</Text>
 								</View>
@@ -271,7 +271,7 @@ function DispatchCardComponent({
 										color="#000000"
 										strokeWidth={2.4}
 									/>
-									<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
+									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 										{post.event_location}
 									</Text>
 								</View>
@@ -306,7 +306,7 @@ function DispatchCardComponent({
 								<View
 									key={tag}
 									className="border border-border bg-secondary px-2 py-0.5">
-									<Text className="font-bold text-2xs uppercase tracking-wider text-foreground">
+									<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
 										{tag}
 									</Text>
 								</View>
@@ -336,7 +336,7 @@ function DispatchCardComponent({
 						</Pressable>
 
 						<View className="min-w-11 items-center justify-center px-2.5">
-							<Text className="font-bold text-xs tabular-nums text-foreground">
+							<Text className="font-bold text-xs text-foreground tabular-nums">
 								{score}
 							</Text>
 						</View>
@@ -382,7 +382,7 @@ function DispatchCardComponent({
 								color="#000000"
 								strokeWidth={2.2}
 							/>
-							<Text className="font-bold text-xs tabular-nums text-foreground">
+							<Text className="font-bold text-xs text-foreground tabular-nums">
 								{post.comments_count}
 							</Text>
 						</Pressable>
@@ -443,11 +443,7 @@ function DispatchCardComponent({
 				open={isDeleteOpen}
 				onOpenChange={setIsDeleteOpen}
 				type="error"
-				title={
-					isAdminModAction
-						? "PURGE DISPATCH"
-						: "DELETE DISPATCH"
-				}
+				title={isAdminModAction ? "PURGE DISPATCH" : "DELETE DISPATCH"}
 				description="Are you certain you want to permanently delete this official dispatch? This action cannot be undone."
 				actions={[
 					{
