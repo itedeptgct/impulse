@@ -4,23 +4,6 @@ import {
 	CourierPrime_400Regular,
 	CourierPrime_700Bold,
 } from "@expo-google-fonts/courier-prime";
-import {
-	DMSans_400Regular,
-	DMSans_500Medium,
-	DMSans_600SemiBold,
-	DMSans_700Bold,
-} from "@expo-google-fonts/dm-sans";
-import {
-	IBMPlexMono_400Regular,
-	IBMPlexMono_500Medium,
-	IBMPlexMono_600SemiBold,
-	IBMPlexMono_700Bold,
-} from "@expo-google-fonts/ibm-plex-mono";
-import {
-	SpaceGrotesk_500Medium,
-	SpaceGrotesk_600SemiBold,
-	SpaceGrotesk_700Bold,
-} from "@expo-google-fonts/space-grotesk";
 import { supabase } from "@lib/supabase";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
@@ -55,17 +38,6 @@ export default function RootLayout() {
 		Anton_400Regular,
 		CourierPrime_400Regular,
 		CourierPrime_700Bold,
-		DMSans_400Regular,
-		DMSans_500Medium,
-		DMSans_600SemiBold,
-		DMSans_700Bold,
-		IBMPlexMono_400Regular,
-		IBMPlexMono_500Medium,
-		IBMPlexMono_600SemiBold,
-		IBMPlexMono_700Bold,
-		SpaceGrotesk_500Medium,
-		SpaceGrotesk_600SemiBold,
-		SpaceGrotesk_700Bold,
 	});
 
 	useEffect(() => {
