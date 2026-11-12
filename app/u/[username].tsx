@@ -476,9 +476,9 @@ export default function UserProfileScreen() {
 											</Text>
 										</View>
 										<Text
-											className="mt-1 font-display text-xs tracking-tight text-foreground uppercase sm:text-sm"
+											className="mt-1 font-display text-2xl tracking-tight text-foreground uppercase sm:text-sm"
 											numberOfLines={1}>
-											{guildData?.name || "Unaffiliated"}
+											{guildData?.name || "N/A"}
 										</Text>
 									</NeoCard>
 								</View>
