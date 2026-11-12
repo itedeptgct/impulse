@@ -411,7 +411,7 @@ export default function UserProfileScreen() {
 													startContent={
 														<PenSquare
 															size={13}
-															color="#ffffff"
+															color="#000000"
 															strokeWidth={2.2}
 														/>
 													}

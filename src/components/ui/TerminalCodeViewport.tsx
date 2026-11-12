@@ -79,9 +79,6 @@ export const TerminalCodeViewport: React.FC<TerminalCodeViewportProps> = ({
 											key={tIdx}
 											style={{
 												color: token.color,
-												fontWeight: token.bold
-													? "700"
-													: "400",
 											}}>
 											{token.content}
 										</Text>
