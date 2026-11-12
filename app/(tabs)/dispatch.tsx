@@ -294,21 +294,6 @@ export default function DispatchScreen() {
 	const renderHeader = () => {
 		return (
 			<View className="mb-4 border-b border-border/25 pb-3">
-				{/* Wire Banner */}
-				<View className="mb-3 flex-row items-center justify-between border-2 border-border bg-neo-surface-active px-3 py-2">
-					<View className="flex-row items-center gap-2">
-						<Radio size={14} color="#000000" strokeWidth={2.5} />
-						<Text className="font-bold text-xs tracking-wider uppercase text-foreground">
-							OFFICIAL BROADCAST WIRE
-						</Text>
-					</View>
-					<View className="border border-border bg-surface px-1.5 py-0.5">
-						<Text className="font-bold text-3xs tracking-widest uppercase text-foreground">
-							LIVE
-						</Text>
-					</View>
-				</View>
-
 				{/* Filter Chips Horizontal Scroller */}
 				<ScrollView
 					horizontal
@@ -485,7 +470,7 @@ export default function DispatchScreen() {
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
 			<MobileTopBar
-				sector="CAMPUS DISPATCH // OFFICIAL HOUSE WIRE"
+				sector="DISPATCH"
 				dotColor="#FFE600"
 			/>
 
@@ -537,7 +522,6 @@ export default function DispatchScreen() {
 				/>
 			)}
 
-			{/* Floating [+ DISPATCH] button for authorized leadership */}
 			{canAuthor && (
 				<Pressable
 					accessibilityRole="button"
@@ -549,7 +533,7 @@ export default function DispatchScreen() {
 					className="absolute bottom-6 right-4 z-20 flex-row items-center gap-1.5 border-2 border-border bg-neo-yellow px-4 py-3 shadow-neo active:translate-x-0.5 active:translate-y-0.5">
 					<Plus size={16} color="#000000" strokeWidth={3} />
 					<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
-						[+ DISPATCH]
+						[DISPATCH]
 					</Text>
 				</Pressable>
 			)}

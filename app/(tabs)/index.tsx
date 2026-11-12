@@ -285,32 +285,34 @@ export default function FeedScreen() {
 						</Text>
 					</Pressable>
 
-					<Pressable
-						accessibilityRole="tab"
-						accessibilityState={{ selected: isHouseSelected }}
-						onPress={() => {
-							triggerHaptic();
-							if (!currentHouse) {
-								router.push("/(tabs)/guilds");
-								return;
-							}
-							setSelectedGuild(currentHouse);
-						}}
-						className={`min-h-9 flex-1 flex-row items-center justify-center gap-1.5 border-2 border-border px-3 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
-							isHouseSelected ? "bg-primary" : "bg-surface"
-						}`}>
-						{houseMeta ? (
-							<View className={`size-2 ${houseMeta.dotClass}`} />
-						) : null}
-						<Text
-							className={`font-bold text-xs uppercase ${
-								isHouseSelected
-									? "text-primary-foreground"
-									: "text-foreground"
+					{currentHouse && (
+						<Pressable
+							accessibilityRole="tab"
+							accessibilityState={{ selected: isHouseSelected }}
+							onPress={() => {
+								triggerHaptic();
+								if (!currentHouse) {
+									router.push("/(tabs)/guilds");
+									return;
+								}
+								setSelectedGuild(currentHouse);
+							}}
+							className={`min-h-9 flex-1 flex-row items-center justify-center gap-1.5 border-2 border-border px-3 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
+								isHouseSelected ? "bg-primary" : "bg-surface"
 							}`}>
-							{houseMeta ? `[${houseMeta.label}]` : "[NO HOUSE]"}
-						</Text>
-					</Pressable>
+							{houseMeta ? (
+								<View className={`size-2 ${houseMeta.dotClass}`} />
+							) : null}
+							<Text
+								className={`font-bold text-xs uppercase ${
+									isHouseSelected
+										? "text-primary-foreground"
+										: "text-foreground"
+								}`}>
+								{houseMeta ? `[${houseMeta.label}]` : "[NO HOUSE]"}
+							</Text>
+						</Pressable>
+					)}
 				</View>
 
 				<View className="flex-row border-2 border-border bg-surface shadow-neo-sm">
