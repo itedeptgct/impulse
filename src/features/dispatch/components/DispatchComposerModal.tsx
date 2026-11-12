@@ -11,9 +11,8 @@ import {
 	Send,
 	X,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
-	ActivityIndicator,
 	KeyboardAvoidingView,
 	Modal,
 	Platform,
@@ -75,18 +74,20 @@ export function DispatchComposerModal({
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	// Reset state whenever modal opens or role changes
-	useEffect(() => {
-		if (visible) {
-			setTargetGuild(isHouseMod ? userGuild : null);
-			setTitle("");
-			setContent("");
-			setEventDate("");
-			setEventLocation("");
-			setError(null);
-			setIsSubmitting(false);
-		}
-	}, [visible, isHouseMod, userGuild]);
+	const resetForm = () => {
+		setTargetGuild(isHouseMod ? userGuild : null);
+		setTitle("");
+		setContent("");
+		setEventDate("");
+		setEventLocation("");
+		setError(null);
+		setIsSubmitting(false);
+	};
+
+	const handleClose = () => {
+		resetForm();
+		onClose();
+	};
 
 	const isValid = title.trim().length > 0 && content.trim().length > 0;
 
@@ -151,7 +152,7 @@ export function DispatchComposerModal({
 
 			triggerHaptic();
 			onCreated?.(dispatchPost);
-			onClose();
+			handleClose();
 		} catch (err: any) {
 			setError(err?.message || "Failed to broadcast dispatch to the wire");
 		} finally {
@@ -165,7 +166,7 @@ export function DispatchComposerModal({
 			animationType="slide"
 			presentationStyle="pageSheet"
 			onRequestClose={() => {
-				if (!isSubmitting) onClose();
+				if (!isSubmitting) handleClose();
 			}}>
 			<SafeAreaView className="flex-1 bg-background" edges={["top", "bottom"]}>
 				<KeyboardAvoidingView
@@ -186,7 +187,7 @@ export function DispatchComposerModal({
 							hitSlop={8}
 							onPress={() => {
 								triggerHaptic();
-								onClose();
+								handleClose();
 							}}
 							className="size-8 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
 							<X size={16} color="#000000" strokeWidth={2.4} />

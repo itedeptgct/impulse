@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Calendar, Plus, Radio, Sparkles } from "lucide-react-native";
+import { Calendar, Plus, Radio } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
@@ -20,32 +20,14 @@ import { MobileTopBar } from "@/components/ui";
 import { canCreateDispatch } from "@/features/auth/permissions";
 import { DispatchCard } from "@/features/dispatch/components/DispatchCard";
 import { DispatchComposerModal } from "@/features/dispatch/components/DispatchComposerModal";
-import type { GuildId } from "@/features/guilds/types";
+import {
+	type DispatchFilterType,
+	filterDispatches,
+} from "@/features/dispatch/utils/filter";
 import { fetchFeedPosts, votePost } from "@/features/posts/api";
 import type { Post } from "@/features/posts/types";
 
 const STORAGE_POSTS_KEY = "impulse_posts_cache_v2";
-
-export type DispatchFilter =
-	| "all"
-	| "global"
-	| "my_house"
-	| "octagram"
-	| "chameleon"
-	| "blue_jays";
-
-export function filterDispatches(
-	posts: Post[],
-	filter: "all" | "global" | "octagram" | "chameleon" | "blue_jays",
-	eventsOnly: boolean,
-): Post[] {
-	return posts.filter((p) => {
-		if (eventsOnly && !p.event_date) return false;
-		if (filter === "all") return true;
-		if (filter === "global") return p.guild === null;
-		return p.guild === filter;
-	});
-}
 
 const triggerHaptic = () => {
 	if (Platform.OS !== "web") {
@@ -61,7 +43,8 @@ export default function DispatchScreen() {
 	const [posts, setPosts] = useState<Post[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
-	const [selectedFilter, setSelectedFilter] = useState<DispatchFilter>("all");
+	const [selectedFilter, setSelectedFilter] =
+		useState<DispatchFilterType>("all");
 	const [eventsOnly, setEventsOnly] = useState(false);
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
 
@@ -119,7 +102,7 @@ export default function DispatchScreen() {
 	}, [user?.id, userGuild, profile?.role]);
 
 	useEffect(() => {
-		loadData();
+		void loadData();
 	}, [loadData]);
 
 	const handleVote = useCallback(
@@ -163,7 +146,7 @@ export default function DispatchScreen() {
 				);
 			}
 		},
-		[user?.id],
+		[user],
 	);
 
 	const handleOpenComments = useCallback((post: Post) => {
