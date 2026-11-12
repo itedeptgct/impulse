@@ -18,7 +18,8 @@ export function filterDispatches(
 		if (eventsOnly && !p.event_date) return false;
 		if (filter === "all") return true;
 		if (filter === "global") return p.guild === null;
-		if (filter === "my_house") return userGuild ? p.guild === userGuild : true;
+		if (filter === "my_house")
+			return userGuild ? p.guild === userGuild : true;
 		return p.guild === filter;
 	});
 }

@@ -301,7 +301,9 @@ export default function FeedScreen() {
 								isHouseSelected ? "bg-primary" : "bg-surface"
 							}`}>
 							{houseMeta ? (
-								<View className={`size-2 ${houseMeta.dotClass}`} />
+								<View
+									className={`size-2 ${houseMeta.dotClass}`}
+								/>
 							) : null}
 							<Text
 								className={`font-bold text-xs uppercase ${
@@ -309,7 +311,9 @@ export default function FeedScreen() {
 										? "text-primary-foreground"
 										: "text-foreground"
 								}`}>
-								{houseMeta ? `[${houseMeta.label}]` : "[NO HOUSE]"}
+								{houseMeta
+									? `[${houseMeta.label}]`
+									: "[NO HOUSE]"}
 							</Text>
 						</Pressable>
 					)}

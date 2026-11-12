@@ -324,7 +324,9 @@ export function PostComposerModal({
 
 						<Pressable
 							accessibilityRole="button"
-							accessibilityLabel={isEditing ? "Save post" : "Publish post"}
+							accessibilityLabel={
+								isEditing ? "Save post" : "Publish post"
+							}
 							onPress={handleSubmit}
 							disabled={
 								isSubmitting ||
@@ -456,8 +458,7 @@ export function PostComposerModal({
 							<View className="mb-5">
 								<View className="mb-1.5 flex-row items-center justify-between">
 									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
-										[POST_CONTENT] [MD + TeX SUPPORT
-										SOON™]
+										[POST_CONTENT] [MD + TeX SUPPORT SOON™]
 									</Text>
 									<Text className="font-mono text-2xs text-foreground/60 uppercase">
 										{content.length}/5000 CHR

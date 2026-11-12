@@ -313,9 +313,9 @@ export default function PostDetailScreen() {
 							CLASSIFIED HOUSE POST
 						</Text>
 						<Text className="mt-2 text-center font-mono text-xs leading-relaxed text-muted-foreground">
-							This post is exclusive to verified members
-							of this house. Your current house affiliation does
-							not grant clearance to view this record.
+							This post is exclusive to verified members of this
+							house. Your current house affiliation does not grant
+							clearance to view this record.
 						</Text>
 						<NeoButton
 							variant="primary"
@@ -345,10 +345,10 @@ export default function PostDetailScreen() {
 	const edited = post ? isPostEdited(post) : false;
 	const isAdminModAction = Boolean(
 		post &&
-			(profile?.role === "admin" ||
-				profile?.role === "mod" ||
-				profile?.role === "house_mod") &&
-			user?.id !== post.author_id,
+		(profile?.role === "admin" ||
+			profile?.role === "mod" ||
+			profile?.role === "house_mod") &&
+		user?.id !== post.author_id,
 	);
 
 	const normalizedTags = normalizePostTags(post?.tags);
@@ -482,8 +482,12 @@ export default function PostDetailScreen() {
 										</Text>
 										<UserRoleBadge
 											role={post.author?.role}
-											isVerified={post.author?.is_verified}
-											guild={post.author?.guild || post.guild}
+											isVerified={
+												post.author?.is_verified
+											}
+											guild={
+												post.author?.guild || post.guild
+											}
 											size="sm"
 										/>
 									</View>
@@ -1033,7 +1037,9 @@ export default function PostDetailScreen() {
 									setIsMenuOpen(false);
 									setIsDeleteOpen(true);
 								}}>
-								{isAdminModAction ? "PURGE POST" : "DELETE POST"}
+								{isAdminModAction
+									? "PURGE POST"
+									: "DELETE POST"}
 							</NeoButton>
 						</View>
 					</MobileSheet>
@@ -1053,7 +1059,9 @@ export default function PostDetailScreen() {
 						description={`Are you sure you want to permanently delete "${post.title}"? This action cannot be undone.`}
 						actions={[
 							{
-								label: isAdminModAction ? "Purge Permanently" : "Delete Permanently",
+								label: isAdminModAction
+									? "Purge Permanently"
+									: "Delete Permanently",
 								onPress: handleConfirmDelete,
 								variant: "destructive",
 								loading: isDeleting,

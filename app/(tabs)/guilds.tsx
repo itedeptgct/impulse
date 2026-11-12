@@ -99,7 +99,8 @@ export default function GuildsScreen() {
 							HOUSE MOD STATUS ACTIVE - ALIGNMENT LOCKED
 						</Text>
 						<Text className="font-mono text-2xs text-foreground/80 uppercase">
-							House affiliation is locked while serving as House Moderator.
+							House affiliation is locked while serving as House
+							Moderator.
 						</Text>
 					</View>
 				</View>
@@ -227,7 +228,11 @@ export default function GuildsScreen() {
 							className="border-2 border-destructive bg-destructive/10"
 							textClassName="text-destructive font-mono"
 							startContent={
-								<Lock size={12} color="#ff2a00" strokeWidth={2.5} />
+								<Lock
+									size={12}
+									color="#ff2a00"
+									strokeWidth={2.5}
+								/>
 							}>
 							HOUSE MOD STATUS ACTIVE - ALIGNMENT LOCKED
 						</NeoBadge>
@@ -238,7 +243,9 @@ export default function GuildsScreen() {
 					accessibilityRole="button"
 					accessibilityLabel={`${guild.actionLabel} for ${guild.name}`}
 					onPress={() => handleJoinGuild(guild)}
-					disabled={isUpdating || isPending || (isSwitchLocked && !isMember)}
+					disabled={
+						isUpdating || isPending || (isSwitchLocked && !isMember)
+					}
 					className={`min-h-12 flex-row items-center justify-between border-2 border-border px-4 py-3 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 ${
 						isPending || (isSwitchLocked && !isMember)
 							? "border-border/50 bg-secondary"

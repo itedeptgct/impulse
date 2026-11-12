@@ -1,5 +1,3 @@
-import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
-import { canManagePost } from "@/features/auth/permissions";
 import { useAuthStore } from "@auth/store";
 import { formatRelativeTime } from "@lib/date";
 import * as Haptics from "expo-haptics";
@@ -22,12 +20,10 @@ import {
 	NeoButton,
 	TerminalCodeViewport,
 } from "@/components/ui";
+import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
+import { canManagePost } from "@/features/auth/permissions";
 
-import {
-	deletePost,
-	normalizePostMedia,
-	normalizePostTags,
-} from "../api";
+import { deletePost, normalizePostMedia, normalizePostTags } from "../api";
 import type { Post } from "../types";
 import { sharePost } from "../utils/share";
 import { PostComposerModal } from "./PostComposerModal";

@@ -1,5 +1,3 @@
-import React from "react";
-import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import {
 	Award,
 	Building2,
@@ -7,6 +5,8 @@ import {
 	Shield,
 	ShieldCheck,
 } from "lucide-react-native";
+import React from "react";
+import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import {
 	NeoBadge,

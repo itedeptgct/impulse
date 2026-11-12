@@ -32,23 +32,23 @@
 - [x] Post editing and deletion
 - [x] Voting
 - [x] Comments and replies
-- [x] Empty states for every feed/filter combination *(Completed: All, Global, individual houses, Events Only)*
+- [x] Empty states for every feed/filter combination _(Completed: All, Global, individual houses, Events Only)_
 - [ ] Visible network failure state with retry
-- [x] Prevent duplicate submissions from repeated taps *(Completed: double-tap submit lock & loading state in composers)*
-- [x] Confirm destructive actions consistently *(Completed: standardized purge/delete confirmation across cards and details)*
-- [x] Validate maximum title, body, tag, image, and code sizes *(Completed: max 120 title, max 5000 body with live counters)*
+- [x] Prevent duplicate submissions from repeated taps _(Completed: double-tap submit lock & loading state in composers)_
+- [x] Confirm destructive actions consistently _(Completed: standardized purge/delete confirmation across cards and details)_
+- [x] Validate maximum title, body, tag, image, and code sizes _(Completed: max 120 title, max 5000 body with live counters)_
 - [ ] Decide whether users can delete or edit their own comments
 - [ ] Add reporting for posts/comments
 - [ ] Add moderation handling for reported content
 
 #### Sharing
 
-- [x] Replace the “SHARING IS COMING SOON” sheet in `PostCard` *(Completed: native `Share.share`)*
-- [x] Replace the same placeholder in `app/post/[id].tsx` *(Completed: native `Share.share`)*
-- [x] Generate stable post URLs *(Completed: `impulse://post/<id>`)*
-- [x] Share post title, author, and URL using the native share sheet *(Completed: `generatePostSharePayload`)*
-- [x] Support `impulse://post/<id>` deep links *(Completed: `scheme: "impulse"` configured in `app.json`)*
-- [x] Open shared links directly to `/post/[id]` *(Completed: Expo Router route mapping)*
+- [x] Replace the “SHARING IS COMING SOON” sheet in `PostCard` _(Completed: native `Share.share`)_
+- [x] Replace the same placeholder in `app/post/[id].tsx` _(Completed: native `Share.share`)_
+- [x] Generate stable post URLs _(Completed: `impulse://post/<id>`)_
+- [x] Share post title, author, and URL using the native share sheet _(Completed: `generatePostSharePayload`)_
+- [x] Support `impulse://post/<id>` deep links _(Completed: `scheme: "impulse"` configured in `app.json`)_
+- [x] Open shared links directly to `/post/[id]` _(Completed: Expo Router route mapping)_
 - [ ] Handle deleted, private, or inaccessible posts gracefully
 - [ ] Add HTTPS universal links/app links before store release
 - [ ] Decide whether external sharing is allowed for house-only posts
@@ -110,7 +110,7 @@ The current Messages tab is explicitly a placeholder, so it cannot ship as a fun
 - [ ] Back navigation from every detail screen
 - [ ] Correct deep-link behavior when unauthenticated
 - [ ] Preserve or restore scroll position where useful
-- [x] Prevent tab swipe/navigation conflicts with horizontal carousels *(Completed: `.cancelsTouchesInView(false)` & tuned gesture offsets)*
+- [x] Prevent tab swipe/navigation conflicts with horizontal carousels _(Completed: `.cancelsTouchesInView(false)` & tuned gesture offsets)_
 
 #### Media
 
@@ -141,8 +141,8 @@ The current Messages tab is explicitly a placeholder, so it cannot ship as a fun
 
 #### Accessibility and mobile UX
 
-- [x] Accessibility labels for every icon-only action *(Completed: all buttons, vote, share, comment, tabs)*
-- [x] Screen-reader labels for vote/share/comment controls *(Completed: explicit accessibilityLabel & roles)*
+- [x] Accessibility labels for every icon-only action _(Completed: all buttons, vote, share, comment, tabs)_
+- [x] Screen-reader labels for vote/share/comment controls _(Completed: explicit accessibilityLabel & roles)_
 - [ ] Sufficient color contrast
 - [ ] Dynamic text-size testing
 - [ ] Keyboard avoidance on all forms and comments
@@ -150,23 +150,23 @@ The current Messages tab is explicitly a placeholder, so it cannot ship as a fun
 - [ ] Android back-button behavior
 - [ ] Haptic feedback should never block actions
 - [ ] Touch targets at least approximately 44×44 points
-- [x] Confirm destructive actions with clear wording *(Completed: Neo-Brutalist confirmation sheets)*
+- [x] Confirm destructive actions with clear wording _(Completed: Neo-Brutalist confirmation sheets)_
 - [ ] Avoid text clipping on small screens
 - [ ] Test landscape behavior or explicitly lock portrait
 
 #### Security and data correctness
 
 - [ ] Review every Supabase table’s RLS policies
-- [x] Test access as anonymous, normal user, house member, and admin *(Completed: `tests/permissions.test.ts` covers 4 roles)*
+- [x] Test access as anonymous, normal user, house member, and admin _(Completed: `tests/permissions.test.ts` covers 4 roles)_
 - [ ] Verify users cannot read private-house content from direct queries
-- [x] Verify users cannot modify another user’s posts, profiles, votes, or media *(Completed: `canManagePost` check)*
+- [x] Verify users cannot modify another user’s posts, profiles, votes, or media _(Completed: `canManagePost` check)_
 - [ ] Verify notification recipient isolation
 - [ ] Verify conversation membership isolation
 - [ ] Add missing comment update/delete policies or explicitly forbid those operations
 - [ ] Avoid exposing unnecessary email fields in public queries
-- [x] Validate all user-controlled text and metadata *(Completed: character limits on post and dispatch inputs)*
+- [x] Validate all user-controlled text and metadata _(Completed: character limits on post and dispatch inputs)_
 - [ ] Rate limits or abuse controls for posts, comments, votes, and messages
-- [x] Review admin-only routes and admin API calls *(Completed: `/admin` strictly gated for admin role only)*
+- [x] Review admin-only routes and admin API calls _(Completed: `/admin` strictly gated for admin role only)_
 - [ ] Ensure service-role credentials never ship in the app
 - [ ] Test storage path traversal and ownership rules
 - [ ] Add database indexes for notifications, messages, comments, and conversations
@@ -175,16 +175,16 @@ The current Messages tab is explicitly a placeholder, so it cannot ship as a fun
 #### Testing
 
 - [x] At least one existing unit test
-- [x] Run `npx tsc --noEmit` *(Completed: clean 0 errors)*
-- [x] Run `npx expo lint` (`oxlint`) *(Completed: 0 errors, 0 warnings)*
+- [x] Run `npx tsc --noEmit` _(Completed: clean 0 errors)_
+- [x] Run `npx expo lint` (`oxlint`) _(Completed: 0 errors, 0 warnings)_
 - [ ] Run formatting checks
 - [ ] Add tests for authentication validation
-- [x] Add tests for feed filtering and sorting *(Completed: `tests/dispatch.test.ts`)*
+- [x] Add tests for feed filtering and sorting _(Completed: `tests/dispatch.test.ts`)_
 - [ ] Add tests for comment tree behavior
 - [ ] Add tests for vote toggling
 - [ ] Add tests for notification unread/read behavior
-- [x] Add tests for share URL generation *(Completed: `tests/sharing.test.ts`)*
-- [x] Add tests for deep-link routing *(Completed: `tests/sharing.test.ts`)*
+- [x] Add tests for share URL generation _(Completed: `tests/sharing.test.ts`)_
+- [x] Add tests for deep-link routing _(Completed: `tests/sharing.test.ts`)_
 - [ ] Add database/RLS tests
 - [ ] Add happy-path smoke tests for:
   - [ ] Sign up

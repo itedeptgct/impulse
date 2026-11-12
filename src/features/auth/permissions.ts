@@ -1,4 +1,5 @@
 import type { GuildId } from "@/features/guilds/types";
+
 import type { UserRole } from "./types";
 
 export function canManagePost(
@@ -28,6 +29,8 @@ export function canCreateDispatch(
 	return false;
 }
 
-export function canSwitchGuild(userRole?: UserRole | (string & {}) | null): boolean {
+export function canSwitchGuild(
+	userRole?: UserRole | (string & {}) | null,
+): boolean {
 	return userRole !== "house_mod";
 }
