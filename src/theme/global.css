@@ -1,0 +1,237 @@
+@import "tailwindcss";
+@import "uniwind";
+
+@import "panelui-native/theme.css";
+
+@source '../../app';
+@source '../../src';
+@source '../../node_modules/panelui-native/src';
+
+:root {
+	--radius: 0px;
+
+	@variant ios {
+		--font-display: Anton_400Regular;
+		--font-sans: CourierPrime_400Regular;
+		--font-mono: CourierPrime_400Regular;
+	}
+	@variant android {
+		--font-display: Anton_400Regular;
+		--font-sans: CourierPrime_400Regular;
+		--font-mono: CourierPrime_400Regular;
+	}
+	--font-display: Anton_400Regular;
+	--font-sans: CourierPrime_400Regular;
+	--font-mono: CourierPrime_400Regular;
+	--font-normal: CourierPrime_400Regular;
+	--font-medium: CourierPrime_700Bold;
+	--font-semibold: CourierPrime_700Bold;
+	--font-bold: CourierPrime_700Bold;
+}
+
+@theme inline {
+	--font-display: var(--font-display);
+	--font-sans: var(--font-sans);
+	--font-mono: var(--font-mono);
+	--font-normal: var(--font-normal);
+	--font-medium: var(--font-medium);
+	--font-semibold: var(--font-semibold);
+	--font-bold: var(--font-bold);
+
+	--color-neo-bg: #faf9f5;
+	--color-neo-surface: #f4f4f0;
+	--color-neo-surface-raised: #ffffff;
+	--color-neo-surface-active: #eeeeea;
+	--color-neo-accent: #ff2a00;
+	--color-neo-accent-dim: rgba(255, 42, 0, 0.12);
+	--color-neo-green: #00ff66;
+	--color-neo-green-dark: #008033;
+	--color-neo-magenta: #ff007a;
+	--color-neo-cyan: #00e5ff;
+	--color-neo-border: #000000;
+	--color-neo-border-bold: #000000;
+	--color-neo-text: #000000;
+	--color-neo-muted: #4c4546;
+	--color-inverse-surface: #2f312e;
+	--color-inverse-on-surface: #f1f1ed;
+	--color-inverse-primary: #c6c6c6;
+	--color-primary-container: #1b1b1b;
+	--color-on-primary-container: #848484;
+	--text-2xs: 0.5625rem;
+	--text-3xs: 0.5rem;
+
+	--shadow-neo-sm: 2px 2px 0px #000000;
+	--shadow-neo: 4px 4px 0px #000000;
+	--shadow-neo-lg: 6px 6px 0px #000000;
+	--shadow-neo-xs: 1px 1px 0px #000000;
+	--shadow-neo-header: 0px 2px 0px #000000;
+	--shadow-neo-top: 0px -4px 0px #000000;
+	--shadow-neo-top-sm: 0px -3px 0px #000000;
+}
+
+@layer theme {
+	:root {
+		--color-background: #faf9f5;
+		--color-foreground: #000000;
+		--color-card: #f4f4f0;
+		--color-card-foreground: #000000;
+		--color-popover: #ffffff;
+		--color-popover-foreground: #000000;
+		--color-overlay: #ffffff;
+		--color-overlay-foreground: #000000;
+		--color-inset: #eeeeea;
+		--color-primary: #000000;
+		--color-primary-foreground: #faf9f5;
+		--color-secondary: #eeeeea;
+		--color-secondary-foreground: #000000;
+		--color-muted: #f4f4f0;
+		--color-muted-foreground: #4c4546;
+		--color-accent: #ff2a00;
+		--color-accent-foreground: #faf9f5;
+		--color-destructive: #ff2a00;
+		--color-destructive-foreground: #faf9f5;
+		--color-destructive-solid-foreground: #faf9f5;
+		--color-info: #000000;
+		--color-info-foreground: #000000;
+		--color-info-solid-foreground: #faf9f5;
+		--color-success: #000000;
+		--color-success-foreground: #000000;
+		--color-success-solid-foreground: #faf9f5;
+		--color-warning: #ff2a00;
+		--color-warning-foreground: #ff2a00;
+		--color-warning-solid-foreground: #faf9f5;
+		--color-border: #000000;
+		--color-input: #f4f4f0;
+		--color-ring: #000000;
+		--color-surface: #ffffff;
+		--color-surface-secondary: #f4f4f0;
+		--color-surface-tertiary: #eeeeea;
+		--color-inverse-surface: #2f312e;
+		--color-inverse-on-surface: #f1f1ed;
+		--color-inverse-primary: #c6c6c6;
+		--color-primary-container: #1b1b1b;
+		--color-on-primary-container: #848484;
+		--color-skeleton: rgba(0, 0, 0, 0.08);
+
+		--color-info-soft: rgba(0, 0, 0, 0.06);
+		--color-info-subtle: rgba(0, 0, 0, 0.03);
+		--color-success-soft: rgba(0, 0, 0, 0.06);
+		--color-success-subtle: rgba(0, 0, 0, 0.03);
+		--color-warning-soft: rgba(255, 42, 0, 0.12);
+		--color-warning-subtle: rgba(255, 42, 0, 0.06);
+		--color-destructive-soft: rgba(255, 42, 0, 0.12);
+		--color-destructive-subtle: rgba(255, 42, 0, 0.06);
+
+		--radius-xs: 0px;
+		--radius-sm: 0px;
+		--radius-md: 0px;
+		--radius-lg: 0px;
+		--radius-xl: 0px;
+		--radius-2xl: 0px;
+		--radius-3xl: 0px;
+
+		@variant light {
+			--color-background: #faf9f5;
+			--color-foreground: #000000;
+			--color-card: #f4f4f0;
+			--color-card-foreground: #000000;
+			--color-popover: #ffffff;
+			--color-popover-foreground: #000000;
+			--color-overlay: #ffffff;
+			--color-overlay-foreground: #000000;
+			--color-inset: #eeeeea;
+			--color-primary: #000000;
+			--color-primary-foreground: #faf9f5;
+			--color-secondary: #eeeeea;
+			--color-secondary-foreground: #000000;
+			--color-muted: #f4f4f0;
+			--color-muted-foreground: #4c4546;
+			--color-accent: #ff2a00;
+			--color-accent-foreground: #faf9f5;
+			--color-destructive: #ff2a00;
+			--color-destructive-foreground: #faf9f5;
+			--color-destructive-solid-foreground: #faf9f5;
+			--color-info: #000000;
+			--color-info-foreground: #000000;
+			--color-info-solid-foreground: #faf9f5;
+			--color-success: #000000;
+			--color-success-foreground: #000000;
+			--color-success-solid-foreground: #faf9f5;
+			--color-warning: #ff2a00;
+			--color-warning-foreground: #ff2a00;
+			--color-warning-solid-foreground: #faf9f5;
+			--color-border: #000000;
+			--color-input: #f4f4f0;
+			--color-ring: #000000;
+			--color-surface: #ffffff;
+			--color-surface-secondary: #f4f4f0;
+			--color-surface-tertiary: #eeeeea;
+			--color-inverse-surface: #2f312e;
+			--color-inverse-on-surface: #f1f1ed;
+			--color-inverse-primary: #c6c6c6;
+			--color-primary-container: #1b1b1b;
+			--color-on-primary-container: #848484;
+			--color-skeleton: rgba(0, 0, 0, 0.08);
+
+			--radius-xs: 0px;
+			--radius-sm: 0px;
+			--radius-md: 0px;
+			--radius-lg: 0px;
+			--radius-xl: 0px;
+			--radius-2xl: 0px;
+			--radius-3xl: 0px;
+		}
+
+		@variant dark {
+			--color-background: #faf9f5;
+			--color-foreground: #000000;
+			--color-card: #f4f4f0;
+			--color-card-foreground: #000000;
+			--color-popover: #ffffff;
+			--color-popover-foreground: #000000;
+			--color-overlay: #ffffff;
+			--color-overlay-foreground: #000000;
+			--color-inset: #eeeeea;
+			--color-primary: #000000;
+			--color-primary-foreground: #faf9f5;
+			--color-secondary: #eeeeea;
+			--color-secondary-foreground: #000000;
+			--color-muted: #f4f4f0;
+			--color-muted-foreground: #4c4546;
+			--color-accent: #ff2a00;
+			--color-accent-foreground: #faf9f5;
+			--color-destructive: #ff2a00;
+			--color-destructive-foreground: #faf9f5;
+			--color-destructive-solid-foreground: #faf9f5;
+			--color-info: #000000;
+			--color-info-foreground: #000000;
+			--color-info-solid-foreground: #faf9f5;
+			--color-success: #000000;
+			--color-success-foreground: #000000;
+			--color-success-solid-foreground: #faf9f5;
+			--color-warning: #ff2a00;
+			--color-warning-foreground: #ff2a00;
+			--color-warning-solid-foreground: #faf9f5;
+			--color-border: #000000;
+			--color-input: #f4f4f0;
+			--color-ring: #000000;
+			--color-surface: #ffffff;
+			--color-surface-secondary: #f4f4f0;
+			--color-surface-tertiary: #eeeeea;
+			--color-inverse-surface: #2f312e;
+			--color-inverse-on-surface: #f1f1ed;
+			--color-inverse-primary: #c6c6c6;
+			--color-primary-container: #1b1b1b;
+			--color-on-primary-container: #848484;
+			--color-skeleton: rgba(0, 0, 0, 0.08);
+
+			--radius-xs: 0px;
+			--radius-sm: 0px;
+			--radius-md: 0px;
+			--radius-lg: 0px;
+			--radius-xl: 0px;
+			--radius-2xl: 0px;
+			--radius-3xl: 0px;
+		}
+	}
+}
