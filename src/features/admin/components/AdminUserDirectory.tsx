@@ -1,17 +1,20 @@
 import type { UserRole } from "@auth/types";
 import { Image as ExpoImage } from "expo-image";
 import {
+	AlertTriangle,
+	Award,
 	CheckCircle2,
 	Clock,
 	GraduationCap,
 	RefreshCw,
 	Search,
+	Shield,
 	ShieldCheck,
 	User,
 	XCircle,
 } from "lucide-react-native";
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
 import {
 	MobileAlertSheet,
@@ -23,6 +26,37 @@ import {
 
 import { useAdminUsers, useUpdateUserRole } from "../hooks/useAdmin";
 import type { AdminUserItem } from "../types";
+
+const ROLE_TABS = [
+	{ key: "all", label: "All Roles" },
+	{ key: "admin", label: "Admins" },
+	{ key: "mod", label: "Mods" },
+	{ key: "house_mod", label: "House Mods" },
+	{ key: "user", label: "Users" },
+] as const;
+
+const ROLE_OPTIONS: { role: UserRole; label: string; desc: string }[] = [
+	{
+		role: "user",
+		label: "User",
+		desc: "Standard student access",
+	},
+	{
+		role: "house_mod",
+		label: "House Mod",
+		desc: "Moderate own house & post house dispatches",
+	},
+	{
+		role: "mod",
+		label: "Mod",
+		desc: "Campus-wide moderation & global dispatches",
+	},
+	{
+		role: "admin",
+		label: "Admin",
+		desc: "Full administrator privileges & verification desk",
+	},
+];
 
 export function AdminUserDirectory() {
 	const [search, setSearch] = useState("");
@@ -41,21 +75,114 @@ export function AdminUserDirectory() {
 	);
 	const [newRole, setNewRole] = useState<UserRole>("user");
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+	const [roleError, setRoleError] = useState<string | null>(null);
 
-	const handleOpenRoleDialog = (u: AdminUserItem, targetRole: UserRole) => {
+	const handleOpenRoleDialog = (u: AdminUserItem) => {
 		setSelectedUser(u);
-		setNewRole(targetRole);
+		setNewRole(u.role);
+		setRoleError(null);
 		setIsConfirmOpen(true);
 	};
 
+	const isHouseModWithoutGuild =
+		newRole === "house_mod" && !selectedUser?.guild;
+
 	const handleConfirmRoleChange = async () => {
 		if (!selectedUser) return;
-		await updateRoleMutation.mutateAsync({
-			userId: selectedUser.id,
-			role: newRole,
-		});
-		setIsConfirmOpen(false);
-		setSelectedUser(null);
+
+		if (newRole === "house_mod" && !selectedUser.guild) {
+			setRoleError(
+				"User must be aligned with a House before being assigned as House Mod.",
+			);
+			return;
+		}
+
+		if (newRole === selectedUser.role) {
+			setIsConfirmOpen(false);
+			setSelectedUser(null);
+			return;
+		}
+
+		try {
+			await updateRoleMutation.mutateAsync({
+				userId: selectedUser.id,
+				role: newRole,
+			});
+			setIsConfirmOpen(false);
+			setSelectedUser(null);
+		} catch (err: any) {
+			setRoleError(
+				err?.message || "Failed to update user role. Please try again.",
+			);
+		}
+	};
+
+	const renderRoleBadge = (role: UserRole) => {
+		switch (role) {
+			case "admin":
+				return (
+					<NeoBadge
+						variant="primary"
+						size="sm"
+						startContent={
+							<ShieldCheck
+								size={10}
+								color="#ffffff"
+								strokeWidth={2.5}
+							/>
+						}>
+						ADMIN
+					</NeoBadge>
+				);
+			case "mod":
+				return (
+					<NeoBadge
+						variant="primary"
+						size="sm"
+						className="border-2 border-border bg-[#8b5cf6]"
+						startContent={
+							<Shield
+								size={10}
+								color="#ffffff"
+								strokeWidth={2.5}
+							/>
+						}>
+						MOD
+					</NeoBadge>
+				);
+			case "house_mod":
+				return (
+					<NeoBadge
+						variant="default"
+						size="sm"
+						className="border-2 border-border bg-amber-400"
+						startContent={
+							<Award
+								size={10}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						}>
+						HOUSE MOD
+					</NeoBadge>
+				);
+			case "user":
+			default:
+				return (
+					<NeoBadge
+						variant="default"
+						size="sm"
+						startContent={
+							<GraduationCap
+								size={10}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						}>
+						USER
+					</NeoBadge>
+				);
+		}
 	};
 
 	return (
@@ -75,13 +202,7 @@ export function AdminUserDirectory() {
 					showsHorizontalScrollIndicator={false}
 					contentContainerStyle={{ gap: 6 }}
 					className="flex-1">
-					{(
-						[
-							{ key: "all", label: "All Roles" },
-							{ key: "admin", label: "Admins" },
-							{ key: "user", label: "Students" },
-						] as const
-					).map((tab) => {
+					{ROLE_TABS.map((tab) => {
 						const isActive = roleFilter === tab.key;
 						return (
 							<NeoButton
@@ -131,7 +252,6 @@ export function AdminUserDirectory() {
 			) : (
 				<View className="gap-3">
 					{users.map((u) => {
-						const isUserAdmin = u.role === "admin";
 						const verifStatus = u.verification?.status || "none";
 
 						return (
@@ -165,36 +285,13 @@ export function AdminUserDirectory() {
 												{u.username ||
 													"Anonymous Student"}
 											</Text>
-											{isUserAdmin ? (
-												<NeoBadge
-													variant="primary"
-													size="sm"
-													startContent={
-														<ShieldCheck
-															size={10}
-															color="#ffffff"
-															strokeWidth={2.5}
-														/>
-													}>
-													ADMIN
-												</NeoBadge>
-											) : (
-												<NeoBadge
-													variant="default"
-													size="sm"
-													startContent={
-														<GraduationCap
-															size={10}
-															color="#000000"
-															strokeWidth={2.5}
-														/>
-													}>
-													STUDENT
-												</NeoBadge>
-											)}
+											{renderRoleBadge(u.role)}
 										</View>
 										<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
 											{u.email}
+											{u.guild
+												? ` • House: ${u.guild.toUpperCase()}`
+												: ""}
 										</Text>
 									</View>
 								</View>
@@ -252,32 +349,19 @@ export function AdminUserDirectory() {
 										)}
 									</View>
 
-									{isUserAdmin &&
-									u.username !== "hausmaster" ? (
-										<NeoButton
-											size="sm"
-											variant="outline"
-											disabled={
-												verifStatus === "pending" ||
-												u.username === "hausmaster"
-											}
-											onPress={() =>
-												handleOpenRoleDialog(u, "user")
-											}>
-											Demote to Student
-										</NeoButton>
+									{u.username === "hausmaster" ? (
+										<Text className="font-mono text-xs text-muted-foreground">
+											Default Admin
+										</Text>
 									) : (
 										<NeoButton
 											size="sm"
 											variant="outline"
-											disabled={
-												verifStatus === "pending" ||
-												u.username === "hausmaster"
-											}
+											disabled={verifStatus === "pending"}
 											onPress={() =>
-												handleOpenRoleDialog(u, "admin")
+												handleOpenRoleDialog(u)
 											}>
-											Promote to Admin
+											Change Role
 										</NeoButton>
 									)}
 								</View>
@@ -289,25 +373,95 @@ export function AdminUserDirectory() {
 
 			<MobileAlertSheet
 				open={isConfirmOpen}
-				onOpenChange={setIsConfirmOpen}
+				onOpenChange={(open) => {
+					setIsConfirmOpen(open);
+					if (!open) {
+						setSelectedUser(null);
+						setRoleError(null);
+					}
+				}}
 				title="Change User Role"
-				type={newRole === "admin" ? "info" : "warning"}
-				description={`Are you sure you want to change ${selectedUser?.username || "this user"}'s role to ${newRole.toUpperCase()}?`}
+				type="info"
+				description={`Select access level for @${selectedUser?.username || "user"}.`}
 				actions={[
 					{
-						label: `Confirm ${newRole === "admin" ? "Promotion" : "Demotion"}`,
+						label: updateRoleMutation.isPending
+							? "Updating..."
+							: "Save Role Change",
 						onPress: handleConfirmRoleChange,
-						variant:
-							newRole === "admin" ? "primary" : "destructive",
+						variant: isHouseModWithoutGuild ? "outline" : "primary",
 						loading: updateRoleMutation.isPending,
 					},
 					{
 						label: "Cancel",
-						onPress: () => setIsConfirmOpen(false),
+						onPress: () => {
+							setIsConfirmOpen(false);
+							setSelectedUser(null);
+							setRoleError(null);
+						},
 						variant: "outline",
 					},
-				]}
-			/>
+				]}>
+				<View className="gap-2">
+					{ROLE_OPTIONS.map((opt) => {
+						const isSelected = newRole === opt.role;
+						return (
+							<Pressable
+								key={opt.role}
+								accessibilityRole="button"
+								accessibilityLabel={`Select role ${opt.label}`}
+								onPress={() => {
+									setNewRole(opt.role);
+									if (
+										opt.role === "house_mod" &&
+										!selectedUser?.guild
+									) {
+										setRoleError(
+											"User must be aligned with a House before being assigned as House Mod.",
+										);
+									} else {
+										setRoleError(null);
+									}
+								}}
+								className={`flex-row items-center justify-between border-2 p-3 ${
+									isSelected
+										? "border-primary bg-primary/10 shadow-neo-xs"
+										: "border-border bg-card"
+								}`}>
+								<View className="flex-1 pr-2">
+									<Text className="font-bold text-sm text-foreground">
+										{opt.label}
+									</Text>
+									<Text className="font-mono text-2xs text-muted-foreground">
+										{opt.desc}
+									</Text>
+								</View>
+								{isSelected && (
+									<CheckCircle2
+										size={16}
+										color="#000000"
+										strokeWidth={2.5}
+									/>
+								)}
+							</Pressable>
+						);
+					})}
+
+					{(isHouseModWithoutGuild || roleError) && (
+						<View className="mt-1 flex-row items-center gap-2 border-2 border-destructive bg-destructive/10 p-2.5">
+							<AlertTriangle
+								size={16}
+								color="#ff2a00"
+								strokeWidth={2.5}
+							/>
+							<Text className="flex-1 font-mono text-xs text-destructive">
+								{roleError ||
+									"User must be aligned with a House before being assigned as House Mod."}
+							</Text>
+						</View>
+					)}
+				</View>
+			</MobileAlertSheet>
 		</View>
 	);
 }

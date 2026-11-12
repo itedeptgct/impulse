@@ -225,6 +225,21 @@ export async function updateUserRole(
 	userId: string,
 	newRole: UserRole,
 ): Promise<void> {
+	if (newRole === "house_mod") {
+		const { data: profile, error: profErr } = await supabase
+			.from("profiles")
+			.select("guild")
+			.eq("id", userId)
+			.single();
+
+		if (profErr) throw profErr;
+		if (!profile?.guild) {
+			throw new Error(
+				"User must be aligned with a House before being assigned as House Mod.",
+			);
+		}
+	}
+
 	const { error } = await supabase
 		.from("profiles")
 		.update({

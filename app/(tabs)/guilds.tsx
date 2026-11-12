@@ -14,8 +14,9 @@ import {
 	View,
 } from "react-native";
 
-import { MobileAlertSheet, MobileTopBar } from "@/components/ui";
+import { MobileAlertSheet, MobileTopBar, NeoBadge } from "@/components/ui";
 import { updateUserProfile } from "@/features/auth/api";
+import { canSwitchGuild } from "@/features/auth/permissions";
 import { GUILD_LIST } from "@/features/guilds/constants";
 import type { GuildInfo } from "@/features/guilds/types";
 
@@ -36,6 +37,7 @@ export default function GuildsScreen() {
 	);
 	const [errorAlert, setErrorAlert] = useState<string | null>(null);
 
+	const isSwitchLocked = !canSwitchGuild(profile?.role);
 	const isPending =
 		profile?.role !== "admin" &&
 		(verification?.status === "pending" || !verification);
@@ -44,15 +46,22 @@ export default function GuildsScreen() {
 		if (!user?.id) return;
 		triggerHaptic();
 
-		if (isPending) {
+		if (profile?.guild === guild.id) {
+			router.push(`/(tabs)?guild=${guild.id}` as any);
+			return;
+		}
+
+		if (isSwitchLocked) {
 			setErrorAlert(
-				"House affiliation restricted: Your student identification is currently pending verification. House selection will be unlocked once your account is approved by an administrator.",
+				"House Mod status active: House alignment is locked. Contact administration to change your assigned house.",
 			);
 			return;
 		}
 
-		if (profile?.guild === guild.id) {
-			router.push(`/(tabs)?guild=${guild.id}` as any);
+		if (isPending) {
+			setErrorAlert(
+				"House affiliation restricted: Your student identification is currently pending verification. House selection will be unlocked once your account is approved by an administrator.",
+			);
 			return;
 		}
 
@@ -81,6 +90,20 @@ export default function GuildsScreen() {
 				SELECT YOUR DOMAIN. GET AFFILIATED. ACCESS HOUSE-ENCRYPTED
 				CHANNELS AND DISPATCHES.
 			</Text>
+
+			{isSwitchLocked && (
+				<View className="mt-3.5 flex-row items-center gap-2.5 border-2 border-border bg-destructive/10 p-3 shadow-neo-xs">
+					<Lock size={16} color="#ff2a00" strokeWidth={2.2} />
+					<View className="flex-1">
+						<Text className="font-bold text-xs tracking-wider text-destructive uppercase">
+							HOUSE MOD STATUS ACTIVE - ALIGNMENT LOCKED
+						</Text>
+						<Text className="font-mono text-2xs text-foreground/80 uppercase">
+							House affiliation is locked while serving as House Moderator.
+						</Text>
+					</View>
+				</View>
+			)}
 
 			{isPending && (
 				<View className="mt-3.5 flex-row items-center gap-2.5 border-2 border-border bg-amber-400/20 p-3 shadow-neo-xs">
@@ -196,13 +219,28 @@ export default function GuildsScreen() {
 					</View>
 				</View>
 
+				{isSwitchLocked && !isMember && (
+					<View className="mb-3 self-start">
+						<NeoBadge
+							variant="outline"
+							size="sm"
+							className="border-2 border-destructive bg-destructive/10"
+							textClassName="text-destructive font-mono"
+							startContent={
+								<Lock size={12} color="#ff2a00" strokeWidth={2.5} />
+							}>
+							HOUSE MOD STATUS ACTIVE - ALIGNMENT LOCKED
+						</NeoBadge>
+					</View>
+				)}
+
 				<Pressable
 					accessibilityRole="button"
 					accessibilityLabel={`${guild.actionLabel} for ${guild.name}`}
 					onPress={() => handleJoinGuild(guild)}
-					disabled={isUpdating || isPending}
+					disabled={isUpdating || isPending || (isSwitchLocked && !isMember)}
 					className={`min-h-12 flex-row items-center justify-between border-2 border-border px-4 py-3 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 ${
-						isPending
+						isPending || (isSwitchLocked && !isMember)
 							? "border-border/50 bg-secondary"
 							: "bg-primary"
 					}`}>
@@ -213,6 +251,13 @@ export default function GuildsScreen() {
 							<Lock size={15} color="#000000" strokeWidth={2.2} />
 							<Text className="font-bold text-xs tracking-widest text-foreground uppercase">
 								[ LOCKED // VERIFICATION PENDING ]
+							</Text>
+						</View>
+					) : isSwitchLocked && !isMember ? (
+						<View className="flex-row items-center gap-2">
+							<Lock size={15} color="#ff2a00" strokeWidth={2.2} />
+							<Text className="font-bold text-xs tracking-widest text-destructive uppercase">
+								[ LOCKED // HOUSE MOD STATUS ACTIVE ]
 							</Text>
 						</View>
 					) : (
