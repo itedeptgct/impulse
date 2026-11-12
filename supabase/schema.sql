@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     username TEXT UNIQUE NOT NULL,
     display_name TEXT NOT NULL,
     email TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'house_mod', 'mod', 'admin')),
     guild TEXT CHECK (guild IN ('octagram', 'chameleon', 'blue_jays')),
     course TEXT CHECK (course IN ('BSIT', 'BSCS')),
     year_level INT CHECK (year_level BETWEEN 1 AND 4),
@@ -112,6 +112,9 @@ CREATE TABLE IF NOT EXISTS public.posts (
     code_language TEXT,
     image_url TEXT,
     tags TEXT[] DEFAULT ARRAY[]::TEXT[] NOT NULL,
+    post_type TEXT NOT NULL DEFAULT 'post' CHECK (post_type IN ('post', 'dispatch')),
+    event_date TEXT,
+    event_location TEXT,
     upvotes_count INT NOT NULL DEFAULT 0,
     downvotes_count INT NOT NULL DEFAULT 0,
     comments_count INT NOT NULL DEFAULT 0,
@@ -119,6 +122,9 @@ CREATE TABLE IF NOT EXISTS public.posts (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_posts_dispatch
+    ON public.posts (post_type, guild, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_posts_feed_created_at
     ON public.posts (visibility, guild, created_at DESC);

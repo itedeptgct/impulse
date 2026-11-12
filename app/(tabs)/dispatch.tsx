@@ -76,7 +76,24 @@ export default function DispatchScreen() {
 				}
 			} catch {}
 
-			const merged = [...cachedPosts, ...feedResult.items];
+			const cachedMap = new Map<string, Post>();
+			for (const cp of cachedPosts) {
+				cachedMap.set(cp.id, cp);
+			}
+
+			const merged = [
+				...cachedPosts,
+				...feedResult.items.map((remote) => {
+					const local = cachedMap.get(remote.id);
+					return {
+						...remote,
+						post_type: remote.post_type || local?.post_type,
+						event_date: remote.event_date || local?.event_date,
+						event_location:
+							remote.event_location || local?.event_location,
+					};
+				}),
+			];
 			const seenIds = new Set<string>();
 			const dispatches: Post[] = [];
 
@@ -174,9 +191,7 @@ export default function DispatchScreen() {
 		| "octagram"
 		| "chameleon"
 		| "blue_jays" =
-		selectedFilter === "my_house"
-			? (userGuild ?? "all")
-			: selectedFilter;
+		selectedFilter === "my_house" ? (userGuild ?? "all") : selectedFilter;
 
 	const filteredPosts = filterDispatches(posts, mappedFilter, eventsOnly);
 
@@ -258,14 +273,14 @@ export default function DispatchScreen() {
 
 		return (
 			<View className="my-8 items-center border-2 border-border bg-surface p-6 text-center shadow-neo">
-				<View className="mb-3.5 size-12 items-center justify-center border-2 border-border bg-neo-yellow shadow-neo-xs">
+				<View className="bg-neo-yellow mb-3.5 size-12 items-center justify-center border-2 border-border shadow-neo-xs">
 					{eventsOnly ? (
 						<Calendar size={22} color="#000000" strokeWidth={2.4} />
 					) : (
 						<Radio size={22} color="#000000" strokeWidth={2.4} />
 					)}
 				</View>
-				<Text className="mb-2 text-center font-display text-base tracking-tight uppercase text-foreground">
+				<Text className="mb-2 text-center font-display text-base tracking-tight text-foreground uppercase">
 					{emptyState.title}
 				</Text>
 				<Text className="mb-4 text-center font-mono text-xs leading-relaxed text-foreground/70">
@@ -280,9 +295,9 @@ export default function DispatchScreen() {
 							triggerHaptic();
 							setIsComposerOpen(true);
 						}}
-						className="flex-row items-center gap-1.5 border-2 border-border bg-neo-yellow px-4 py-2.5 shadow-neo-xs active:translate-x-px active:translate-y-px">
+						className="bg-neo-yellow flex-row items-center gap-1.5 border-2 border-border px-4 py-2.5 shadow-neo-xs active:translate-x-px active:translate-y-px">
 						<Plus size={14} color="#000000" strokeWidth={2.8} />
-						<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
+						<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 							ISSUE FIRST DISPATCH
 						</Text>
 					</Pressable>
@@ -314,7 +329,7 @@ export default function DispatchScreen() {
 								: "bg-surface"
 						}`}>
 						<Text
-							className={`font-bold text-xs uppercase tracking-wider ${
+							className={`font-bold text-xs tracking-wider uppercase ${
 								selectedFilter === "all"
 									? "text-primary-foreground"
 									: "text-foreground"
@@ -337,7 +352,7 @@ export default function DispatchScreen() {
 								: "bg-surface"
 						}`}>
 						<Text
-							className={`font-bold text-xs uppercase tracking-wider ${
+							className={`font-bold text-xs tracking-wider uppercase ${
 								selectedFilter === "global"
 									? "text-primary-foreground"
 									: "text-foreground"
@@ -361,7 +376,7 @@ export default function DispatchScreen() {
 									: "bg-surface"
 							}`}>
 							<Text
-								className={`font-bold text-xs uppercase tracking-wider ${
+								className={`font-bold text-xs tracking-wider uppercase ${
 									selectedFilter === "my_house"
 										? "text-primary-foreground"
 										: "text-foreground"
@@ -385,7 +400,7 @@ export default function DispatchScreen() {
 								: "bg-surface"
 						}`}>
 						<Text
-							className={`font-bold text-xs uppercase tracking-wider ${
+							className={`font-bold text-xs tracking-wider uppercase ${
 								selectedFilter === "octagram"
 									? "text-primary-foreground"
 									: "text-foreground"
@@ -408,7 +423,7 @@ export default function DispatchScreen() {
 								: "bg-surface"
 						}`}>
 						<Text
-							className={`font-bold text-xs uppercase tracking-wider ${
+							className={`font-bold text-xs tracking-wider uppercase ${
 								selectedFilter === "chameleon"
 									? "text-primary-foreground"
 									: "text-foreground"
@@ -431,7 +446,7 @@ export default function DispatchScreen() {
 								: "bg-surface"
 						}`}>
 						<Text
-							className={`font-bold text-xs uppercase tracking-wider ${
+							className={`font-bold text-xs tracking-wider uppercase ${
 								selectedFilter === "blue_jays"
 									? "text-primary-foreground"
 									: "text-foreground"
@@ -452,12 +467,8 @@ export default function DispatchScreen() {
 						className={`flex-row items-center gap-1.5 border-2 border-border px-3 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
 							eventsOnly ? "bg-neo-yellow" : "bg-surface"
 						}`}>
-						<Calendar
-							size={13}
-							color="#000000"
-							strokeWidth={2.5}
-						/>
-						<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
+						<Calendar size={13} color="#000000" strokeWidth={2.5} />
+						<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 							EVENTS ONLY
 						</Text>
 					</Pressable>
@@ -469,10 +480,7 @@ export default function DispatchScreen() {
 	return (
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
-			<MobileTopBar
-				sector="DISPATCH"
-				dotColor="#FFE600"
-			/>
+			<MobileTopBar sector="DISPATCH" dotColor="#FFE600" />
 
 			{isLoading ? (
 				<View className="flex-1 items-center justify-center">
@@ -530,9 +538,9 @@ export default function DispatchScreen() {
 						triggerHaptic();
 						setIsComposerOpen(true);
 					}}
-					className="absolute bottom-6 right-4 z-20 flex-row items-center gap-1.5 border-2 border-border bg-neo-yellow px-4 py-3 shadow-neo active:translate-x-0.5 active:translate-y-0.5">
+					className="bg-neo-yellow absolute right-4 bottom-6 z-20 flex-row items-center gap-1.5 border-2 border-border px-4 py-3 shadow-neo active:translate-x-0.5 active:translate-y-0.5">
 					<Plus size={16} color="#000000" strokeWidth={3} />
-					<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
+					<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 						[DISPATCH]
 					</Text>
 				</Pressable>

@@ -244,6 +244,9 @@ async function fetchUserVotesForPosts(
 }
 
 const POST_PROJECTION =
+	"id, author_id, title, content, visibility, guild, code_snippet, code_language, image_url, tags, post_type, event_date, event_location, upvotes_count, downvotes_count, comments_count, is_edited, created_at, updated_at, author:author_id(id, username, display_name, avatar_url, email, role, guild)";
+
+const LEGACY_POST_PROJECTION =
 	"id, author_id, title, content, visibility, guild, code_snippet, code_language, image_url, tags, upvotes_count, downvotes_count, comments_count, is_edited, created_at, updated_at, author:author_id(id, username, display_name, avatar_url, email, role, guild)";
 
 export async function fetchFeedPosts(
@@ -292,7 +295,51 @@ export async function fetchFeedPosts(
 			query = query.range(offset, offset + limit);
 		}
 
-		const { data, error } = await query;
+		let { data, error } = await query;
+
+		// Fallback to legacy projection if remote DB lacks post_type column before migration
+		if (
+			error &&
+			(error.code === "42703" || error.message?.includes("post_type"))
+		) {
+			let legacyQuery = supabase
+				.from("posts")
+				.select(LEGACY_POST_PROJECTION);
+			if (!isAdmin) {
+				if (filter === "all") {
+					legacyQuery = legacyQuery.eq("visibility", "public");
+				} else {
+					legacyQuery = legacyQuery
+						.eq("visibility", "house")
+						.eq("guild", filter);
+				}
+			} else {
+				if (filter !== "all") {
+					legacyQuery = legacyQuery.eq("guild", filter);
+				}
+			}
+
+			if (sort === "new") {
+				legacyQuery = legacyQuery.order("created_at", {
+					ascending: false,
+				});
+			} else if (sort === "top") {
+				legacyQuery = legacyQuery
+					.order("upvotes_count", { ascending: false })
+					.order("created_at", { ascending: false });
+			}
+
+			if (sort === "hot") {
+				legacyQuery = legacyQuery.limit(100);
+			} else {
+				legacyQuery = legacyQuery.range(offset, offset + limit);
+			}
+
+			const retry = await legacyQuery;
+			data = retry.data as any;
+			error = retry.error;
+		}
+
 		if (!error && data && data.length > 0) {
 			const mappedPosts = data.map((item: any) => {
 				const authorObj = Array.isArray(item.author)
@@ -434,7 +481,7 @@ export async function createPost(
 		code_language: input.code_language || null,
 		image_url: serializedImageUrl,
 		image_urls: mediaUrls,
-		guild: input.guild !== undefined ? input.guild : (author.guild || null),
+		guild: input.guild !== undefined ? input.guild : author.guild || null,
 		tags: input.tags || [],
 		post_type: input.post_type || "post",
 		event_date: input.event_date || null,
@@ -447,25 +494,49 @@ export async function createPost(
 		updated_at: nowIso,
 	};
 
-	const { data, error } = await supabase
+	const insertPayload: Record<string, unknown> = {
+		author_id: author.id,
+		title: newPost.title,
+		content: newPost.content,
+		visibility: newPost.visibility,
+		code_snippet: newPost.code_snippet,
+		code_language: newPost.code_language,
+		image_url: serializedImageUrl,
+		guild: newPost.guild,
+		tags: newPost.tags,
+		post_type: newPost.post_type || "post",
+		event_date: newPost.event_date || null,
+		event_location: newPost.event_location || null,
+		upvotes_count: 1,
+		downvotes_count: 0,
+	};
+
+	let insertResult = await supabase
 		.from("posts")
-		.insert({
-			author_id: author.id,
-			title: newPost.title,
-			content: newPost.content,
-			visibility: newPost.visibility,
-			code_snippet: newPost.code_snippet,
-			code_language: newPost.code_language,
-			image_url: serializedImageUrl,
-			guild: newPost.guild,
-			tags: newPost.tags,
-			upvotes_count: 1,
-			downvotes_count: 0,
-		})
+		.insert(insertPayload)
 		.select("*, author:author_id(*)")
 		.single();
 
-	if (error) throw error;
+	if (insertResult.error) {
+		// If remote database does not yet have post_type / event columns, fallback gracefully
+		const basePayload = { ...insertPayload };
+		delete basePayload.post_type;
+		delete basePayload.event_date;
+		delete basePayload.event_location;
+
+		const retryResult = await supabase
+			.from("posts")
+			.insert(basePayload)
+			.select("*, author:author_id(*)")
+			.single();
+
+		if (retryResult.error) {
+			throw insertResult.error;
+		}
+		insertResult = retryResult;
+	}
+
+	const data = insertResult.data;
 
 	if (data) {
 		newPost.id = data.id;
@@ -957,7 +1028,37 @@ export async function fetchUserPosts(
 		query = query.order("created_at", { ascending: false });
 		query = query.range(offset, offset + limit);
 
-		const { data, error } = await query;
+		let { data, error } = await query;
+
+		// Fallback to legacy projection if remote DB lacks post_type column before migration
+		if (
+			error &&
+			(error.code === "42703" || error.message?.includes("post_type"))
+		) {
+			let legacyQuery = supabase
+				.from("posts")
+				.select(LEGACY_POST_PROJECTION)
+				.eq("author_id", authorId);
+
+			if (!isAdmin) {
+				if (activeViewerGuild) {
+					const normGuild = activeViewerGuild.replace("_", "-");
+					legacyQuery = legacyQuery.or(
+						`visibility.eq.public,and(visibility.eq.house,or(guild.eq.${activeViewerGuild},guild.eq.${normGuild}))`,
+					);
+				} else {
+					legacyQuery = legacyQuery.eq("visibility", "public");
+				}
+			}
+
+			legacyQuery = legacyQuery.order("created_at", { ascending: false });
+			legacyQuery = legacyQuery.range(offset, offset + limit);
+
+			const retry = await legacyQuery;
+			data = retry.data as any;
+			error = retry.error;
+		}
+
 		if (!error && data && data.length > 0) {
 			hasMore = data.length > limit;
 			const sliced = hasMore ? data.slice(0, limit) : data;

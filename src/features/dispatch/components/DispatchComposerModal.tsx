@@ -7,7 +7,6 @@ import {
 	Check,
 	Lock,
 	MapPin,
-	Radio,
 	Send,
 } from "lucide-react-native";
 import { useState } from "react";
@@ -109,7 +108,10 @@ export function DispatchComposerModal({
 		try {
 			const authorObj = {
 				id: user.id,
-				username: profile?.username || user.email?.split("@")[0] || "operator",
+				username:
+					profile?.username ||
+					user.email?.split("@")[0] ||
+					"operator",
 				display_name: profile?.display_name || null,
 				avatar_url: profile?.avatar_url || null,
 				email: profile?.email || user.email,
@@ -143,14 +145,12 @@ export function DispatchComposerModal({
 			// Sync into AsyncStorage cache so dispatch tab and feed retain full metadata
 			try {
 				const raw = await AsyncStorage.getItem(STORAGE_POSTS_KEY);
-				if (raw) {
-					const cached: Post[] = JSON.parse(raw);
-					const filtered = cached.filter((p) => p.id !== dispatchPost.id);
-					await AsyncStorage.setItem(
-						STORAGE_POSTS_KEY,
-						JSON.stringify([dispatchPost, ...filtered]),
-					);
-				}
+				const cached: Post[] = raw ? JSON.parse(raw) : [];
+				const filtered = cached.filter((p) => p.id !== dispatchPost.id);
+				await AsyncStorage.setItem(
+					STORAGE_POSTS_KEY,
+					JSON.stringify([dispatchPost, ...filtered]),
+				);
 			} catch {}
 
 			triggerHaptic();
@@ -194,7 +194,6 @@ export function DispatchComposerModal({
 						</Pressable>
 
 						<View className="flex-row items-center gap-1.5">
-							<Radio size={16} color="#000000" strokeWidth={2.5} />
 							<Text className="font-display text-lg tracking-wider text-foreground uppercase">
 								OFFICIAL DISPATCH
 							</Text>
@@ -217,7 +216,11 @@ export function DispatchComposerModal({
 									<Text className="font-bold text-xs tracking-wider text-primary-foreground uppercase">
 										BROADCAST
 									</Text>
-									<Send size={13} color="#FFFFFF" strokeWidth={2.5} />
+									<Send
+										size={13}
+										color="#FFFFFF"
+										strokeWidth={2.5}
+									/>
 								</>
 							)}
 						</Pressable>
@@ -227,12 +230,19 @@ export function DispatchComposerModal({
 						behavior={Platform.OS === "ios" ? "padding" : undefined}
 						className="flex-1">
 						<ScrollView
-							contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+							contentContainerStyle={{
+								padding: 16,
+								paddingBottom: 40,
+							}}
 							keyboardShouldPersistTaps="handled"
 							className="flex-1">
 							{error && (
 								<View className="mb-4 flex-row items-center gap-2 border-2 border-border bg-destructive/15 p-3">
-									<AlertCircle size={16} color="#FF2A00" strokeWidth={2.5} />
+									<AlertCircle
+										size={16}
+										color="#FF2A00"
+										strokeWidth={2.5}
+									/>
 									<Text className="flex-1 font-mono text-xs text-destructive">
 										{error}
 									</Text>
@@ -241,31 +251,41 @@ export function DispatchComposerModal({
 
 							{/* Wire Destination Selector */}
 							<View className="mb-5">
-								<Text className="mb-2 font-bold text-xs uppercase tracking-wider text-foreground">
+								<Text className="mb-2 font-bold text-xs tracking-wider text-foreground uppercase">
 									TARGET WIRE / DESTINATION
 								</Text>
 
 								{isHouseMod ? (
 									<View className="flex-row items-center gap-2 border-2 border-border bg-neo-surface-active p-3">
-										<Lock size={16} color="#000000" strokeWidth={2.4} />
+										<Lock
+											size={16}
+											color="#000000"
+											strokeWidth={2.4}
+										/>
 										<View className="flex-1">
-											<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
-												LOCKED TO {userGuild?.toUpperCase()}
+											<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
+												LOCKED TO{" "}
+												{userGuild?.toUpperCase()}
 											</Text>
 											<Text className="font-mono text-2xs text-foreground/70">
-												House Moderator wire authorization locked to your assigned house.
+												House Moderator wire
+												authorization locked to your
+												assigned house.
 											</Text>
 										</View>
 									</View>
 								) : (
 									<View className="flex-row flex-wrap gap-2">
 										{TARGET_OPTIONS.map((opt) => {
-											const isSelected = targetGuild === opt.id;
+											const isSelected =
+												targetGuild === opt.id;
 											return (
 												<Pressable
 													key={String(opt.id)}
 													accessibilityRole="radio"
-													accessibilityState={{ selected: isSelected }}
+													accessibilityState={{
+														selected: isSelected,
+													}}
 													disabled={isSubmitting}
 													onPress={() => {
 														triggerHaptic();
@@ -284,7 +304,7 @@ export function DispatchComposerModal({
 														/>
 													)}
 													<Text
-														className={`font-bold text-xs uppercase tracking-wider ${
+														className={`font-bold text-xs tracking-wider uppercase ${
 															isSelected
 																? "text-primary-foreground"
 																: "text-foreground"
@@ -301,10 +321,10 @@ export function DispatchComposerModal({
 							{/* Title Input */}
 							<View className="mb-4">
 								<View className="mb-1.5 flex-row items-center justify-between">
-									<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
+									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 										HEADLINE / TITLE *
 									</Text>
-									<Text className="font-mono text-2xs tabular-nums text-foreground/60">
+									<Text className="font-mono text-2xs text-foreground/60 tabular-nums">
 										{title.length}/120
 									</Text>
 								</View>
@@ -315,17 +335,17 @@ export function DispatchComposerModal({
 									editable={!isSubmitting}
 									placeholder="OFFICIAL DISPATCH HEADLINE..."
 									placeholderTextColor="#666666"
-									className="border-2 border-border bg-surface px-3 py-2.5 font-bold text-sm uppercase text-foreground shadow-neo-xs"
+									className="border-2 border-border bg-surface px-3 py-2.5 font-bold text-sm text-foreground uppercase shadow-neo-xs"
 								/>
 							</View>
 
 							{/* Content Input */}
 							<View className="mb-4">
 								<View className="mb-1.5 flex-row items-center justify-between">
-									<Text className="font-bold text-xs uppercase tracking-wider text-foreground">
+									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 										DISPATCH CONTENT *
 									</Text>
-									<Text className="font-mono text-2xs tabular-nums text-foreground/60">
+									<Text className="font-mono text-2xs text-foreground/60 tabular-nums">
 										{content.length}/5000
 									</Text>
 								</View>
@@ -338,20 +358,24 @@ export function DispatchComposerModal({
 									textAlignVertical="top"
 									placeholder="Enter official statement, announcement details, or house wire updates..."
 									placeholderTextColor="#666666"
-									className="min-h-[140px] border-2 border-border bg-surface p-3 font-mono text-sm leading-relaxed text-foreground shadow-neo-xs"
+									className="min-h-35 border-2 border-border bg-surface p-3 font-mono text-sm leading-relaxed text-foreground shadow-neo-xs"
 								/>
 							</View>
 
 							{/* Event Metadata (Optional) */}
 							<View className="mb-6 border-2 border-border bg-neo-surface-active p-3">
-								<Text className="mb-2.5 font-bold text-xs uppercase tracking-wider text-foreground">
+								<Text className="mb-2.5 font-bold text-xs tracking-wider text-foreground uppercase">
 									EVENT SCHEDULE & VENUE (OPTIONAL)
 								</Text>
 
 								<View className="mb-3">
 									<View className="mb-1 flex-row items-center gap-1.5">
-										<Calendar size={13} color="#000000" strokeWidth={2.4} />
-										<Text className="font-bold text-2xs uppercase tracking-wider text-foreground/80">
+										<Calendar
+											size={13}
+											color="#000000"
+											strokeWidth={2.4}
+										/>
+										<Text className="font-bold text-2xs tracking-wider text-foreground/80 uppercase">
 											EVENT DATE / TIME
 										</Text>
 									</View>
@@ -368,8 +392,12 @@ export function DispatchComposerModal({
 
 								<View>
 									<View className="mb-1 flex-row items-center gap-1.5">
-										<MapPin size={13} color="#000000" strokeWidth={2.4} />
-										<Text className="font-bold text-2xs uppercase tracking-wider text-foreground/80">
+										<MapPin
+											size={13}
+											color="#000000"
+											strokeWidth={2.4}
+										/>
+										<Text className="font-bold text-2xs tracking-wider text-foreground/80 uppercase">
 											EVENT VENUE / LOCATION
 										</Text>
 									</View>
