@@ -12,6 +12,7 @@ export interface PostAuthor {
 	email?: string;
 	role?: string;
 	guild?: GuildId | null;
+	is_verified?: boolean | null;
 }
 
 export interface Post {

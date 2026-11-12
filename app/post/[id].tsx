@@ -8,7 +8,6 @@ import {
 	ArrowDown,
 	ArrowLeft,
 	ArrowUp,
-	CheckCircle2,
 	CornerDownRight,
 	Lock,
 	MessageSquare,
@@ -41,10 +40,11 @@ import {
 	NeoButton,
 	TerminalCodeViewport,
 } from "@/components/ui";
+import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
+import { canManagePost } from "@/features/auth/permissions";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import {
 	addPostComment,
-	canManagePost,
 	deletePost,
 	fetchPostById,
 	fetchPostComments,
@@ -63,6 +63,7 @@ import {
 	countSubtreeReplies,
 	MAX_VISUAL_DEPTH,
 } from "@/features/posts/utils/comment-tree";
+import { sharePost } from "@/features/posts/utils/share";
 
 const GUILD_META: Record<string, { tag: string; badge: string; bg: string }> = {
 	octagram: { tag: "OCTOGRAM", badge: "0x", bg: "bg-primary" },
@@ -108,7 +109,6 @@ export default function PostDetailScreen() {
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const [isShareComingSoonOpen, setIsShareComingSoonOpen] = useState(false);
 	const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
 	const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
@@ -239,9 +239,10 @@ export default function PostDetailScreen() {
 		}
 	};
 
-	const handleOpenShare = () => {
+	const handleOpenShare = async () => {
+		if (!post) return;
 		triggerHaptic();
-		setIsShareComingSoonOpen(true);
+		await sharePost(post);
 	};
 
 	const handleSendReply = async () => {
@@ -309,10 +310,10 @@ export default function PostDetailScreen() {
 							/>
 						</View>
 						<Text className="mt-4 text-center font-display text-xl text-foreground uppercase">
-							CLASSIFIED HOUSE TRANSMISSION
+							CLASSIFIED HOUSE POST
 						</Text>
 						<Text className="mt-2 text-center font-mono text-xs leading-relaxed text-muted-foreground">
-							This transmission is exclusive to verified members
+							This post is exclusive to verified members
 							of this house. Your current house affiliation does
 							not grant clearance to view this record.
 						</Text>
@@ -339,11 +340,15 @@ export default function PostDetailScreen() {
 	const isDownvoted = post?.user_vote === -1;
 	const score = (post?.upvotes_count || 0) - (post?.downvotes_count || 0);
 	const canManage = post
-		? canManagePost(post, user?.id, profile?.role)
+		? canManagePost(post, user?.id, profile?.role, profile?.guild)
 		: false;
 	const edited = post ? isPostEdited(post) : false;
 	const isAdminModAction = Boolean(
-		post && profile?.role === "admin" && user?.id !== post.author_id,
+		post &&
+			(profile?.role === "admin" ||
+				profile?.role === "mod" ||
+				profile?.role === "house_mod") &&
+			user?.id !== post.author_id,
 	);
 
 	const normalizedTags = normalizePostTags(post?.tags);
@@ -351,7 +356,6 @@ export default function PostDetailScreen() {
 
 	const guildId = post?.guild || post?.author?.guild;
 	const guildMeta = guildId ? GUILD_META[guildId] : undefined;
-	const guildTag = guildMeta?.tag ?? (guildId ? "BLUE JAYS" : "IMPULSE");
 
 	return (
 		<KeyboardAvoidingView
@@ -377,7 +381,7 @@ export default function PostDetailScreen() {
 					<Text
 						numberOfLines={1}
 						className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
-						TRANSMISSION //{" "}
+						POST //{" "}
 						{post
 							? `ID:${post.id.slice(0, 8).toUpperCase()}`
 							: "LOG"}
@@ -385,12 +389,13 @@ export default function PostDetailScreen() {
 					<Text
 						numberOfLines={1}
 						className="font-display text-sm tracking-tight text-foreground uppercase">
-						{authorDisplayName}'S DISPATCH
+						{authorDisplayName}'S POST
 					</Text>
 				</View>
 
 				{canManage ? (
 					<Pressable
+						accessibilityRole="button"
 						accessibilityLabel="Post options"
 						onPress={() => {
 							triggerHaptic();
@@ -406,7 +411,8 @@ export default function PostDetailScreen() {
 					</Pressable>
 				) : (
 					<Pressable
-						accessibilityLabel="Share transmission"
+						accessibilityRole="button"
+						accessibilityLabel="Share post"
 						onPress={handleOpenShare}
 						hitSlop={8}
 						className="size-10 items-center justify-center border-2 border-border bg-secondary shadow-neo-sm active:translate-x-px active:translate-y-px">
@@ -471,13 +477,14 @@ export default function PostDetailScreen() {
 									<View className="flex-row items-center gap-1.5">
 										<Text
 											numberOfLines={1}
-											className="font-bold text-xs tracking-wider text-foreground uppercase">
-											@{authorUsername} // {guildTag}
+											className="shrink font-bold text-xs tracking-wider text-foreground uppercase">
+											@{authorUsername}
 										</Text>
-										<CheckCircle2
-											size={12}
-											color="#000000"
-											strokeWidth={2.5}
+										<UserRoleBadge
+											role={post.author?.role}
+											isVerified={post.author?.is_verified}
+											guild={post.author?.guild || post.guild}
+											size="sm"
 										/>
 									</View>
 									<Text className="font-mono text-2xs text-muted-foreground">
@@ -648,7 +655,7 @@ export default function PostDetailScreen() {
 								</Text>
 								<Text className="mt-1 text-center font-mono text-xs text-muted-foreground">
 									Be the first operative to respond to this
-									dispatch.
+									post.
 								</Text>
 							</View>
 						) : (
@@ -955,7 +962,7 @@ export default function PostDetailScreen() {
 					style={{ flex: 1 }}
 					className="flex-1 items-center justify-center p-6">
 					<Text className="font-mono text-sm text-muted-foreground">
-						{error || "Transmission not available."}
+						{error || "Post not available."}
 					</Text>
 					<NeoButton
 						variant="secondary"
@@ -974,32 +981,16 @@ export default function PostDetailScreen() {
 				onClose={() => setLightboxIndex(null)}
 			/>
 
-			{/* Share Coming Soon Sheet (matching PostCard on Feed) */}
-			<MobileAlertSheet
-				open={isShareComingSoonOpen}
-				onOpenChange={setIsShareComingSoonOpen}
-				type="info"
-				title="SHARING IS COMING SOON"
-				description="I am not paid well to implement this feature. Check back soon."
-				actions={[
-					{
-						label: "GOT IT",
-						variant: "primary",
-						onPress: () => setIsShareComingSoonOpen(false),
-					},
-				]}
-			/>
-
 			{post && canManage && (
 				<>
 					<MobileSheet
 						open={isMenuOpen}
 						onOpenChange={setIsMenuOpen}
-						title="Transmission Controls"
+						title="Post Controls"
 						subtitle={
 							isAdminModAction
-								? `Admin moderation for @${post.author?.username || "student"}'s transmission`
-								: "Update or remove your transmission."
+								? `Moderation for @${post.author?.username || "student"}'s post`
+								: "Update or remove your post."
 						}>
 						<View className="gap-2.5 pb-4">
 							{isAdminModAction && (
@@ -1025,7 +1016,7 @@ export default function PostDetailScreen() {
 									setIsMenuOpen(false);
 									setIsEditOpen(true);
 								}}>
-								EDIT TRANSMISSION
+								EDIT POST
 							</NeoButton>
 							<NeoButton
 								size="md"
@@ -1042,7 +1033,7 @@ export default function PostDetailScreen() {
 									setIsMenuOpen(false);
 									setIsDeleteOpen(true);
 								}}>
-								DELETE TRANSMISSION
+								{isAdminModAction ? "PURGE POST" : "DELETE POST"}
 							</NeoButton>
 						</View>
 					</MobileSheet>
@@ -1057,12 +1048,12 @@ export default function PostDetailScreen() {
 					<MobileAlertSheet
 						open={isDeleteOpen}
 						onOpenChange={setIsDeleteOpen}
-						title="Delete Transmission"
+						title={isAdminModAction ? "Purge Post" : "Delete Post"}
 						type="error"
 						description={`Are you sure you want to permanently delete "${post.title}"? This action cannot be undone.`}
 						actions={[
 							{
-								label: "Delete Permanently",
+								label: isAdminModAction ? "Purge Permanently" : "Delete Permanently",
 								onPress: handleConfirmDelete,
 								variant: "destructive",
 								loading: isDeleting,

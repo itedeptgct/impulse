@@ -571,7 +571,7 @@ export default function ProfileScreen() {
 										strokeWidth={2.2}
 									/>
 									<Text className="font-bold text-[10px] tracking-wider text-muted-foreground uppercase">
-										DISPATCHES
+										POSTS
 									</Text>
 								</View>
 								<Text className="mt-1 font-display text-2xl tracking-tight text-foreground">
@@ -662,7 +662,7 @@ export default function ProfileScreen() {
 							<View className="flex-row items-center justify-between border-b-2 border-border pb-3.5">
 								<View className="flex-row items-center gap-2">
 									<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-										DISPATCH ARCHIVE
+										POST ARCHIVE
 									</Text>
 									<NeoBadge variant="default" size="sm">
 										{myPosts.length}
@@ -679,7 +679,7 @@ export default function ProfileScreen() {
 										/>
 									}
 									onPress={() => setIsComposerOpen(true)}>
-									NEW DISPATCH
+									NEW POST
 								</NeoButton>
 							</View>
 						</View>
@@ -697,7 +697,7 @@ export default function ProfileScreen() {
 								className="mb-2"
 							/>
 							<Text className="font-display text-sm text-foreground uppercase">
-								NO TRANSMISSIONS PUBLISHED YET
+								NO POSTS PUBLISHED YET
 							</Text>
 							<Text className="mt-1 max-w-sm text-center font-mono text-xs text-muted-foreground">
 								Share code snippets, architectural ideas, or UI
@@ -708,7 +708,7 @@ export default function ProfileScreen() {
 								variant="outline"
 								className="mt-4"
 								onPress={() => setIsComposerOpen(true)}>
-								CREATE FIRST TRANSMISSION
+								CREATE FIRST POST
 							</NeoButton>
 						</NeoCard>
 					</View>

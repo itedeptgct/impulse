@@ -1,3 +1,5 @@
+import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
+import { canManagePost } from "@/features/auth/permissions";
 import { useAuthStore } from "@auth/store";
 import { formatRelativeTime } from "@lib/date";
 import * as Haptics from "expo-haptics";
@@ -22,12 +24,12 @@ import {
 } from "@/components/ui";
 
 import {
-	canManagePost,
 	deletePost,
 	normalizePostMedia,
 	normalizePostTags,
 } from "../api";
 import type { Post } from "../types";
+import { sharePost } from "../utils/share";
 import { PostComposerModal } from "./PostComposerModal";
 import { PostMediaCarousel } from "./PostMediaCarousel";
 import { PostMediaLightboxModal } from "./PostMediaLightboxModal";
@@ -67,7 +69,6 @@ function PostCardComponent({
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-	const [isShareComingSoonOpen, setIsShareComingSoonOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -75,16 +76,23 @@ function PostCardComponent({
 	const isUpvoted = post.user_vote === 1;
 	const isDownvoted = post.user_vote === -1;
 	const relativeTime = formatRelativeTime(post.created_at);
-	const canManage = canManagePost(post, user?.id, profile?.role);
+	const canManage = canManagePost(
+		post,
+		user?.id,
+		profile?.role,
+		profile?.guild,
+	);
 	const isAdminModAction =
-		profile?.role === "admin" && user?.id !== post.author_id;
+		(profile?.role === "admin" ||
+			profile?.role === "mod" ||
+			profile?.role === "house_mod") &&
+		user?.id !== post.author_id;
 	const tags = normalizePostTags(post.tags);
 	const mediaUrls = normalizePostMedia(post);
 
 	const authorUsername = (post.author?.username || "anon").toUpperCase();
 	const guildId = post.guild || post.author?.guild;
 	const guildMeta = guildId ? GUILD_META[guildId] : undefined;
-	const guildTag = guildMeta?.tag ?? (guildId ? "BLUE JAYS" : "IMPULSE");
 
 	const handleCardPress = () => {
 		triggerHaptic();
@@ -108,6 +116,8 @@ function PostCardComponent({
 		<View className="mb-6">
 			<View className="flex-row items-center justify-between border-2 border-b-0 border-border bg-neo-surface-active px-3 py-2">
 				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel={`View profile of @${authorUsername}`}
 					onPress={() => {
 						if (post.author?.username) {
 							triggerHaptic();
@@ -130,11 +140,19 @@ function PostCardComponent({
 						)}
 					</View>
 
-					<Text
-						numberOfLines={1}
-						className="shrink font-bold text-xs tracking-wider text-foreground uppercase">
-						@{authorUsername} // {guildTag}
-					</Text>
+					<View className="min-w-0 flex-1 flex-row items-center gap-1.5">
+						<Text
+							numberOfLines={1}
+							className="shrink font-bold text-xs tracking-wider text-foreground uppercase">
+							@{authorUsername}
+						</Text>
+						<UserRoleBadge
+							role={post.author?.role}
+							isVerified={post.author?.is_verified}
+							guild={post.author?.guild || post.guild}
+							size="sm"
+						/>
+					</View>
 				</Pressable>
 
 				<View className="shrink-0 flex-row items-center gap-1.5">
@@ -153,6 +171,7 @@ function PostCardComponent({
 
 					{canManage && (
 						<Pressable
+							accessibilityRole="button"
 							accessibilityLabel="Post options"
 							hitSlop={8}
 							onPress={() => {
@@ -284,9 +303,9 @@ function PostCardComponent({
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Share post"
-							onPress={() => {
+							onPress={async () => {
 								triggerHaptic();
-								setIsShareComingSoonOpen(true);
+								await sharePost(post);
 							}}
 							className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
 							<Share2
@@ -308,21 +327,6 @@ function PostCardComponent({
 				/>
 			)}
 
-			<MobileAlertSheet
-				open={isShareComingSoonOpen}
-				onOpenChange={setIsShareComingSoonOpen}
-				type="info"
-				title="SHARING IS COMING SOON"
-				description="I am not paid well to implement this feature. Check back soon."
-				actions={[
-					{
-						label: "GOT IT",
-						variant: "primary",
-						onPress: () => setIsShareComingSoonOpen(false),
-					},
-				]}
-			/>
-
 			<MobileSheet
 				open={isMenuOpen}
 				onOpenChange={setIsMenuOpen}
@@ -341,7 +345,7 @@ function PostCardComponent({
 							setIsMenuOpen(false);
 							setIsEditOpen(true);
 						}}>
-						EDIT TRANSMISSION
+						EDIT POST
 					</NeoButton>
 					<NeoButton
 						variant="destructive"
@@ -356,9 +360,7 @@ function PostCardComponent({
 							setIsMenuOpen(false);
 							setIsDeleteOpen(true);
 						}}>
-						{isAdminModAction
-							? "PURGE DISPATCH (ADMIN)"
-							: "DELETE TRANSMISSION"}
+						{isAdminModAction ? "PURGE POST" : "DELETE POST"}
 					</NeoButton>
 				</View>
 			</MobileSheet>
@@ -379,11 +381,11 @@ function PostCardComponent({
 				open={isDeleteOpen}
 				onOpenChange={setIsDeleteOpen}
 				type="error"
-				title={isAdminModAction ? "ADMIN PURGE" : "PURGE TRANSMISSION"}
-				description="Are you certain you want to purge this transmission from the collegiate mesh ledger? This action cannot be reverted."
+				title={isAdminModAction ? "PURGE POST" : "DELETE POST"}
+				description="Are you certain you want to permanently delete this post? This action cannot be undone."
 				actions={[
 					{
-						label: "PURGE DISPATCH",
+						label: isAdminModAction ? "PURGE POST" : "DELETE POST",
 						variant: "destructive",
 						loading: isDeleting,
 						onPress: handleConfirmDelete,
@@ -439,7 +441,8 @@ function areEqual(prevProps: PostCardProps, nextProps: PostCardProps): boolean {
 		p.author?.display_name !== n.author?.display_name ||
 		p.author?.avatar_url !== n.author?.avatar_url ||
 		p.author?.role !== n.author?.role ||
-		p.author?.guild !== n.author?.guild
+		p.author?.guild !== n.author?.guild ||
+		p.author?.is_verified !== n.author?.is_verified
 	) {
 		return false;
 	}

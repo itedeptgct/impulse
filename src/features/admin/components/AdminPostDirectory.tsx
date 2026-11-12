@@ -60,7 +60,7 @@ export function AdminPostDirectory() {
 			<NeoInput
 				value={search}
 				onChangeText={setSearch}
-				placeholder="Search transmissions by title, author, or #tag..."
+				placeholder="Search posts by title, author, or #tag..."
 				startContent={
 					<Search size={15} color="#000000" strokeWidth={2.5} />
 				}
@@ -74,7 +74,7 @@ export function AdminPostDirectory() {
 					className="flex-1">
 					{(
 						[
-							{ key: "all", label: "All Transmissions" },
+							{ key: "all", label: "All Posts" },
 							{ key: "public", label: "Public" },
 							{ key: "house", label: "House-Only" },
 						] as const
@@ -96,7 +96,7 @@ export function AdminPostDirectory() {
 					size="sm"
 					variant="outline"
 					className="size-9 px-0"
-					accessibilityLabel="Refresh transmissions list"
+					accessibilityLabel="Refresh posts list"
 					onPress={() => void refetch()}>
 					<RefreshCw
 						size={14}
@@ -119,7 +119,7 @@ export function AdminPostDirectory() {
 				<NeoCard className="items-center justify-center border-dashed border-border bg-card py-12 text-center">
 					<FileText size={32} color="#000000" strokeWidth={2.5} />
 					<Text className="mt-3 font-display text-base tracking-tight text-foreground uppercase">
-						No Transmissions Found
+						No Posts Found
 					</Text>
 					<Text className="mt-1 text-center font-mono text-xs text-muted-foreground">
 						Try adjusting your search keywords or visibility
@@ -362,7 +362,7 @@ export function AdminPostDirectory() {
 				}}
 				title="Delete Post"
 				type="error"
-				description={`Are you sure you want to permanently delete "${deletingPost?.title || "this transmission"}" by @${deletingPost?.author?.username || "student"}?`}
+				description={`Are you sure you want to permanently delete "${deletingPost?.title || "this post"}" by @${deletingPost?.author?.username || "student"}?`}
 				actions={[
 					{
 						label: "Delete Permanently",

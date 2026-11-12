@@ -487,7 +487,7 @@ export default function UserProfileScreen() {
 									<View className="mb-2.5 flex-row items-center justify-between border-b-2 border-border pb-2">
 										<View className="flex-row items-center gap-2">
 											<Text className="font-bold text-xs tracking-wider text-muted-foreground uppercase">
-												DISPATCH ARCHIVE
+												POST ARCHIVE
 											</Text>
 											<NeoBadge
 												variant="default"
@@ -512,11 +512,10 @@ export default function UserProfileScreen() {
 								strokeWidth={2.2}
 							/>
 							<Text className="mt-2 font-display text-sm text-foreground uppercase">
-								NO DISPATCHES YET
+								NO POSTS YET
 							</Text>
 							<Text className="mt-1 font-mono text-xs text-muted-foreground">
-								This student hasn't published any discussions
-								yet.
+								This student hasn't published any posts yet.
 							</Text>
 						</NeoCard>
 					</View>

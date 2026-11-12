@@ -379,12 +379,14 @@ export default function FeedScreen() {
 					<Flame size={24} color="#000000" strokeWidth={2.5} />
 				</View>
 				<Text className="mt-4 font-display text-lg tracking-tight text-foreground uppercase">
-					NO DISPATCHES TRANSMITTED
+					NO POSTS YET
 				</Text>
 				<Text className="mt-1.5 text-center font-mono text-xs leading-relaxed text-foreground/70">
 					yo, its ur chance to say "first" like a yt comment HAHAHAHA
 				</Text>
 				<Pressable
+					accessibilityRole="button"
+					accessibilityLabel="Create first post"
 					onPress={() => {
 						triggerHaptic();
 						openComposer();
@@ -392,7 +394,7 @@ export default function FeedScreen() {
 					className="mt-5 flex-row items-center gap-1.5 border-2 border-border bg-neo-green px-4 py-2.5 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5">
 					<Plus size={14} color="#000000" strokeWidth={3} />
 					<Text className="font-bold text-xs text-foreground uppercase">
-						[ TRANSMIT FIRST DISPATCH ]
+						[ CREATE FIRST POST ]
 					</Text>
 				</Pressable>
 			</View>
@@ -450,7 +452,7 @@ export default function FeedScreen() {
 			<View className="absolute right-4 bottom-4 z-20">
 				<Pressable
 					accessibilityRole="button"
-					accessibilityLabel="Create new dispatch"
+					accessibilityLabel="Create new post"
 					onPress={() => {
 						triggerHaptic();
 						openComposer();
@@ -458,7 +460,7 @@ export default function FeedScreen() {
 					className="flex-row items-center gap-1.5 border-2 border-border bg-neo-green px-4 py-3 shadow-neo active:translate-x-0.5 active:translate-y-0.5 active:shadow-neo-xs">
 					<Plus size={16} color="#000000" strokeWidth={3} />
 					<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-						[NEW DISPATCH]
+						[NEW POST]
 					</Text>
 				</Pressable>
 			</View>

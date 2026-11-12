@@ -185,14 +185,26 @@ export function PostComposerModal({
 	};
 
 	const handleSubmit = async () => {
+		if (isSubmitting) return;
+
 		if (!title.trim() || !content.trim() || !user?.id) {
-			setError("Transmission title and dispatch buffer cannot be blank.");
+			setError("Post title and content cannot be blank.");
+			return;
+		}
+
+		if (title.trim().length > 120) {
+			setError("Post title cannot exceed 120 characters.");
+			return;
+		}
+
+		if (content.trim().length > 5000) {
+			setError("Post content cannot exceed 5,000 characters.");
 			return;
 		}
 
 		if (visibility === "house" && !effectiveGuild) {
 			setError(
-				"House affiliation required before sending house-encrypted dispatches.",
+				"House affiliation required before sending house-only posts.",
 			);
 			return;
 		}
@@ -240,7 +252,7 @@ export function PostComposerModal({
 		} catch (err: unknown) {
 			setError(
 				(err as Error).message ||
-					"Dispatch transmission failed across mesh network.",
+					"Failed to publish post across network.",
 			);
 		} finally {
 			setIsSubmitting(false);
@@ -295,6 +307,8 @@ export function PostComposerModal({
 					edges={["top", "bottom"]}>
 					<View className="flex-row items-center justify-between border-b-2 border-border bg-background px-4 py-3 shadow-neo-header">
 						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Cancel"
 							onPress={handleClose}
 							className="border-2 border-border bg-surface px-3 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px">
 							<Text className="font-bold text-xs text-foreground uppercase">
@@ -304,22 +318,36 @@ export function PostComposerModal({
 
 						<View className="items-center">
 							<Text className="font-display text-lg tracking-wider text-foreground uppercase">
-								{isEditing
-									? "EDIT DISPATCH"
-									: "CREATE DISPATCH"}
+								{isEditing ? "EDIT POST" : "CREATE POST"}
 							</Text>
 						</View>
 
 						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel={isEditing ? "Save post" : "Publish post"}
 							onPress={handleSubmit}
-							disabled={isSubmitting}
-							className="flex-row items-center gap-1.5 border-2 border-border bg-primary px-4 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px">
+							disabled={
+								isSubmitting ||
+								!title.trim() ||
+								!content.trim() ||
+								title.length > 120 ||
+								content.length > 5000
+							}
+							className={`flex-row items-center gap-1.5 border-2 border-border bg-primary px-4 py-1.5 shadow-neo-sm ${
+								isSubmitting ||
+								!title.trim() ||
+								!content.trim() ||
+								title.length > 120 ||
+								content.length > 5000
+									? "opacity-50"
+									: "active:translate-x-px active:translate-y-px"
+							}`}>
 							{isSubmitting ? (
 								<ActivityIndicator size={14} color="#FFFFFF" />
 							) : (
 								<>
 									<Text className="font-bold text-xs tracking-wider text-primary-foreground uppercase">
-										TRANSMIT
+										{isEditing ? "SAVE" : "PUBLISH"}
 									</Text>
 									<CornerDownLeft
 										size={13}
@@ -409,17 +437,17 @@ export function PostComposerModal({
 							<View className="mb-5">
 								<View className="mb-1.5 flex-row items-center justify-between">
 									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
-										[TRANSMISSION_TITLE]
+										[POST_TITLE]
 									</Text>
 									<Text className="font-mono text-2xs text-foreground/60 uppercase">
-										MAX 80 CHARS
+										MAX 120 CHARS
 									</Text>
 								</View>
 								<TextInput
 									value={title}
 									onChangeText={setTitle}
-									maxLength={80}
-									placeholder="ENTER TRANSMISSION TITLE..."
+									maxLength={120}
+									placeholder="ENTER POST TITLE..."
 									placeholderTextColor="#888888"
 									className="border-2 border-border bg-surface px-3 py-2.5 font-display text-lg text-foreground uppercase shadow-neo-sm"
 								/>
@@ -428,11 +456,11 @@ export function PostComposerModal({
 							<View className="mb-5">
 								<View className="mb-1.5 flex-row items-center justify-between">
 									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
-										[RAW_DISPATCH_BUFFER] [MD + TeX SUPPORT
+										[POST_CONTENT] [MD + TeX SUPPORT
 										SOON™]
 									</Text>
 									<Text className="font-mono text-2xs text-foreground/60 uppercase">
-										{content.length} CHR
+										{content.length}/5000 CHR
 									</Text>
 								</View>
 
@@ -440,9 +468,10 @@ export function PostComposerModal({
 									<TextInput
 										value={content}
 										onChangeText={setContent}
+										maxLength={5000}
 										multiline
 										textAlignVertical="top"
-										placeholder="Non tempor anim anim qui sint do in...."
+										placeholder="Write your post content here..."
 										placeholderTextColor="#888888"
 										className="flex-1 p-2 font-mono text-xs leading-5 text-foreground"
 									/>
