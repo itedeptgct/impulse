@@ -1,7 +1,7 @@
 import { useAuthStore } from "@auth/store";
 import * as Haptics from "expo-haptics";
 import { Redirect, Tabs, router, usePathname } from "expo-router";
-import { Building2, Rows2, Terminal } from "lucide-react-native";
+import { Building2, Radio, Rows2, Terminal } from "lucide-react-native";
 import React, { useMemo } from "react";
 import {
 	ActivityIndicator,
@@ -22,7 +22,7 @@ const triggerTabHaptic = () => {
 	}
 };
 
-const TAB_ORDER = ["index", "guilds", "messages"] as const;
+const TAB_ORDER = ["index", "guilds", "dispatch", "messages"] as const;
 
 export default function TabsLayout() {
 	const session = useAuthStore((state) => state.session);
@@ -40,19 +40,22 @@ export default function TabsLayout() {
 	// sponsored by tyrone from cebu
 	const currentRoute = pathname.includes("guilds")
 		? "guilds"
-		: pathname.includes("messages")
-			? "messages"
-			: pathname.includes("search")
-				? "search"
-				: pathname.includes("profile")
-					? "profile"
-					: "index";
+		: pathname.includes("dispatch")
+			? "dispatch"
+			: pathname.includes("messages")
+				? "messages"
+				: pathname.includes("search")
+					? "search"
+					: pathname.includes("profile")
+						? "profile"
+						: "index";
 
 	const panGesture = useMemo(() => {
 		return Gesture.Pan()
 			.runOnJS(true)
 			.activeOffsetX([-25, 25])
 			.failOffsetY([-15, 15])
+			.cancelsTouchesInView(false)
 			.onEnd((e) => {
 				if (isComposerOpen) return;
 				const currentIndex = TAB_ORDER.indexOf(currentRoute as any);
@@ -133,6 +136,20 @@ export default function TabsLayout() {
 									pressClass: "active:bg-secondary",
 									onPress: () =>
 										navigation.navigate("guilds"),
+								},
+								{
+									key: "dispatch",
+									label: "DISPATCH",
+									a11yLabel: "Dispatch announcements tab",
+									role: "tab" as const,
+									icon: Radio,
+									active:
+										activeTabRoute === "dispatch" &&
+										!isComposerOpen,
+									barClass: "bg-neo-yellow",
+									pressClass: "active:bg-secondary",
+									onPress: () =>
+										navigation.navigate("dispatch"),
 								},
 								{
 									key: "messages",
@@ -228,6 +245,7 @@ export default function TabsLayout() {
 						}}>
 						<Tabs.Screen name="index" />
 						<Tabs.Screen name="guilds" />
+						<Tabs.Screen name="dispatch" />
 						<Tabs.Screen name="messages" />
 						<Tabs.Screen name="search" options={{ href: null }} />
 						<Tabs.Screen name="profile" options={{ href: null }} />
