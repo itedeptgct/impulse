@@ -54,3 +54,5 @@ supabase/*
 
 # cloudflare
 .cloudflare/
+workers/r2-storage/.wrangler/
+workers/r2-storage/wrangler.toml

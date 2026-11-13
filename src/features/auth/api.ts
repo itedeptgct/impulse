@@ -1,3 +1,4 @@
+import { deleteOwnR2Objects, uploadToR2 } from "@lib/r2-storage";
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -141,15 +142,13 @@ export async function uploadIdDocument(
 
 	const { data: binaryData } = await readUriAsBinary(uri, contentType);
 
-	const { data, error } = await supabase.storage
-		.from("id-documents")
-		.upload(filePath, binaryData, {
-			contentType,
-			upsert: true,
-		});
-
-	if (error) throw error;
-	return data.path;
+	const { path } = await uploadToR2(
+		"id-documents",
+		filePath,
+		binaryData,
+		contentType,
+	);
+	return path;
 }
 
 export async function uploadAvatar(
@@ -168,20 +167,16 @@ export async function uploadAvatar(
 
 	const { data: binaryData } = await readUriAsBinary(uri, contentType);
 
-	const { data, error } = await supabase.storage
-		.from("avatars")
-		.upload(filePath, binaryData, {
-			contentType,
-			upsert: true,
-		});
-
-	if (error) throw error;
-
-	const { data: publicData } = supabase.storage
-		.from("avatars")
-		.getPublicUrl(data.path);
-
-	return publicData.publicUrl;
+	const { publicUrl } = await uploadToR2(
+		"avatars",
+		filePath,
+		binaryData,
+		contentType,
+	);
+	if (!publicUrl) {
+		throw new Error("Avatar upload did not return a public URL");
+	}
+	return publicUrl;
 }
 
 export async function createIdVerification(
@@ -392,6 +387,12 @@ export async function updateUserProfile(
 }
 
 export async function deleteOwnAccount(): Promise<void> {
+	try {
+		await deleteOwnR2Objects();
+	} catch (e) {
+		console.warn("Failed to delete R2 objects:", e);
+	}
+
 	const { error } = await supabase.rpc("delete_own_account");
 	if (error) throw error;
 

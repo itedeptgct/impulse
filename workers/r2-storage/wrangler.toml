@@ -1,0 +1,24 @@
+name = "impulse-r2-storage"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+[[r2_buckets]]
+binding = "AVATARS_BUCKET"
+bucket_name = "impulse-avatars"
+
+[[r2_buckets]]
+binding = "POST_MEDIA_BUCKET"
+bucket_name = "impulse-post-media"
+
+[[r2_buckets]]
+binding = "ID_DOCUMENTS_BUCKET"
+bucket_name = "impulse-id-documents"
+
+[vars]
+SUPABASE_URL = "https://your-project-ref.supabase.co"
+R2_AVATARS_URL = "https://avatars.example.com"
+R2_POST_MEDIA_URL = "https://media.example.com"
+
+# Secrets (set via `wrangler secret put <NAME>`):
+# - SIGNING_SECRET
+# - SUPABASE_ANON_KEY

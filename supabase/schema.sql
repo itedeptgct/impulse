@@ -136,7 +136,7 @@ CREATE OR REPLACE FUNCTION public.delete_own_account()
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, storage, auth
+SET search_path = public, auth
 AS $$
 DECLARE
     current_user_id UUID;
@@ -145,9 +145,6 @@ BEGIN
     IF current_user_id IS NULL THEN
         RAISE EXCEPTION 'Not authenticated';
     END IF;
-
-    -- Delete user storage objects
-    DELETE FROM storage.objects WHERE owner = current_user_id;
 
     -- Delete public profile (cascades posts, comments, votes, verifications, private_profiles)
     DELETE FROM public.profiles WHERE id = current_user_id;
@@ -455,93 +452,6 @@ CREATE POLICY "Admins can update verifications"
     ON public.id_verifications FOR UPDATE
     TO authenticated
     USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
-
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('avatars', 'avatars', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
-
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('id-documents', 'id-documents', false)
-ON CONFLICT (id) DO NOTHING;
-
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('post-media', 'post-media', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
-
-CREATE POLICY "Avatars are publicly readable"
-    ON storage.objects FOR SELECT
-    USING (bucket_id = 'avatars');
-
-CREATE POLICY "Authenticated users can upload own avatar"
-    ON storage.objects FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        bucket_id = 'avatars'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-CREATE POLICY "Users can update own avatar"
-    ON storage.objects FOR UPDATE
-    TO authenticated
-    USING (
-        bucket_id = 'avatars'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-CREATE POLICY "Users and admins can view ID documents"
-    ON storage.objects FOR SELECT
-    TO authenticated
-    USING (
-        bucket_id = 'id-documents'
-        AND (
-            (storage.foldername(name))[1] = auth.uid()::text
-            OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
-        )
-    );
-
-CREATE POLICY "Authenticated users can upload own ID document"
-    ON storage.objects FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        bucket_id = 'id-documents'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-CREATE POLICY "Users can update own ID document"
-    ON storage.objects FOR UPDATE
-    TO authenticated
-    USING (
-        bucket_id = 'id-documents'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-CREATE POLICY "Post media is publicly readable"
-    ON storage.objects FOR SELECT
-    USING (bucket_id = 'post-media');
-
-CREATE POLICY "Authenticated users can upload own post media"
-    ON storage.objects FOR INSERT
-    TO authenticated
-    WITH CHECK (
-        bucket_id = 'post-media'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-CREATE POLICY "Users can update own post media"
-    ON storage.objects FOR UPDATE
-    TO authenticated
-    USING (
-        bucket_id = 'post-media'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );
-
-CREATE POLICY "Users can delete own post media"
-    ON storage.objects FOR DELETE
-    TO authenticated
-    USING (
-        bucket_id = 'post-media'
-        AND (storage.foldername(name))[1] = auth.uid()::text
-    );
 
 -- Reports & Moderation queue
 CREATE TABLE IF NOT EXISTS public.reports (

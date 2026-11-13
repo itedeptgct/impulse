@@ -2,6 +2,7 @@ import {
 	getContentTypeFromExtension,
 	readUriAsBinary,
 } from "@auth/utils/upload-utils";
+import { uploadToR2 } from "@lib/r2-storage";
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -188,20 +189,16 @@ export async function uploadPostMedia(
 	);
 	const filePath = `${userId}/${Date.now()}-${index}.${extension}`;
 
-	const { data, error } = await supabase.storage
-		.from("post-media")
-		.upload(filePath, binaryData, {
-			contentType,
-			upsert: true,
-		});
-
-	if (error) throw error;
-
-	const { data: publicData } = supabase.storage
-		.from("post-media")
-		.getPublicUrl(data.path);
-
-	return publicData.publicUrl;
+	const { publicUrl } = await uploadToR2(
+		"post-media",
+		filePath,
+		binaryData,
+		contentType,
+	);
+	if (!publicUrl) {
+		throw new Error("Post media upload did not return a public URL");
+	}
+	return publicUrl;
 }
 
 export async function resolveUploadedMediaUrls(

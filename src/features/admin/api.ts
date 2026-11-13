@@ -1,4 +1,5 @@
 import type { IdVerification, Profile, UserRole } from "@auth/types";
+import { getR2SignedDocumentUrl } from "@lib/r2-storage";
 import { supabase } from "@lib/supabase";
 
 import { fetchFeedPosts, normalizePostTags } from "@/features/posts/api";
@@ -27,24 +28,17 @@ export async function getDocumentPreviewUrl(filePath: string): Promise<string> {
 	}
 
 	try {
-		const { data, error } = await supabase.storage
-			.from("id-documents")
-			.createSignedUrl(filePath, 3600);
-
-		if (!error && data?.signedUrl) {
+		const signedUrl = await getR2SignedDocumentUrl(filePath, 3600);
+		if (signedUrl) {
 			signedUrlCache.set(filePath, {
-				url: data.signedUrl,
+				url: signedUrl,
 				expiresAt: now + 3600 * 1000,
 			});
-			return data.signedUrl;
+			return signedUrl;
 		}
 	} catch {}
 
-	const { data: pubData } = supabase.storage
-		.from("id-documents")
-		.getPublicUrl(filePath);
-
-	return pubData?.publicUrl || "";
+	return "";
 }
 
 export async function fetchAdminStats(): Promise<AdminStats> {

@@ -110,7 +110,7 @@ export const PRIVACY_POLICY: LegalDocument = {
 			id: "03",
 			title: "03 // THIRD-PARTY STORAGE & ENCRYPTION PROTOCOLS",
 			clauses: [
-				"Impulse relies on third-party infrastructure, including Supabase for authentication, database, and storage services, plus Expo and app-store services for delivering the app.",
+				"Impulse relies on third-party infrastructure, including Supabase for authentication and database services, Cloudflare R2 for media and document storage, plus Expo and app-store services for delivering the app.",
 				"Information may be stored or processed outside the Philippines by these providers. We use platform access controls, authentication, and encrypted connections where supported to protect data while it moves between the app and our services. Passwords should be handled by the authentication provider rather than stored as readable text by Impulse.",
 				"No system is impossible to break. Do not send sensitive information through a post, comment, image, or Dispatch just because it is inside a restricted guild.",
 				"We may share limited information with moderators, service providers, or authorities when needed to operate the app, investigate abuse, protect someone, or comply with law. We do not sell your personal information.",
