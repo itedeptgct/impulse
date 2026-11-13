@@ -75,14 +75,18 @@ export default function ProfileScreen() {
 	const [isLoadingMorePosts, setIsLoadingMorePosts] = useState(false);
 	const [nextPostOffset, setNextPostOffset] = useState<number | null>(null);
 
+	const userId = user?.id;
+	const profileGuild = profile?.guild;
+	const profileRole = profile?.role;
+
 	const loadUserData = useCallback(async () => {
-		if (!user?.id) return;
+		if (!userId) return;
 		try {
 			const userPostsResult = await fetchUserPosts(
-				user.id,
-				user.id,
-				profile?.guild,
-				profile?.role === "admin",
+				userId,
+				userId,
+				profileGuild,
+				profileRole === "admin",
 				20,
 				0,
 			);
@@ -92,11 +96,11 @@ export default function ProfileScreen() {
 		} finally {
 			setIsRefreshing(false);
 		}
-	}, [user?.id, profile?.guild, profile?.role]);
+	}, [userId, profileGuild, profileRole]);
 
 	const loadMorePosts = useCallback(async () => {
 		if (
-			!user?.id ||
+			!userId ||
 			isLoadingMorePosts ||
 			isRefreshing ||
 			!hasMorePosts ||
@@ -107,11 +111,11 @@ export default function ProfileScreen() {
 
 		setIsLoadingMorePosts(true);
 		try {
-			const isAdmin = profile?.role === "admin";
+			const isAdmin = profileRole === "admin";
 			const userPostsResult = await fetchUserPosts(
-				user.id,
-				user.id,
-				profile?.guild,
+				userId,
+				userId,
+				profileGuild,
 				isAdmin,
 				20,
 				nextPostOffset,
@@ -129,20 +133,25 @@ export default function ProfileScreen() {
 			setIsLoadingMorePosts(false);
 		}
 	}, [
-		user?.id,
+		userId,
 		isLoadingMorePosts,
 		isRefreshing,
 		hasMorePosts,
 		nextPostOffset,
-		profile?.guild,
-		profile?.role,
+		profileGuild,
+		profileRole,
 	]);
 
 	useEffect(() => {
-		if (user?.id) {
-			void loadUserData();
-		}
-	}, [user?.id, loadUserData]);
+		if (!userId) return;
+		let cancelled = false;
+		queueMicrotask(() => {
+			if (!cancelled) void loadUserData();
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [userId, loadUserData]);
 
 	const onRefresh = useCallback(async () => {
 		setIsRefreshing(true);

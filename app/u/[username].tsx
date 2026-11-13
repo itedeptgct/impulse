@@ -47,6 +47,13 @@ export default function UserProfileScreen() {
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [nextOffset, setNextOffset] = useState<number | null>(null);
 
+	const currentUserId = currentUser?.id;
+	const currentUsername = currentProfile?.username;
+	const currentGuild = currentProfile?.guild;
+	const currentRole = currentProfile?.role;
+	const targetProfileId = targetProfile?.id;
+	const targetProfileGuild = targetProfile?.guild;
+
 	const loadData = useCallback(async () => {
 		if (!username) return;
 		try {
@@ -54,16 +61,16 @@ export default function UserProfileScreen() {
 			setTargetProfile(prof);
 			if (prof?.id) {
 				const isSelf = Boolean(
-					(currentUser?.id && prof.id === currentUser.id) ||
-					(currentProfile?.username &&
-						currentProfile.username.toLowerCase() ===
+					(currentUserId && prof.id === currentUserId) ||
+					(currentUsername &&
+						currentUsername.toLowerCase() ===
 							username.toLowerCase()),
 				);
-				const viewerId = isSelf ? prof.id : currentUser?.id;
+				const viewerId = isSelf ? prof.id : currentUserId;
 				const viewerGuild = isSelf
-					? (currentProfile?.guild ?? prof.guild)
-					: currentProfile?.guild;
-				const isAdmin = currentProfile?.role === "admin";
+					? (currentGuild ?? prof.guild)
+					: currentGuild;
+				const isAdmin = currentRole === "admin";
 
 				const [userPostsResult, verification] = await Promise.all([
 					fetchUserPosts(
@@ -90,17 +97,11 @@ export default function UserProfileScreen() {
 			setIsLoading(false);
 			setIsRefreshing(false);
 		}
-	}, [
-		username,
-		currentUser?.id,
-		currentProfile?.username,
-		currentProfile?.guild,
-		currentProfile?.role,
-	]);
+	}, [username, currentUserId, currentUsername, currentGuild, currentRole]);
 
 	const loadMore = useCallback(async () => {
 		if (
-			!targetProfile?.id ||
+			!targetProfileId ||
 			isLoading ||
 			isLoadingMore ||
 			isRefreshing ||
@@ -113,19 +114,18 @@ export default function UserProfileScreen() {
 		setIsLoadingMore(true);
 		try {
 			const isSelf = Boolean(
-				(currentUser?.id && targetProfile.id === currentUser.id) ||
-				(currentProfile?.username &&
-					currentProfile.username.toLowerCase() ===
-						username.toLowerCase()),
+				(currentUserId && targetProfileId === currentUserId) ||
+				(currentUsername &&
+					currentUsername.toLowerCase() === username.toLowerCase()),
 			);
-			const viewerId = isSelf ? targetProfile.id : currentUser?.id;
+			const viewerId = isSelf ? targetProfileId : currentUserId;
 			const viewerGuild = isSelf
-				? (currentProfile?.guild ?? targetProfile.guild)
-				: currentProfile?.guild;
-			const isAdmin = currentProfile?.role === "admin";
+				? (currentGuild ?? targetProfileGuild)
+				: currentGuild;
+			const isAdmin = currentRole === "admin";
 
 			const result = await fetchUserPosts(
-				targetProfile.id,
+				targetProfileId,
 				viewerId,
 				viewerGuild,
 				isAdmin,
@@ -145,13 +145,13 @@ export default function UserProfileScreen() {
 			setIsLoadingMore(false);
 		}
 	}, [
-		targetProfile?.id,
-		targetProfile?.guild,
+		targetProfileId,
+		targetProfileGuild,
 		username,
-		currentUser?.id,
-		currentProfile?.username,
-		currentProfile?.guild,
-		currentProfile?.role,
+		currentUserId,
+		currentUsername,
+		currentGuild,
+		currentRole,
 		isLoading,
 		isLoadingMore,
 		isRefreshing,
@@ -161,7 +161,13 @@ export default function UserProfileScreen() {
 
 	useEffect(() => {
 		if (!username) return;
-		void loadData();
+		let cancelled = false;
+		queueMicrotask(() => {
+			if (!cancelled) void loadData();
+		});
+		return () => {
+			cancelled = true;
+		};
 	}, [loadData, username]);
 
 	const onRefresh = useCallback(() => {

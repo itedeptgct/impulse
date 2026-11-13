@@ -48,6 +48,7 @@ export default function DispatchScreen() {
 	const [eventsOnly, setEventsOnly] = useState(false);
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
 
+	const userId = user?.id;
 	const userRole = profile?.role;
 	const userGuild = profile?.guild ?? null;
 	const canAuthor =
@@ -55,13 +56,13 @@ export default function DispatchScreen() {
 		(userGuild ? canCreateDispatch(userRole, userGuild, userGuild) : false);
 
 	const loadData = useCallback(async () => {
-		if (!user?.id) return;
+		if (!userId) return;
 		try {
-			const isAdmin = profile?.role === "admin";
+			const isAdmin = userRole === "admin";
 			const feedResult = await fetchFeedPosts(
 				"all",
 				"new",
-				user.id,
+				userId,
 				userGuild,
 				isAdmin,
 				50,
@@ -116,10 +117,16 @@ export default function DispatchScreen() {
 			setIsLoading(false);
 			setIsRefreshing(false);
 		}
-	}, [user?.id, userGuild, profile?.role]);
+	}, [userId, userGuild, userRole]);
 
 	useEffect(() => {
-		void loadData();
+		let cancelled = false;
+		queueMicrotask(() => {
+			if (!cancelled) void loadData();
+		});
+		return () => {
+			cancelled = true;
+		};
 	}, [loadData]);
 
 	const handleVote = useCallback(

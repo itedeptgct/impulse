@@ -71,18 +71,22 @@ export default function FeedScreen() {
 		});
 	}, [params.guild, currentHouse]);
 
+	const userId = user?.id;
+	const profileGuild = profile?.guild;
+	const profileRole = profile?.role;
+
 	const loadData = useCallback(async () => {
-		if (!user?.id) return;
+		if (!userId) return;
 		try {
-			const activeGuild = profile?.guild ?? undefined;
+			const activeGuild = profileGuild ?? undefined;
 			const targetHouse = activeGuild ?? currentHouse ?? undefined;
 			const resolvedFilter: FeedGuildFilter =
 				selectedGuild === "all" || !targetHouse ? "all" : targetHouse;
-			const isAdmin = profile?.role === "admin";
+			const isAdmin = profileRole === "admin";
 			const feedResult = await fetchFeedPosts(
 				resolvedFilter,
 				selectedSort,
-				user.id,
+				userId,
 				activeGuild,
 				isAdmin,
 				PAGE_SIZE,
@@ -94,7 +98,7 @@ export default function FeedScreen() {
 							(post) =>
 								!(
 									post.visibility === "house" &&
-									post.author_id === user.id
+									post.author_id === userId
 								),
 						)
 					: feedResult.items;
@@ -106,17 +110,17 @@ export default function FeedScreen() {
 			setIsRefreshing(false);
 		}
 	}, [
-		user?.id,
+		userId,
 		selectedGuild,
 		currentHouse,
 		selectedSort,
-		profile?.guild,
-		profile?.role,
+		profileGuild,
+		profileRole,
 	]);
 
 	const loadMore = useCallback(async () => {
 		if (
-			!user?.id ||
+			!userId ||
 			isLoading ||
 			isLoadingMore ||
 			isRefreshing ||
@@ -128,15 +132,15 @@ export default function FeedScreen() {
 
 		setIsLoadingMore(true);
 		try {
-			const activeGuild = profile?.guild ?? undefined;
+			const activeGuild = profileGuild ?? undefined;
 			const targetHouse = activeGuild ?? currentHouse ?? undefined;
 			const resolvedFilter: FeedGuildFilter =
 				selectedGuild === "all" || !targetHouse ? "all" : targetHouse;
-			const isAdmin = profile?.role === "admin";
+			const isAdmin = profileRole === "admin";
 			const feedResult = await fetchFeedPosts(
 				resolvedFilter,
 				selectedSort,
-				user.id,
+				userId,
 				activeGuild,
 				isAdmin,
 				PAGE_SIZE,
@@ -148,7 +152,7 @@ export default function FeedScreen() {
 							(post) =>
 								!(
 									post.visibility === "house" &&
-									post.author_id === user.id
+									post.author_id === userId
 								),
 						)
 					: feedResult.items;
@@ -166,21 +170,27 @@ export default function FeedScreen() {
 			setIsLoadingMore(false);
 		}
 	}, [
-		user?.id,
+		userId,
 		isLoading,
 		isLoadingMore,
 		isRefreshing,
 		hasMore,
 		nextOffset,
-		profile?.guild,
-		profile?.role,
+		profileGuild,
+		profileRole,
 		currentHouse,
 		selectedGuild,
 		selectedSort,
 	]);
 
 	useEffect(() => {
-		void loadData();
+		let cancelled = false;
+		queueMicrotask(() => {
+			if (!cancelled) void loadData();
+		});
+		return () => {
+			cancelled = true;
+		};
 	}, [loadData]);
 
 	const patchPost = useCallback((postId: string, patch: Partial<Post>) => {
