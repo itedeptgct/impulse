@@ -18,7 +18,7 @@
 					"data": [
 						{
 							"scheme": "https",
-							"host": "impulse.app",
+							"host": "impulse-app.pages.dev",
 							"pathPrefix": "/post"
 						}
 					],

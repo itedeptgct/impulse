@@ -7,7 +7,7 @@ export interface PostShareInput {
 }
 
 export const APP_LINK_DOMAIN =
-	process.env.EXPO_PUBLIC_APP_LINK_DOMAIN?.trim() || null;
+	process.env.EXPO_PUBLIC_APP_LINK_DOMAIN?.trim() || "impulse-app.pages.dev";
 
 export function generatePostSharePayload(
 	post: PostShareInput,
