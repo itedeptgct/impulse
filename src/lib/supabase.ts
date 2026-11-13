@@ -9,16 +9,24 @@ try {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabasePubKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+import { getSupabaseConfigStatus } from "./supabase-config";
 
-if (!supabaseUrl || !supabasePubKey) {
-	throw new Error(
-		"Missing Supabase URL or Publishable Key in environment variables.",
-	);
-}
+const rawUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const rawKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
-export const supabase = createClient(supabaseUrl, supabasePubKey, {
+const configStatus = getSupabaseConfigStatus(rawUrl, rawKey);
+
+export const isSupabaseConfigured = configStatus.isConfigured;
+export const supabaseConfigError = configStatus.errorMessage;
+
+const resolvedUrl =
+	isSupabaseConfigured && rawUrl?.trim()
+		? rawUrl.trim()
+		: "https://placeholder.supabase.co";
+const resolvedKey =
+	isSupabaseConfigured && rawKey?.trim() ? rawKey.trim() : "placeholder-key";
+
+export const supabase = createClient(resolvedUrl, resolvedKey, {
 	auth: {
 		storage: AsyncStorage,
 		autoRefreshToken: true,

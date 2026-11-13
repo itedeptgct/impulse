@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { MobileTopBar } from "@/components/ui";
+import { MobileTopBar, NetworkErrorCard } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import { searchPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
@@ -59,6 +59,8 @@ export default function SearchScreen() {
 	const [userResults, setUserResults] = useState<Profile[]>([]);
 	const [isSearching, setIsSearching] = useState(false);
 	const [hasSearched, setHasSearched] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [isRetrying, setIsRetrying] = useState(false);
 
 	const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const searchSeqRef = useRef(0);
@@ -81,12 +83,14 @@ export default function SearchScreen() {
 				setUserResults([]);
 				setIsSearching(false);
 				setHasSearched(false);
+				setError(null);
 				return;
 			}
 
 			const seq = ++searchSeqRef.current;
 			setIsSearching(true);
 			setHasSearched(true);
+			setError(null);
 
 			const shouldFetchPosts =
 				targetTab === "all" || targetTab === "posts";
@@ -109,9 +113,13 @@ export default function SearchScreen() {
 
 				if (shouldFetchPosts) setPostResults(posts);
 				if (shouldFetchUsers) setUserResults(users);
-			} catch (error) {
+			} catch (err: unknown) {
 				if (seq === searchSeqRef.current) {
-					console.error("Search request failed:", error);
+					const e = err as Error;
+					setError(
+						e?.message ||
+							"Unable to reach the server. Check your connection and try again.",
+					);
 					setPostResults([]);
 					setUserResults([]);
 				}
@@ -124,6 +132,16 @@ export default function SearchScreen() {
 		[activeTab, userId, userGuild, isAdmin],
 	);
 
+	const handleRetry = useCallback(async () => {
+		if (!query.trim()) return;
+		setIsRetrying(true);
+		try {
+			await executeSearch(query, activeTab);
+		} finally {
+			setIsRetrying(false);
+		}
+	}, [query, activeTab, executeSearch]);
+
 	const handleQueryChange = (text: string) => {
 		setQuery(text);
 		if (debounceTimerRef.current) {
@@ -135,6 +153,7 @@ export default function SearchScreen() {
 			setUserResults([]);
 			setHasSearched(false);
 			setIsSearching(false);
+			setError(null);
 			return;
 		}
 		debounceTimerRef.current = setTimeout(() => {
@@ -167,6 +186,7 @@ export default function SearchScreen() {
 		setUserResults([]);
 		setHasSearched(false);
 		setIsSearching(false);
+		setError(null);
 	};
 
 	const patchPostResult = useCallback(
@@ -478,6 +498,17 @@ export default function SearchScreen() {
 					<Text className="mt-3 font-mono text-xs text-muted-foreground uppercase">
 						SCANNING DATABASE...
 					</Text>
+				</View>
+			) : error ? (
+				<View
+					style={{ flex: 1 }}
+					className="flex-1 items-center justify-center p-6">
+					<NetworkErrorCard
+						message={error}
+						onRetry={handleRetry}
+						isRetrying={isRetrying}
+						className="w-full max-w-md"
+					/>
 				</View>
 			) : !hasSearched ? (
 				<ScrollView

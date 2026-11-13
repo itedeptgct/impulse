@@ -146,8 +146,13 @@ import {
 	resolvePostGuild,
 	serializePostMediaUrl,
 } from "./utils/filter";
+import {
+	type PostAccessStatus,
+	resolvePostAccessState,
+} from "./utils/post-access";
 import { filterPostsByQuery } from "./utils/search-filter";
 
+export type { PostAccessStatus };
 export {
 	canManagePost,
 	computeNextVoteFromRemote,
@@ -160,6 +165,7 @@ export {
 	normalizePostMedia,
 	normalizePostTags,
 	resolveMediaUploaderId,
+	resolvePostAccessState,
 	resolvePostGuild,
 	serializePostMediaUrl,
 };
@@ -244,10 +250,10 @@ async function fetchUserVotesForPosts(
 }
 
 const POST_PROJECTION =
-	"id, author_id, title, content, visibility, guild, code_snippet, code_language, image_url, tags, post_type, event_date, event_location, upvotes_count, downvotes_count, comments_count, is_edited, created_at, updated_at, author:author_id(id, username, display_name, avatar_url, email, role, guild)";
+	"id, author_id, title, content, visibility, guild, code_snippet, code_language, image_url, tags, post_type, event_date, event_location, upvotes_count, downvotes_count, comments_count, is_edited, created_at, updated_at, author:author_id(id, username, display_name, avatar_url, role, guild)";
 
 const LEGACY_POST_PROJECTION =
-	"id, author_id, title, content, visibility, guild, code_snippet, code_language, image_url, tags, upvotes_count, downvotes_count, comments_count, is_edited, created_at, updated_at, author:author_id(id, username, display_name, avatar_url, email, role, guild)";
+	"id, author_id, title, content, visibility, guild, code_snippet, code_language, image_url, tags, upvotes_count, downvotes_count, comments_count, is_edited, created_at, updated_at, author:author_id(id, username, display_name, avatar_url, role, guild)";
 
 export async function fetchFeedPosts(
 	filter: FeedGuildFilter = "all",
@@ -624,7 +630,7 @@ export async function updatePost(
 		.update({ ...updatePayload, is_edited: true })
 		.eq("id", postId)
 		.select(
-			"*, author:author_id(id, username, display_name, avatar_url, email, role, guild)",
+			"*, author:author_id(id, username, display_name, avatar_url, role, guild)",
 		)
 		.maybeSingle();
 
@@ -634,7 +640,7 @@ export async function updatePost(
 			.update(updatePayload)
 			.eq("id", postId)
 			.select(
-				"*, author:author_id(id, username, display_name, avatar_url, email, role, guild)",
+				"*, author:author_id(id, username, display_name, avatar_url, role, guild)",
 			)
 			.maybeSingle();
 		data = fallbackRes.data;
@@ -723,7 +729,11 @@ export async function fetchPostById(
 	userId?: string,
 	userGuild?: string | null,
 	isAdmin?: boolean,
-): Promise<{ post: Post | null; isRestricted?: boolean }> {
+): Promise<{
+	post: Post | null;
+	isRestricted?: boolean;
+	accessStatus: PostAccessStatus;
+}> {
 	let post: Post | null = null;
 	let userVotes: Record<string, VoteType> = {};
 	const editedMap = await getEditedPostsMap();
@@ -732,16 +742,21 @@ export async function fetchPostById(
 		userVotes = await getCachedVotes(userId);
 	}
 
+	let networkError: unknown = null;
+	let queryReturnedNull = false;
+
 	try {
 		const { data, error } = await supabase
 			.from("posts")
 			.select(
-				"*, author:author_id(id, username, display_name, avatar_url, email, role, guild)",
+				"*, author:author_id(id, username, display_name, avatar_url, role, guild)",
 			)
 			.eq("id", postId)
 			.maybeSingle();
 
-		if (!error && data) {
+		if (error) {
+			networkError = error;
+		} else if (data) {
 			const authorObj = Array.isArray(data.author)
 				? data.author[0]
 				: data.author;
@@ -755,22 +770,108 @@ export async function fetchPostById(
 				},
 				user_vote: userVotes[data.id] ?? 0,
 			};
+		} else {
+			queryReturnedNull = true;
 		}
-	} catch {}
+	} catch (err) {
+		networkError = err;
+	}
 
-	if (!post) {
-		const cached = await getCachedPosts();
-		const found = cached.find((p) => p.id === postId);
-		if (found) {
-			post = {
-				...found,
-				user_vote: userVotes[found.id] ?? found.user_vote ?? 0,
-			};
+	// When Supabase returns null (and no network error), call get_post_access_status RPC
+	if (!networkError && queryReturnedNull) {
+		try {
+			const { data: rpcStatus, error: rpcError } = await supabase.rpc(
+				"get_post_access_status",
+				{ p_post_id: postId },
+			);
+
+			if (rpcError) {
+				networkError = rpcError;
+			} else {
+				const rawStatus =
+					(rpcStatus as PostAccessStatus) || "not_found";
+				const accessStatus = resolvePostAccessState(
+					rawStatus,
+					Boolean(userId),
+				);
+
+				if (accessStatus === "not_found") {
+					const cached = await getCachedPosts();
+					const filtered = cached.filter((p) => p.id !== postId);
+					if (filtered.length !== cached.length) {
+						await saveCachedPosts(filtered);
+					}
+					return {
+						post: null,
+						isRestricted: false,
+						accessStatus: "not_found",
+					};
+				}
+
+				if (
+					accessStatus === "restricted" ||
+					accessStatus === "unauthenticated"
+				) {
+					return {
+						post: null,
+						isRestricted: true,
+						accessStatus,
+					};
+				}
+
+				return {
+					post: null,
+					isRestricted: false,
+					accessStatus,
+				};
+			}
+		} catch (rpcErr) {
+			networkError = rpcErr;
 		}
 	}
 
+	// Only fall back to AsyncStorage cache if the network call itself threw an error (and still enforce isPostRestricted)
+	if (networkError) {
+		const cached = await getCachedPosts();
+		const found = cached.find((p) => p.id === postId);
+		if (found) {
+			let activeUserGuild = userGuild;
+			if (!activeUserGuild && userId) {
+				try {
+					activeUserGuild = await AsyncStorage.getItem(
+						`impulse_user_guild_${userId}`,
+					);
+				} catch {}
+			}
+
+			if (isPostRestricted(found, userId, activeUserGuild, isAdmin)) {
+				return {
+					post: null,
+					isRestricted: true,
+					accessStatus: userId ? "restricted" : "unauthenticated",
+				};
+			}
+
+			const postMediaUrls = normalizePostMedia(found);
+			const resolvedPost: Post = {
+				...found,
+				image_urls: postMediaUrls,
+				is_edited: Boolean(found.is_edited || editedMap[found.id]),
+				user_vote: userVotes[found.id] ?? found.user_vote ?? 0,
+			};
+
+			return {
+				post: resolvedPost,
+				isRestricted: false,
+				accessStatus: "accessible",
+			};
+		}
+
+		throw networkError;
+	}
+
 	if (!post) {
-		return { post: null, isRestricted: false };
+		return { post: null, isRestricted: false, accessStatus: "not_found" };
 	}
 
 	let activeUserGuild = userGuild;
@@ -783,7 +884,11 @@ export async function fetchPostById(
 	}
 
 	if (isPostRestricted(post, userId, activeUserGuild, isAdmin)) {
-		return { post: null, isRestricted: true };
+		return {
+			post: null,
+			isRestricted: true,
+			accessStatus: userId ? "restricted" : "unauthenticated",
+		};
 	}
 
 	if (userId) {
@@ -798,7 +903,7 @@ export async function fetchPostById(
 		user_vote: userVotes[post.id] ?? post.user_vote ?? 0,
 	};
 
-	return { post, isRestricted: false };
+	return { post, isRestricted: false, accessStatus: "accessible" };
 }
 
 export async function votePost(
@@ -893,7 +998,7 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
 		const { data, error } = await supabase
 			.from("comments")
 			.select(
-				"*, author:author_id(id, username, display_name, avatar_url, guild)",
+				"id, post_id, author_id, content, parent_id, reply_to_username, is_deleted, updated_at, created_at, author:author_id(id, username, display_name, avatar_url, guild)",
 			)
 			.eq("post_id", postId)
 			.order("created_at", { ascending: true });
@@ -905,6 +1010,8 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
 					: item.author;
 				return {
 					...item,
+					is_deleted: Boolean(item.is_deleted),
+					updated_at: item.updated_at || null,
 					author: authorObj || {
 						id: item.author_id,
 						username: "User",
@@ -937,6 +1044,8 @@ export async function addPostComment(
 		parent_id: parentId || null,
 		reply_to_username: replyToUsername || null,
 		created_at: new Date().toISOString(),
+		is_deleted: false,
+		updated_at: null,
 	};
 
 	const insertPayload: Record<string, any> = {
@@ -977,6 +1086,132 @@ export async function addPostComment(
 	}
 
 	return newComment;
+}
+
+export async function editComment(
+	commentId: string,
+	content: string,
+): Promise<Comment> {
+	const trimmed = content.trim();
+	if (!trimmed) {
+		throw new Error("Comment cannot be empty");
+	}
+
+	const updatedAt = new Date().toISOString();
+
+	const { data, error } = await supabase
+		.from("comments")
+		.update({
+			content: trimmed,
+			updated_at: updatedAt,
+		})
+		.eq("id", commentId)
+		.select(
+			"id, post_id, author_id, content, parent_id, reply_to_username, is_deleted, updated_at, created_at, author:author_id(id, username, display_name, avatar_url, guild)",
+		)
+		.single();
+
+	if (error) throw error;
+
+	const authorObj = Array.isArray((data as any)?.author)
+		? (data as any).author[0]
+		: (data as any)?.author;
+
+	const updatedComment: Comment = {
+		...(data as any),
+		is_deleted: Boolean((data as any)?.is_deleted),
+		updated_at: (data as any)?.updated_at || updatedAt,
+		author: authorObj || {
+			id: (data as any).author_id,
+			username: "User",
+			display_name: "User",
+			avatar_url: null,
+			guild: null,
+		},
+	};
+
+	const allComments = await getCachedComments();
+	const postId = updatedComment.post_id;
+	if (allComments[postId]) {
+		allComments[postId] = allComments[postId].map((c) =>
+			c.id === commentId ? { ...c, ...updatedComment } : c,
+		);
+		await saveCachedComments(allComments);
+	}
+
+	return updatedComment;
+}
+
+export async function deleteComment(
+	commentId: string,
+): Promise<{ mode: "hard" | "soft" }> {
+	const { data: replies, error: replyError } = await supabase
+		.from("comments")
+		.select("id")
+		.eq("parent_id", commentId)
+		.limit(1);
+
+	if (replyError) throw replyError;
+
+	const hasReplies = Boolean(replies && replies.length > 0);
+	const mode: "hard" | "soft" = hasReplies ? "soft" : "hard";
+
+	if (hasReplies) {
+		const { error: updateError } = await supabase
+			.from("comments")
+			.update({
+				is_deleted: true,
+				content: "",
+				updated_at: new Date().toISOString(),
+			})
+			.eq("id", commentId);
+
+		if (updateError) throw updateError;
+	} else {
+		const { error: deleteError } = await supabase
+			.from("comments")
+			.delete()
+			.eq("id", commentId);
+
+		if (deleteError) throw deleteError;
+	}
+
+	const allComments = await getCachedComments();
+	let targetPostId: string | null = null;
+
+	for (const [pId, list] of Object.entries(allComments)) {
+		const found = list.find((c) => c.id === commentId);
+		if (found) {
+			targetPostId = pId;
+			if (hasReplies) {
+				allComments[pId] = list.map((c) =>
+					c.id === commentId
+						? {
+								...c,
+								is_deleted: true,
+								content: "",
+								updated_at: new Date().toISOString(),
+							}
+						: c,
+				);
+			} else {
+				allComments[pId] = list.filter((c) => c.id !== commentId);
+			}
+			break;
+		}
+	}
+	await saveCachedComments(allComments);
+
+	if (targetPostId) {
+		const posts = await getCachedPosts();
+		const post = posts.find((p) => p.id === targetPostId);
+		if (post) {
+			post.comments_count = Math.max(0, post.comments_count - 1);
+			await saveCachedPosts(posts);
+		}
+	}
+
+	return { mode };
 }
 
 export async function fetchUserPosts(

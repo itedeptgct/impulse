@@ -1,4 +1,4 @@
-import type { IdVerification, UserRole } from "@auth/types";
+import type { IdVerification, Profile, UserRole } from "@auth/types";
 import { supabase } from "@lib/supabase";
 
 import { fetchFeedPosts, normalizePostTags } from "@/features/posts/api";
@@ -82,7 +82,7 @@ export async function fetchAdminStats(): Promise<AdminStats> {
 const VERIFICATION_PROJECTION =
 	"id, user_id, document_url, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at";
 const PROFILE_PROJECTION =
-	"id, username, display_name, email, avatar_url, role, guild, created_at, updated_at";
+	"id, username, display_name, avatar_url, role, guild, created_at, updated_at";
 
 export async function fetchAdminVerifications(
 	filter: VerificationFilter = "all",
@@ -106,14 +106,36 @@ export async function fetchAdminVerifications(
 	if (!verifications || verifications.length === 0) return [];
 
 	const userIds = Array.from(new Set(verifications.map((v) => v.user_id)));
-	const { data: profiles, error: profErr } = await supabase
-		.from("profiles")
-		.select(PROFILE_PROJECTION)
-		.in("id", userIds);
+	const [{ data: profiles, error: profErr }, { data: privateProfiles }] =
+		await Promise.all([
+			supabase
+				.from("profiles")
+				.select(PROFILE_PROJECTION)
+				.in("id", userIds),
+			supabase
+				.from("private_profiles")
+				.select("user_id, email")
+				.in("user_id", userIds),
+		]);
 
 	if (profErr) throw profErr;
 
-	const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+	const emailMap = new Map<string, string>(
+		(privateProfiles || []).map((e: { user_id: string; email: string }) => [
+			e.user_id,
+			e.email,
+		]),
+	);
+
+	const profileMap = new Map(
+		(profiles || []).map((p) => [
+			p.id,
+			{
+				...p,
+				email: emailMap.get(p.id) || "",
+			} as Profile,
+		]),
+	);
 
 	let items: AdminVerificationItem[] = verifications.map((v) => ({
 		...v,
@@ -190,7 +212,22 @@ export async function fetchAdminUsers(
 
 	if (search.trim()) {
 		const s = search.trim();
-		query = query.or(`username.ilike.%${s}%,email.ilike.%${s}%`);
+		const { data: matchedEmails } = await supabase
+			.from("private_profiles")
+			.select("user_id")
+			.ilike("email", `%${s}%`);
+
+		const emailMatchedUserIds = (matchedEmails || []).map(
+			(m: { user_id: string }) => m.user_id,
+		);
+
+		if (emailMatchedUserIds.length > 0) {
+			query = query.or(
+				`username.ilike.%${s}%,display_name.ilike.%${s}%,id.in.(${emailMatchedUserIds.join(",")})`,
+			);
+		} else {
+			query = query.or(`username.ilike.%${s}%,display_name.ilike.%${s}%`);
+		}
 	}
 
 	query = query.range(offset, offset + limit - 1);
@@ -200,11 +237,18 @@ export async function fetchAdminUsers(
 	if (!profiles || profiles.length === 0) return [];
 
 	const userIds = profiles.map((p) => p.id);
-	const { data: verifications } = await supabase
-		.from("id_verifications")
-		.select(VERIFICATION_PROJECTION)
-		.in("user_id", userIds)
-		.order("created_at", { ascending: false });
+	const [{ data: verifications }, { data: privateProfiles }] =
+		await Promise.all([
+			supabase
+				.from("id_verifications")
+				.select(VERIFICATION_PROJECTION)
+				.in("user_id", userIds)
+				.order("created_at", { ascending: false }),
+			supabase
+				.from("private_profiles")
+				.select("user_id, email")
+				.in("user_id", userIds),
+		]);
 
 	const verifMap = new Map<string, IdVerification>();
 	for (const v of verifications || []) {
@@ -213,8 +257,16 @@ export async function fetchAdminUsers(
 		}
 	}
 
+	const emailMap = new Map<string, string>(
+		(privateProfiles || []).map((e: { user_id: string; email: string }) => [
+			e.user_id,
+			e.email,
+		]),
+	);
+
 	const items: AdminUserItem[] = profiles.map((p) => ({
 		...p,
+		email: emailMap.get(p.id) || "",
 		verification: verifMap.get(p.id) || null,
 	}));
 

@@ -1,6 +1,12 @@
-import { createIdVerification, signOut, uploadIdDocument } from "@auth/api";
+import {
+	createIdVerification,
+	deleteOwnAccount,
+	signOut,
+	uploadIdDocument,
+} from "@auth/api";
 import { EditProfileModal } from "@auth/components/EditProfileModal";
 import { useAuthStore } from "@auth/store";
+import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
@@ -11,6 +17,7 @@ import {
 	BookOpen,
 	CheckCircle2,
 	Clock,
+	FileText,
 	Flame,
 	LogOut,
 	MessageSquare,
@@ -19,12 +26,14 @@ import {
 	Settings,
 	ShieldAlert,
 	ShieldCheck,
+	Trash2,
 	UploadCloud,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	FlatList,
+	Pressable,
 	RefreshControl,
 	Text,
 	View,
@@ -47,6 +56,7 @@ import type { Post } from "@/features/posts/types";
 
 export default function ProfileScreen() {
 	const insets = useSafeAreaInsets();
+	const queryClient = useQueryClient();
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 	const verification = useAuthStore((state) => state.verification);
@@ -57,6 +67,14 @@ export default function ProfileScreen() {
 	const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
 	const [signOutError, setSignOutError] = useState<string | null>(null);
 	const [isSigningOut, setIsSigningOut] = useState(false);
+
+	const [isDeleteAccountDialogOpen, setIsDeleteAccountDialogOpen] =
+		useState(false);
+	const [deleteAccountError, setDeleteAccountError] = useState<string | null>(
+		null,
+	);
+	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
 	const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -174,6 +192,7 @@ export default function ProfileScreen() {
 	const role = profile?.role || "user";
 	const verificationStatus = verification?.status || "pending";
 	const isAdmin = role === "admin";
+	const isStaff = role === "admin" || role === "mod" || role === "house_mod";
 
 	const handleConfirmSignOut = async () => {
 		setIsSigningOut(true);
@@ -188,6 +207,24 @@ export default function ProfileScreen() {
 			setSignOutError(err.message || "Failed to sign out.");
 		} finally {
 			setIsSigningOut(false);
+		}
+	};
+
+	const handleConfirmDeleteAccount = async () => {
+		setIsDeletingAccount(true);
+		setDeleteAccountError(null);
+		try {
+			await deleteOwnAccount();
+			queryClient.clear();
+			setIsDeleteAccountDialogOpen(false);
+			router.replace("/(auth)/sign-in");
+		} catch (error: unknown) {
+			const err = error as Error;
+			setDeleteAccountError(
+				err.message || "Failed to permanently delete account.",
+			);
+		} finally {
+			setIsDeletingAccount(false);
 		}
 	};
 
@@ -359,17 +396,6 @@ export default function ProfileScreen() {
 									<Settings
 										size={16}
 										color="#000000"
-										strokeWidth={2.2}
-									/>
-								</NeoButton>
-								<NeoButton
-									variant="outline"
-									size="sm"
-									onPress={() => setIsSignOutDialogOpen(true)}
-									className="px-2.5">
-									<LogOut
-										size={16}
-										color="#ff2a00"
 										strokeWidth={2.2}
 									/>
 								</NeoButton>
@@ -723,11 +749,34 @@ export default function ProfileScreen() {
 					</View>
 				}
 				ListFooterComponent={
-					isLoadingMorePosts ? (
-						<View className="py-4">
-							<ActivityIndicator color="#000000" />
+					<View className="items-center py-4">
+						{isLoadingMorePosts && (
+							<View className="pb-3">
+								<ActivityIndicator color="#000000" />
+							</View>
+						)}
+						<View className="flex-row items-center justify-center gap-3 pt-2">
+							<Pressable
+								onPress={() => router.push("/legal/terms")}
+								hitSlop={6}
+								className="active:opacity-70">
+								<Text className="font-mono text-[11px] text-muted-foreground uppercase underline">
+									Terms of Service
+								</Text>
+							</Pressable>
+							<Text className="font-mono text-[11px] text-muted-foreground">
+								•
+							</Text>
+							<Pressable
+								onPress={() => router.push("/legal/privacy")}
+								hitSlop={6}
+								className="active:opacity-70">
+								<Text className="font-mono text-[11px] text-muted-foreground uppercase underline">
+									Privacy Policy
+								</Text>
+							</Pressable>
 						</View>
-					) : null
+					</View>
 				}
 				onEndReached={loadMorePosts}
 				onEndReachedThreshold={0.5}
@@ -804,7 +853,7 @@ export default function ProfileScreen() {
 						</Text>
 					</View>
 
-					{isAdmin && (
+					{isStaff && (
 						<NeoCard
 							variant="accent"
 							onPress={() => {
@@ -818,8 +867,12 @@ export default function ProfileScreen() {
 									color="#000000"
 									strokeWidth={2.2}
 								/>
-								<Text className="font-bold text-xs text-foreground uppercase">
-									Admin Moderation
+								<Text className="text-md font-bold text-foreground uppercase">
+									{role === "house_mod"
+										? "House Moderation"
+										: role === "mod"
+											? "Moderation Desk"
+											: "Admin Moderation"}
 								</Text>
 							</View>
 							<ArrowUpRight
@@ -829,6 +882,98 @@ export default function ProfileScreen() {
 							/>
 						</NeoCard>
 					)}
+
+					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
+						<Text className="font-bold text-xs text-foreground uppercase">
+							Account
+						</Text>
+						<Text className="mt-1 font-mono text-xs text-muted-foreground">
+							Sign out of your session or permanently delete your
+							account.
+						</Text>
+						<View className="mt-3 flex-row gap-2.5">
+							<NeoButton
+								size="sm"
+								variant="outline"
+								className="flex-1"
+								startContent={
+									<LogOut
+										size={14}
+										color="#ff2a00"
+										strokeWidth={2.2}
+									/>
+								}
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									setIsSignOutDialogOpen(true);
+								}}>
+								Sign Out
+							</NeoButton>
+							<NeoButton
+								size="sm"
+								variant="destructive"
+								className="flex-1"
+								startContent={
+									<Trash2
+										size={14}
+										color="#ffffff"
+										strokeWidth={2.2}
+									/>
+								}
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									setIsDeleteAccountDialogOpen(true);
+								}}>
+								DELETE ACCOUNT
+							</NeoButton>
+						</View>
+					</View>
+
+					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
+						<Text className="font-bold text-xs text-foreground uppercase">
+							Legal & Compliance
+						</Text>
+						<Text className="mt-1 font-mono text-xs text-muted-foreground">
+							Review terms of service and student privacy
+							protocols.
+						</Text>
+						<View className="mt-3 flex-row gap-2.5">
+							<NeoButton
+								size="sm"
+								variant="outline"
+								className="flex-1"
+								startContent={
+									<FileText
+										size={14}
+										color="#000000"
+										strokeWidth={2.2}
+									/>
+								}
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									router.push("/legal/terms");
+								}}>
+								Terms of Service
+							</NeoButton>
+							<NeoButton
+								size="sm"
+								variant="outline"
+								className="flex-1"
+								startContent={
+									<ShieldCheck
+										size={14}
+										color="#000000"
+										strokeWidth={2.2}
+									/>
+								}
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									router.push("/legal/privacy");
+								}}>
+								Privacy Policy
+							</NeoButton>
+						</View>
+					</View>
 
 					<View className="mt-3 flex-row gap-2.5 border-t-2 border-border pt-3">
 						<NeoButton
@@ -932,6 +1077,30 @@ export default function ProfileScreen() {
 					{
 						label: "Cancel",
 						onPress: () => setIsSignOutDialogOpen(false),
+						variant: "outline",
+					},
+				]}
+			/>
+
+			<MobileAlertSheet
+				open={isDeleteAccountDialogOpen}
+				onOpenChange={setIsDeleteAccountDialogOpen}
+				title="Delete Account"
+				type="error"
+				description={
+					deleteAccountError ||
+					"Are you sure you want to permanently delete your account? Your profile, posts, and comments will be permanently deleted. This action cannot be undone."
+				}
+				actions={[
+					{
+						label: "Delete Permanently",
+						onPress: handleConfirmDeleteAccount,
+						variant: "destructive",
+						loading: isDeletingAccount,
+					},
+					{
+						label: "Cancel",
+						onPress: () => setIsDeleteAccountDialogOpen(false),
 						variant: "outline",
 					},
 				]}

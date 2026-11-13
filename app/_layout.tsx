@@ -4,17 +4,24 @@ import {
 	CourierPrime_400Regular,
 	CourierPrime_700Bold,
 } from "@expo-google-fonts/courier-prime";
-import { supabase } from "@lib/supabase";
+import {
+	isSupabaseConfigured,
+	supabase,
+	supabaseConfigError,
+} from "@lib/supabase";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { AlertTriangle } from "lucide-react-native";
 import { PanelUIProvider } from "panelui-native";
 import { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Uniwind } from "uniwind";
+
+import { MobileAlertSheet, NeoCard } from "@/components/ui";
 
 import "@theme/global.css";
 
@@ -34,6 +41,19 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+	const sessionExpiredMessage = useAuthStore(
+		(state) => state.sessionExpiredMessage,
+	);
+	const dismissSessionExpired = useAuthStore(
+		(state) => state.dismissSessionExpired,
+	);
+
+	useEffect(() => {
+		if (sessionExpiredMessage) {
+			queryClient.clear();
+		}
+	}, [sessionExpiredMessage]);
+
 	const [fontsLoaded] = useFonts({
 		Anton_400Regular,
 		CourierPrime_400Regular,
@@ -45,6 +65,10 @@ export default function RootLayout() {
 			Uniwind.setTheme("light");
 		} catch (error) {
 			console.error("Failed to set theme to light", error);
+		}
+
+		if (!isSupabaseConfigured) {
+			return;
 		}
 
 		const syncUserData = (userId: string | undefined) => {
@@ -77,6 +101,35 @@ export default function RootLayout() {
 		);
 	}
 
+	if (!isSupabaseConfigured) {
+		return (
+			<View className="flex-1 items-center justify-center bg-background px-6">
+				<StatusBar style="dark" />
+				<NeoCard className="w-full max-w-md items-center p-6 text-center shadow-neo">
+					<View className="mb-4 border-2 border-border bg-destructive p-3 shadow-neo-sm">
+						<AlertTriangle
+							size={32}
+							color="#faf9f5"
+							strokeWidth={2.5}
+						/>
+					</View>
+					<Text className="font-display text-2xl tracking-tight text-foreground uppercase">
+						CONFIGURATION REQUIRED
+					</Text>
+					<Text className="mt-3 text-center font-mono text-xs leading-relaxed text-foreground">
+						{supabaseConfigError}
+					</Text>
+					<View className="mt-4 w-full border-t border-border/20 pt-4">
+						<Text className="text-center font-mono text-[11px] leading-relaxed text-muted-foreground">
+							Please add the required variables to your .env file
+							and restart the development server.
+						</Text>
+					</View>
+				</NeoCard>
+			</View>
+		);
+	}
+
 	return (
 		<GestureHandlerRootView style={{ flex: 1, backgroundColor: "#faf9f5" }}>
 			<StatusBar style="dark" />
@@ -100,7 +153,43 @@ export default function RootLayout() {
 								name="u/[username]"
 								options={{ headerShown: false }}
 							/>
+							<Stack.Screen
+								name="legal/terms"
+								options={{ headerShown: false }}
+							/>
+							<Stack.Screen
+								name="legal/privacy"
+								options={{ headerShown: false }}
+							/>
 						</Stack>
+						<MobileAlertSheet
+							open={Boolean(sessionExpiredMessage)}
+							onOpenChange={(open) => {
+								if (!open) {
+									dismissSessionExpired();
+								}
+							}}
+							title="Session Expired"
+							description={sessionExpiredMessage ?? undefined}
+							type="warning"
+							actions={[
+								{
+									label: "SIGN IN",
+									variant: "primary",
+									onPress: () => {
+										dismissSessionExpired();
+										router.replace("/(auth)/sign-in");
+									},
+								},
+								{
+									label: "Dismiss",
+									variant: "outline",
+									onPress: () => {
+										dismissSessionExpired();
+									},
+								},
+							]}
+						/>
 					</QueryClientProvider>
 				</SafeAreaProvider>
 			</PanelUIProvider>

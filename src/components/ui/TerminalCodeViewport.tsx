@@ -1,11 +1,7 @@
 import React, { useMemo } from "react";
 import { ScrollView, Text, View } from "react-native";
 
-import {
-	getFileExtension,
-	highlightCode,
-	normalizeLanguage,
-} from "@/lib/syntax-highlighter";
+import { highlightCode, normalizeLanguage } from "@/lib/syntax-highlighter";
 
 export interface TerminalCodeViewportProps {
 	code: string;
@@ -24,7 +20,6 @@ export const TerminalCodeViewport: React.FC<TerminalCodeViewportProps> = ({
 }) => {
 	const trimmedCode = code?.trimEnd() ?? "";
 	const normalizedLang = normalizeLanguage(language);
-	const ext = getFileExtension(language);
 	const displayLang = (language || "TERMINAL").toUpperCase();
 
 	const lines = useMemo(
@@ -42,7 +37,7 @@ export const TerminalCodeViewport: React.FC<TerminalCodeViewportProps> = ({
 			{/* Terminal Header Bar */}
 			<View className="flex-row items-center justify-between border-b border-primary-foreground/15 bg-primary-container px-3 py-1.5">
 				<Text className="font-bold text-2xs tracking-wider text-neo-green uppercase">
-					{title ?? `> payload.${ext} // snippet`}
+					{title ?? `> CODE EDITOR // SAVED`}
 				</Text>
 				<Text className="font-mono text-2xs text-on-primary-container uppercase">
 					[{displayLang}]

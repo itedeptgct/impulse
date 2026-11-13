@@ -10,7 +10,21 @@
 		"android": {
 			"predictiveBackGestureEnabled": false,
 			"package": "com.janleigh.impulse",
-			"permissions": ["android.permission.RECORD_AUDIO"]
+			"permissions": ["android.permission.RECORD_AUDIO"],
+			"intentFilters": [
+				{
+					"action": "VIEW",
+					"autoVerify": true,
+					"data": [
+						{
+							"scheme": "https",
+							"host": "impulse.app",
+							"pathPrefix": "/post"
+						}
+					],
+					"category": ["BROWSABLE", "DEFAULT"]
+				}
+			]
 		},
 		"plugins": [
 			"expo-router",

@@ -6,12 +6,21 @@ export interface PostShareInput {
 	};
 }
 
-export function generatePostSharePayload(post: PostShareInput): {
+export const APP_LINK_DOMAIN =
+	process.env.EXPO_PUBLIC_APP_LINK_DOMAIN?.trim() || null;
+
+export function generatePostSharePayload(
+	post: PostShareInput,
+	domain: string | null = APP_LINK_DOMAIN,
+): {
 	title: string;
 	message: string;
 	url: string;
 } {
-	const url = `impulse://post/${post.id}`;
+	const normalizedDomain = domain?.trim();
+	const url = normalizedDomain
+		? `https://${normalizedDomain}/post/${post.id}`
+		: `impulse://post/${post.id}`;
 	const authorTag = post.author?.username
 		? ` by @${post.author.username}`
 		: "";

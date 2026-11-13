@@ -16,7 +16,10 @@ export default function AdminLayout() {
 		return <Redirect href="/(auth)/sign-in" />;
 	}
 
-	if (profile?.role !== "admin") {
+	const role = profile?.role;
+	const isStaff = role === "admin" || role === "mod" || role === "house_mod";
+
+	if (!isStaff) {
 		return <Redirect href="/(tabs)" />;
 	}
 

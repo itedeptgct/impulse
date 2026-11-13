@@ -9,10 +9,13 @@ import {
 	ArrowLeft,
 	ArrowUp,
 	CornerDownRight,
+	FileQuestion,
+	Flag,
 	Lock,
 	MessageSquare,
 	MoreHorizontal,
 	PenSquare,
+	Pencil,
 	Send,
 	Share2,
 	Shield,
@@ -38,19 +41,24 @@ import {
 	MobileAlertSheet,
 	MobileSheet,
 	NeoButton,
+	NetworkErrorCard,
 	TerminalCodeViewport,
 } from "@/components/ui";
 import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
 import { canManagePost } from "@/features/auth/permissions";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
+import { ReportModal } from "@/features/moderation/components/ReportModal";
 import {
 	addPostComment,
+	deleteComment,
 	deletePost,
+	editComment,
 	fetchPostById,
 	fetchPostComments,
 	isPostEdited,
 	normalizePostMedia,
 	normalizePostTags,
+	type PostAccessStatus,
 	votePost,
 } from "@/features/posts/api";
 import { PostComposerModal } from "@/features/posts/components/PostComposerModal";
@@ -94,7 +102,8 @@ export default function PostDetailScreen() {
 	const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 	const [comments, setComments] = useState<Comment[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
-	const [isRestricted, setIsRestricted] = useState(false);
+	const [accessStatus, setAccessStatus] =
+		useState<PostAccessStatus>("accessible");
 	const [replyText, setReplyText] = useState("");
 	const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 	const [replyingTo, setReplyingTo] = useState<{
@@ -109,7 +118,20 @@ export default function PostDetailScreen() {
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [isPostReportOpen, setIsPostReportOpen] = useState(false);
+	const [commentToReport, setCommentToReport] = useState<Comment | null>(
+		null,
+	);
 	const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+	const [editingCommentId, setEditingCommentId] = useState<string | null>(
+		null,
+	);
+	const [editingCommentContent, setEditingCommentContent] = useState("");
+	const [isSavingCommentEdit, setIsSavingCommentEdit] = useState(false);
+	const [commentToDelete, setCommentToDelete] = useState<Comment | null>(
+		null,
+	);
+	const [isDeletingComment, setIsDeletingComment] = useState(false);
 
 	const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
@@ -170,21 +192,20 @@ export default function PostDetailScreen() {
 		setError(null);
 		try {
 			const res = await fetchPostById(id, userId, userGuild, isAdmin);
-			if (res.isRestricted) {
-				setIsRestricted(true);
-				setPost(null);
-			} else if (res.post) {
+			setAccessStatus(res.accessStatus);
+			if (res.post) {
 				setPost(res.post);
-				setIsRestricted(false);
 				const comms = await fetchPostComments(id);
 				setComments(comms);
 			} else {
 				setPost(null);
-				setError("Post not found.");
 			}
 		} catch (err: unknown) {
 			const e = err as Error;
-			setError(e.message || "Failed to load post.");
+			setError(
+				e.message ||
+					"Unable to reach the server. Check your connection and try again.",
+			);
 		} finally {
 			setIsLoading(false);
 		}
@@ -288,34 +309,280 @@ export default function PostDetailScreen() {
 		}
 	};
 
-	if (isRestricted) {
+	const handleSaveCommentEdit = async () => {
+		if (!editingCommentId || !editingCommentContent.trim()) return;
+		setIsSavingCommentEdit(true);
+		try {
+			const updated = await editComment(
+				editingCommentId,
+				editingCommentContent.trim(),
+			);
+			setComments((prev) =>
+				prev.map((c) =>
+					c.id === editingCommentId ? { ...c, ...updated } : c,
+				),
+			);
+			setEditingCommentId(null);
+			setEditingCommentContent("");
+			triggerHaptic();
+		} catch (err: unknown) {
+			const e = err as Error;
+			setError(e.message || "Failed to edit comment.");
+		} finally {
+			setIsSavingCommentEdit(false);
+		}
+	};
+
+	const handleConfirmDeleteComment = async () => {
+		if (!commentToDelete) return;
+		const targetId = commentToDelete.id;
+		setIsDeletingComment(true);
+		try {
+			const res = await deleteComment(targetId);
+			if (res.mode === "soft") {
+				setComments((prev) =>
+					prev.map((c) =>
+						c.id === targetId
+							? {
+									...c,
+									is_deleted: true,
+									content: "",
+									updated_at: new Date().toISOString(),
+								}
+							: c,
+					),
+				);
+			} else {
+				setComments((prev) => prev.filter((c) => c.id !== targetId));
+			}
+			setPost((prev) =>
+				prev
+					? {
+							...prev,
+							comments_count: Math.max(
+								0,
+								prev.comments_count - 1,
+							),
+						}
+					: null,
+			);
+			setCommentToDelete(null);
+			triggerHaptic();
+		} catch (err: unknown) {
+			const e = err as Error;
+			setError(e.message || "Failed to delete comment.");
+		} finally {
+			setIsDeletingComment(false);
+		}
+	};
+
+	if (!isLoading && !post && !error) {
+		if (accessStatus === "unauthenticated") {
+			return (
+				<View
+					style={{ flex: 1, backgroundColor: "#faf9f5" }}
+					className="flex-1 bg-background">
+					<StatusBar style="dark" />
+					<View
+						style={{ paddingTop: Math.max(insets.top, 16) + 4 }}
+						className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 pb-3 shadow-neo-sm">
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Return to feed"
+							onPress={handleGoBack}
+							hitSlop={8}
+							className="size-10 items-center justify-center border-2 border-border bg-secondary shadow-neo-sm active:translate-x-px active:translate-y-px">
+							<ArrowLeft
+								size={18}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						</Pressable>
+						<View className="mx-2 flex-1 items-center">
+							<Text
+								numberOfLines={1}
+								className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+								POST // CLASSIFIED
+							</Text>
+							<Text
+								numberOfLines={1}
+								className="font-display text-sm tracking-tight text-foreground uppercase">
+								RESTRICTED CONTENT
+							</Text>
+						</View>
+						<View className="size-10" />
+					</View>
+					<View
+						style={{
+							flex: 1,
+							paddingBottom: Math.max(insets.bottom, 16),
+						}}
+						className="flex-1 items-center justify-center p-6">
+						<View className="w-full max-w-md items-center border-2 border-border bg-card p-6 shadow-neo">
+							<View className="size-14 items-center justify-center border-2 border-border bg-muted">
+								<Lock
+									size={28}
+									color="#000000"
+									strokeWidth={2.5}
+								/>
+							</View>
+							<Text className="mt-4 text-center font-display text-xl text-foreground uppercase">
+								SIGN IN TO VIEW
+							</Text>
+							<Text className="mt-2 text-center font-mono text-xs leading-relaxed text-muted-foreground">
+								This is a house-restricted post. Sign in with
+								your operative account to verify clearance and
+								view its contents.
+							</Text>
+							<NeoButton
+								variant="primary"
+								size="md"
+								className="mt-6 w-full"
+								onPress={() => {
+									triggerHaptic();
+									router.push("/(auth)/sign-in" as any);
+								}}>
+								SIGN IN
+							</NeoButton>
+							<NeoButton
+								variant="secondary"
+								size="md"
+								className="mt-2.5 w-full"
+								onPress={handleGoBack}>
+								RETURN TO FEED
+							</NeoButton>
+						</View>
+					</View>
+				</View>
+			);
+		}
+
+		if (accessStatus === "restricted") {
+			return (
+				<View
+					style={{ flex: 1, backgroundColor: "#faf9f5" }}
+					className="flex-1 bg-background">
+					<StatusBar style="dark" />
+					<View
+						style={{ paddingTop: Math.max(insets.top, 16) + 4 }}
+						className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 pb-3 shadow-neo-sm">
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Return to feed"
+							onPress={handleGoBack}
+							hitSlop={8}
+							className="size-10 items-center justify-center border-2 border-border bg-secondary shadow-neo-sm active:translate-x-px active:translate-y-px">
+							<ArrowLeft
+								size={18}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						</Pressable>
+						<View className="mx-2 flex-1 items-center">
+							<Text
+								numberOfLines={1}
+								className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+								POST // CLASSIFIED
+							</Text>
+							<Text
+								numberOfLines={1}
+								className="font-display text-sm tracking-tight text-foreground uppercase">
+								HOUSE CLEARANCE REQUIRED
+							</Text>
+						</View>
+						<View className="size-10" />
+					</View>
+					<View
+						style={{
+							flex: 1,
+							paddingBottom: Math.max(insets.bottom, 16),
+						}}
+						className="flex-1 items-center justify-center p-6">
+						<View className="w-full max-w-md items-center border-2 border-border bg-card p-6 shadow-neo">
+							<View className="size-14 items-center justify-center border-2 border-border bg-muted">
+								<Shield
+									size={28}
+									color="#000000"
+									strokeWidth={2.5}
+								/>
+							</View>
+							<Text className="mt-4 text-center font-display text-xl text-foreground uppercase">
+								HOUSE-RESTRICTED POST
+							</Text>
+							<Text className="mt-2 text-center font-mono text-xs leading-relaxed text-muted-foreground">
+								This post is exclusive to verified members of
+								this house. Only members of that house can view
+								its contents. Your current house affiliation
+								does not grant clearance.
+							</Text>
+							<NeoButton
+								variant="primary"
+								size="md"
+								className="mt-6 w-full"
+								onPress={handleGoBack}>
+								GO BACK
+							</NeoButton>
+						</View>
+					</View>
+				</View>
+			);
+		}
+
+		// accessStatus === "not_found" or other fallback
 		return (
 			<View
 				style={{ flex: 1, backgroundColor: "#faf9f5" }}
 				className="flex-1 bg-background">
 				<StatusBar style="dark" />
 				<View
+					style={{ paddingTop: Math.max(insets.top, 16) + 4 }}
+					className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 pb-3 shadow-neo-sm">
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Return to feed"
+						onPress={handleGoBack}
+						hitSlop={8}
+						className="size-10 items-center justify-center border-2 border-border bg-secondary shadow-neo-sm active:translate-x-px active:translate-y-px">
+						<ArrowLeft
+							size={18}
+							color="#000000"
+							strokeWidth={2.5}
+						/>
+					</Pressable>
+					<View className="mx-2 flex-1 items-center">
+						<Text
+							numberOfLines={1}
+							className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+							POST // 404
+						</Text>
+						<Text
+							numberOfLines={1}
+							className="font-display text-sm tracking-tight text-foreground uppercase">
+							NOT FOUND
+						</Text>
+					</View>
+					<View className="size-10" />
+				</View>
+				<View
 					style={{
 						flex: 1,
-						paddingTop: Math.max(insets.top, 16),
 						paddingBottom: Math.max(insets.bottom, 16),
 					}}
 					className="flex-1 items-center justify-center p-6">
 					<View className="w-full max-w-md items-center border-2 border-border bg-card p-6 shadow-neo">
 						<View className="size-14 items-center justify-center border-2 border-border bg-muted">
-							<Shield
+							<FileQuestion
 								size={28}
 								color="#000000"
 								strokeWidth={2.5}
 							/>
 						</View>
 						<Text className="mt-4 text-center font-display text-xl text-foreground uppercase">
-							CLASSIFIED HOUSE POST
+							POST DELETED OR NOT FOUND
 						</Text>
 						<Text className="mt-2 text-center font-mono text-xs leading-relaxed text-muted-foreground">
-							This post is exclusive to verified members of this
-							house. Your current house affiliation does not grant
-							clearance to view this record.
+							The post you are attempting to access has been
+							removed or does not exist.
 						</Text>
 						<NeoButton
 							variant="primary"
@@ -393,7 +660,7 @@ export default function PostDetailScreen() {
 					</Text>
 				</View>
 
-				{canManage ? (
+				{canManage || Boolean(user) ? (
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Post options"
@@ -675,10 +942,21 @@ export default function PostDetailScreen() {
 										);
 										const hiddenReplyCount =
 											countSubtreeReplies(node);
-										const cDisplayName =
-											comment.author?.display_name ||
-											comment.author?.username ||
-											"Student";
+										const isDeleted = Boolean(
+											comment.is_deleted,
+										);
+										const isAuthor = Boolean(
+											userId &&
+											userId === comment.author_id,
+										);
+										const isEditing =
+											editingCommentId === comment.id;
+
+										const cDisplayName = isDeleted
+											? "[deleted]"
+											: comment.author?.display_name ||
+												comment.author?.username ||
+												"Student";
 										const cInitials = cDisplayName
 											.slice(0, 2)
 											.toUpperCase();
@@ -696,75 +974,106 @@ export default function PostDetailScreen() {
 												{/* Comment Header */}
 												<View className="flex-row items-center justify-between gap-2">
 													<View className="min-w-0 flex-1 flex-row items-center gap-2">
-														<Pressable
-															onPress={() => {
-																if (
-																	comment
-																		.author
-																		?.username
-																) {
-																	triggerHaptic();
-																	router.push(
-																		`/u/${comment.author.username}` as any,
-																	);
-																}
-															}}
-															className="flex-row items-center gap-2 active:opacity-75">
-															<View className="size-6 items-center justify-center overflow-hidden border border-border bg-secondary">
-																{comment.author?.avatar_url?.startsWith(
-																	"http",
-																) ? (
-																	<ExpoImage
-																		source={{
-																			uri: comment
-																				.author
-																				.avatar_url,
-																		}}
-																		style={{
-																			width: "100%",
-																			height: "100%",
-																		}}
-																		contentFit="cover"
-																	/>
-																) : (
-																	<Text className="font-bold text-2xs text-foreground">
-																		{
-																			cInitials
-																		}
-																	</Text>
-																)}
-															</View>
-															<Text
-																numberOfLines={
-																	1
-																}
-																className="font-bold text-xs text-foreground uppercase">
-																@
-																{comment.author
-																	?.username ||
-																	cDisplayName}
+														{isDeleted ? (
+															<Text className="font-semibold text-xs text-muted-foreground italic">
+																[deleted]
 															</Text>
-														</Pressable>
-
-														{comment.author
-															?.guild && (
-															<GuildBadge
-																guildId={
-																	comment
+														) : (
+															<Pressable
+																onPress={() => {
+																	if (
+																		comment
+																			.author
+																			?.username
+																	) {
+																		triggerHaptic();
+																		router.push(
+																			`/u/${comment.author.username}` as any,
+																		);
+																	}
+																}}
+																className="flex-row items-center gap-2 active:opacity-75">
+																<View className="size-6 items-center justify-center overflow-hidden border border-border bg-secondary">
+																	{comment.author?.avatar_url?.startsWith(
+																		"http",
+																	) ? (
+																		<ExpoImage
+																			source={{
+																				uri: comment
+																					.author
+																					.avatar_url,
+																			}}
+																			style={{
+																				width: "100%",
+																				height: "100%",
+																			}}
+																			contentFit="cover"
+																		/>
+																	) : (
+																		<Text className="font-bold text-2xs text-foreground">
+																			{
+																				cInitials
+																			}
+																		</Text>
+																	)}
+																</View>
+																<Text
+																	numberOfLines={
+																		1
+																	}
+																	className="font-bold text-xs text-foreground uppercase">
+																	@
+																	{comment
 																		.author
-																		.guild
-																}
-																size="sm"
-															/>
+																		?.username ||
+																		cDisplayName}
+																</Text>
+															</Pressable>
 														)}
+
+														{!isDeleted &&
+															comment.author
+																?.role && (
+																<UserRoleBadge
+																	role={
+																		comment
+																			.author
+																			.role
+																	}
+																	size="sm"
+																/>
+															)}
+
+														{!isDeleted &&
+															comment.author
+																?.guild && (
+																<GuildBadge
+																	guildId={
+																		comment
+																			.author
+																			.guild
+																	}
+																	size="sm"
+																/>
+															)}
 													</View>
 
 													<View className="flex-row items-center gap-2">
-														<Text className="font-mono text-[10px] text-muted-foreground">
-															{formatRelativeTime(
-																comment.created_at,
-															)}
-														</Text>
+														<View className="flex-row items-center gap-1">
+															<Text className="font-mono text-[10px] text-muted-foreground">
+																{formatRelativeTime(
+																	comment.created_at,
+																)}
+															</Text>
+															{!isDeleted &&
+																comment.updated_at &&
+																comment.updated_at !==
+																	comment.created_at && (
+																	<Text className="font-mono text-[10px] text-muted-foreground">
+																		(edited)
+																	</Text>
+																)}
+														</View>
 														{replies.length > 0 && (
 															<Pressable
 																onPress={() =>
@@ -802,6 +1111,10 @@ export default function PostDetailScreen() {
 															) — tap to expand
 														</Text>
 													</Pressable>
+												) : isDeleted ? (
+													<Text className="mt-1.5 font-mono text-xs text-muted-foreground italic select-text">
+														[deleted]
+													</Text>
 												) : (
 													<>
 														{depth >
@@ -823,69 +1136,215 @@ export default function PostDetailScreen() {
 																</View>
 															)}
 
-														<Text className="mt-1.5 font-mono text-xs leading-relaxed text-foreground select-text">
-															{comment.content}
-														</Text>
-
-														<View className="mt-2 flex-row items-center gap-3">
-															<Pressable
-																onPress={() => {
-																	triggerHaptic();
-																	setReplyingTo(
-																		{
-																			id: comment.id,
-																			username:
-																				comment
-																					.author
-																					?.username ||
-																				"student",
-																		},
-																	);
-																}}
-																className="flex-row items-center gap-1 border border-border bg-secondary px-2 py-0.5 active:opacity-70">
-																<CornerDownRight
-																	size={10}
-																	color="#000000"
-																/>
-																<Text className="font-bold text-[10px] text-foreground uppercase">
-																	REPLY
-																</Text>
-															</Pressable>
-														</View>
-
-														{/* Nested Guide Tree */}
-														{replies.length > 0 && (
-															<View
-																className={`mt-1 flex-row ${
-																	canIndentChildren
-																		? "ml-2"
-																		: ""
-																}`}>
-																<Pressable
-																	accessibilityLabel="Collapse thread branch"
-																	onPress={() =>
-																		toggleCollapse(
-																			comment.id,
-																		)
+														{isEditing ? (
+															<View className="mt-2 border-2 border-border bg-card p-2.5 shadow-neo-sm">
+																<TextInput
+																	value={
+																		editingCommentContent
 																	}
-																	hitSlop={6}
-																	className="w-3 items-center pt-2 active:opacity-60">
-																	<View className="w-0.5 flex-1 bg-border/30" />
-																</Pressable>
-																<View className="min-w-0 flex-1">
-																	{replies.map(
-																		(
-																			childNode,
-																		) =>
-																			renderBranch(
-																				childNode,
-																			),
-																	)}
+																	onChangeText={
+																		setEditingCommentContent
+																	}
+																	multiline
+																	autoFocus
+																	maxLength={
+																		2000
+																	}
+																	placeholder="Edit your comment..."
+																	placeholderTextColor="#71717A"
+																	className="min-h-16 font-mono text-xs text-foreground"
+																	textAlignVertical="top"
+																/>
+																<View className="mt-2 flex-row items-center justify-end gap-2">
+																	<Pressable
+																		disabled={
+																			isSavingCommentEdit
+																		}
+																		onPress={() => {
+																			triggerHaptic();
+																			setEditingCommentId(
+																				null,
+																			);
+																			setEditingCommentContent(
+																				"",
+																			);
+																		}}
+																		className="border border-border bg-secondary px-2.5 py-1 active:opacity-75">
+																		<Text className="font-bold text-xs text-foreground uppercase">
+																			Cancel
+																		</Text>
+																	</Pressable>
+																	<Pressable
+																		disabled={
+																			isSavingCommentEdit ||
+																			!editingCommentContent.trim()
+																		}
+																		onPress={
+																			handleSaveCommentEdit
+																		}
+																		className={`border border-border bg-primary px-3 py-1 active:opacity-75 ${
+																			!editingCommentContent.trim() ||
+																			isSavingCommentEdit
+																				? "opacity-50"
+																				: ""
+																		}`}>
+																		{isSavingCommentEdit ? (
+																			<ActivityIndicator
+																				size="small"
+																				color="#FFFFFF"
+																			/>
+																		) : (
+																			<Text className="font-bold text-xs text-primary-foreground uppercase">
+																				Save
+																			</Text>
+																		)}
+																	</Pressable>
 																</View>
 															</View>
+														) : (
+															<>
+																<Text className="mt-1.5 font-mono text-xs leading-relaxed text-foreground select-text">
+																	{
+																		comment.content
+																	}
+																</Text>
+
+																<View className="mt-2 flex-row items-center gap-2">
+																	<Pressable
+																		onPress={() => {
+																			triggerHaptic();
+																			setReplyingTo(
+																				{
+																					id: comment.id,
+																					username:
+																						comment
+																							.author
+																							?.username ||
+																						"student",
+																				},
+																			);
+																		}}
+																		className="flex-row items-center gap-1 border border-border bg-secondary px-2 py-0.5 active:opacity-70">
+																		<CornerDownRight
+																			size={
+																				10
+																			}
+																			color="#000000"
+																		/>
+																		<Text className="font-bold text-[10px] text-foreground uppercase">
+																			REPLY
+																		</Text>
+																	</Pressable>
+
+																	{isAuthor && (
+																		<>
+																			<Pressable
+																				onPress={() => {
+																					triggerHaptic();
+																					setEditingCommentId(
+																						comment.id,
+																					);
+																					setEditingCommentContent(
+																						comment.content,
+																					);
+																				}}
+																				className="flex-row items-center gap-1 border border-border bg-secondary px-2 py-0.5 active:opacity-70">
+																				<Pencil
+																					size={
+																						10
+																					}
+																					color="#000000"
+																				/>
+																				<Text className="font-bold text-[10px] text-foreground uppercase">
+																					EDIT
+																				</Text>
+																			</Pressable>
+
+																			<Pressable
+																				onPress={() => {
+																					triggerHaptic();
+																					setCommentToDelete(
+																						comment,
+																					);
+																				}}
+																				className="flex-row items-center gap-1 border border-destructive/40 bg-destructive/10 px-2 py-0.5 active:opacity-70">
+																				<Trash2
+																					size={
+																						10
+																					}
+																					color="#DC2626"
+																				/>
+																				<Text className="font-bold text-[10px] text-destructive uppercase">
+																					DELETE
+																				</Text>
+																			</Pressable>
+																		</>
+																	)}
+
+																	{user &&
+																		!isAuthor && (
+																			<Pressable
+																				accessibilityRole="button"
+																				accessibilityLabel="Report comment"
+																				onPress={() => {
+																					triggerHaptic();
+																					setCommentToReport(
+																						comment,
+																					);
+																				}}
+																				className="flex-row items-center gap-1 border border-border bg-secondary px-2 py-0.5 active:opacity-70">
+																				<Flag
+																					size={
+																						10
+																					}
+																					color="#ff2a00"
+																					strokeWidth={
+																						2.4
+																					}
+																				/>
+																				<Text className="font-bold text-[10px] text-foreground uppercase">
+																					REPORT
+																				</Text>
+																			</Pressable>
+																		)}
+																</View>
+															</>
 														)}
 													</>
 												)}
+
+												{/* Nested Guide Tree */}
+												{replies.length > 0 &&
+													!isCollapsed && (
+														<View
+															className={`mt-1 flex-row ${
+																canIndentChildren
+																	? "ml-2"
+																	: ""
+															}`}>
+															<Pressable
+																accessibilityLabel="Collapse thread branch"
+																onPress={() =>
+																	toggleCollapse(
+																		comment.id,
+																	)
+																}
+																hitSlop={6}
+																className="w-3 items-center pt-2 active:opacity-60">
+																<View className="w-0.5 flex-1 bg-border/30" />
+															</Pressable>
+															<View className="min-w-0 flex-1">
+																{replies.map(
+																	(
+																		childNode,
+																	) =>
+																		renderBranch(
+																			childNode,
+																		),
+																)}
+															</View>
+														</View>
+													)}
 											</View>
 										);
 									};
@@ -961,20 +1420,44 @@ export default function PostDetailScreen() {
 						</View>
 					</View>
 				</View>
+			) : error ? (
+				<View
+					style={{ flex: 1 }}
+					className="flex-1 items-center justify-center p-6">
+					<NetworkErrorCard
+						message={error}
+						onRetry={loadPostData}
+						isRetrying={isLoading}
+						className="w-full max-w-md"
+					/>
+				</View>
 			) : (
 				<View
 					style={{ flex: 1 }}
 					className="flex-1 items-center justify-center p-6">
-					<Text className="font-mono text-sm text-muted-foreground">
-						{error || "Post not available."}
-					</Text>
-					<NeoButton
-						variant="secondary"
-						size="sm"
-						className="mt-4"
-						onPress={handleGoBack}>
-						RETURN TO FEED
-					</NeoButton>
+					<View className="w-full max-w-md items-center border-2 border-border bg-card p-6 shadow-neo">
+						<View className="size-14 items-center justify-center border-2 border-border bg-muted">
+							<FileQuestion
+								size={28}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						</View>
+						<Text className="mt-4 text-center font-display text-xl text-foreground uppercase">
+							POST DELETED OR NOT FOUND
+						</Text>
+						<Text className="mt-2 text-center font-mono text-xs leading-relaxed text-muted-foreground">
+							The post you are attempting to access has been
+							removed or does not exist.
+						</Text>
+						<NeoButton
+							variant="primary"
+							size="md"
+							className="mt-6 w-full"
+							onPress={handleGoBack}>
+							RETURN TO FEED
+						</NeoButton>
+					</View>
 				</View>
 			)}
 
@@ -985,7 +1468,7 @@ export default function PostDetailScreen() {
 				onClose={() => setLightboxIndex(null)}
 			/>
 
-			{post && canManage && (
+			{post && (canManage || Boolean(user)) && (
 				<>
 					<MobileSheet
 						open={isMenuOpen}
@@ -994,7 +1477,7 @@ export default function PostDetailScreen() {
 						subtitle={
 							isAdminModAction
 								? `Moderation for @${post.author?.username || "student"}'s post`
-								: "Update or remove your post."
+								: "Update or report this post."
 						}>
 						<View className="gap-2.5 pb-4">
 							{isAdminModAction && (
@@ -1005,12 +1488,52 @@ export default function PostDetailScreen() {
 									</Text>
 								</View>
 							)}
+							{user?.id === post.author_id && (
+								<NeoButton
+									size="md"
+									variant="outline"
+									className="w-full justify-start"
+									startContent={
+										<PenSquare
+											size={15}
+											color="#000000"
+											strokeWidth={2.3}
+										/>
+									}
+									onPress={() => {
+										setIsMenuOpen(false);
+										setIsEditOpen(true);
+									}}>
+									EDIT POST
+								</NeoButton>
+							)}
+							{canManage && (
+								<NeoButton
+									size="md"
+									variant="destructive"
+									className="w-full justify-start"
+									startContent={
+										<Trash2
+											size={15}
+											color="#faf9f5"
+											strokeWidth={2.3}
+										/>
+									}
+									onPress={() => {
+										setIsMenuOpen(false);
+										setIsDeleteOpen(true);
+									}}>
+									{isAdminModAction
+										? "PURGE POST"
+										: "DELETE POST"}
+								</NeoButton>
+							)}
 							<NeoButton
 								size="md"
 								variant="outline"
 								className="w-full justify-start"
 								startContent={
-									<PenSquare
+									<Share2
 										size={15}
 										color="#000000"
 										strokeWidth={2.3}
@@ -1018,63 +1541,122 @@ export default function PostDetailScreen() {
 								}
 								onPress={() => {
 									setIsMenuOpen(false);
-									setIsEditOpen(true);
+									void handleOpenShare();
 								}}>
-								EDIT POST
+								SHARE POST
 							</NeoButton>
-							<NeoButton
-								size="md"
-								variant="destructive"
-								className="w-full justify-start"
-								startContent={
-									<Trash2
-										size={15}
-										color="#faf9f5"
-										strokeWidth={2.3}
-									/>
-								}
-								onPress={() => {
-									setIsMenuOpen(false);
-									setIsDeleteOpen(true);
-								}}>
-								{isAdminModAction
-									? "PURGE POST"
-									: "DELETE POST"}
-							</NeoButton>
+							{user && user.id !== post.author_id && (
+								<NeoButton
+									size="md"
+									variant="outline"
+									className="w-full justify-start"
+									startContent={
+										<Flag
+											size={15}
+											color="#ff2a00"
+											strokeWidth={2.3}
+										/>
+									}
+									onPress={() => {
+										setIsMenuOpen(false);
+										setIsPostReportOpen(true);
+									}}>
+									REPORT POST
+								</NeoButton>
+							)}
 						</View>
 					</MobileSheet>
 
-					<PostComposerModal
-						open={isEditOpen}
-						onOpenChange={setIsEditOpen}
-						editingPost={post}
-						onPostUpdated={(updated) => setPost(updated)}
-					/>
+					{canManage && (
+						<>
+							<PostComposerModal
+								open={isEditOpen}
+								onOpenChange={setIsEditOpen}
+								editingPost={post}
+								onPostUpdated={(updated) => setPost(updated)}
+							/>
 
-					<MobileAlertSheet
-						open={isDeleteOpen}
-						onOpenChange={setIsDeleteOpen}
-						title={isAdminModAction ? "Purge Post" : "Delete Post"}
-						type="error"
-						description={`Are you sure you want to permanently delete "${post.title}"? This action cannot be undone.`}
-						actions={[
-							{
-								label: isAdminModAction
-									? "Purge Permanently"
-									: "Delete Permanently",
-								onPress: handleConfirmDelete,
-								variant: "destructive",
-								loading: isDeleting,
-							},
-							{
-								label: "Cancel",
-								onPress: () => setIsDeleteOpen(false),
-								variant: "outline",
-							},
-						]}
-					/>
+							<MobileAlertSheet
+								open={isDeleteOpen}
+								onOpenChange={setIsDeleteOpen}
+								title={
+									isAdminModAction
+										? "Purge Post"
+										: "Delete Post"
+								}
+								type="error"
+								description={`Are you sure you want to permanently delete "${post.title}"? This action cannot be undone.`}
+								actions={[
+									{
+										label: isAdminModAction
+											? "Purge Permanently"
+											: "Delete Permanently",
+										onPress: handleConfirmDelete,
+										variant: "destructive",
+										loading: isDeleting,
+									},
+									{
+										label: "Cancel",
+										onPress: () => setIsDeleteOpen(false),
+										variant: "outline",
+									},
+								]}
+							/>
+						</>
+					)}
 				</>
 			)}
+
+			{post && (
+				<ReportModal
+					open={isPostReportOpen}
+					onOpenChange={setIsPostReportOpen}
+					targetType="post"
+					targetId={post.id}
+					guild={post.guild || post.author?.guild}
+					targetTitle={post.title}
+				/>
+			)}
+
+			<ReportModal
+				open={Boolean(commentToReport)}
+				onOpenChange={(open) => {
+					if (!open) setCommentToReport(null);
+				}}
+				targetType="comment"
+				targetId={commentToReport?.id || ""}
+				guild={post?.guild || commentToReport?.author?.guild}
+				targetTitle={
+					commentToReport
+						? `@${commentToReport.author?.username || "student"}: "${commentToReport.content.slice(0, 60)}"`
+						: undefined
+				}
+			/>
+
+			<MobileAlertSheet
+				open={Boolean(commentToDelete)}
+				onOpenChange={(open) => {
+					if (!open && !isDeletingComment) {
+						setCommentToDelete(null);
+					}
+				}}
+				title="Delete Comment"
+				type="error"
+				description="Are you sure you want to delete this comment? If it has replies, it will be marked as [deleted] to keep conversation context."
+				actions={[
+					{
+						label: "Delete",
+						onPress: handleConfirmDeleteComment,
+						variant: "destructive",
+						loading: isDeletingComment,
+					},
+					{
+						label: "Cancel",
+						onPress: () => setCommentToDelete(null),
+						variant: "outline",
+					},
+				]}
+			/>
 		</KeyboardAvoidingView>
 	);
 }

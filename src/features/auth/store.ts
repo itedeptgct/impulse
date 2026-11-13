@@ -15,11 +15,15 @@ interface AuthState {
 	loadedUserId: string | null;
 	isSyncing: boolean;
 	syncError: string | null;
+	isManualSignOut: boolean;
+	sessionExpiredMessage: string | null;
 	setSession: (session: Session | null) => void;
 	setProfile: (profile: Profile | null) => void;
 	setVerification: (verification: IdVerification | null) => void;
 	setGuild: (guild: GuildId) => void;
 	clearSession: () => void;
+	markManualSignOut: () => void;
+	dismissSessionExpired: () => void;
 	syncUserData: (
 		userId: string,
 		force?: boolean,
@@ -39,9 +43,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 	loadedUserId: null,
 	isSyncing: false,
 	syncError: null,
+	isManualSignOut: false,
+	sessionExpiredMessage: null,
 	setSession: (session) => {
 		const nextUserId = session?.user?.id ?? null;
 		set((state) => {
+			const isNullFromLoggedIn = session === null && state.user !== null;
+			const sessionExpiredMessage = isNullFromLoggedIn
+				? !state.isManualSignOut
+					? "Your session expired or was signed out. Please sign in again."
+					: null
+				: session !== null
+					? null
+					: state.sessionExpiredMessage;
+
 			if (state.user?.id !== nextUserId) {
 				return {
 					session,
@@ -52,12 +67,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 					isSyncing: false,
 					syncError: null,
 					isLoading: false,
+					isManualSignOut: false,
+					sessionExpiredMessage,
 				};
 			}
 			return {
 				session,
 				user: session?.user ?? null,
 				isLoading: false,
+				isManualSignOut: false,
+				sessionExpiredMessage,
 			};
 		});
 	},
@@ -85,7 +104,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 			isSyncing: false,
 			syncError: null,
 			isLoading: false,
+			isManualSignOut: false,
+			sessionExpiredMessage: null,
 		}),
+	markManualSignOut: () => set({ isManualSignOut: true }),
+	dismissSessionExpired: () => set({ sessionExpiredMessage: null }),
 	syncUserData: async (userId: string, force = false) => {
 		const state = get();
 		if (!force && state.loadedUserId === userId && state.profile) {

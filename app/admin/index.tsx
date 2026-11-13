@@ -1,6 +1,12 @@
 import { useAuthStore } from "@auth/store";
 import { StatusBar } from "expo-status-bar";
-import { BarChart3, FileCheck, FileText, Users } from "lucide-react-native";
+import {
+	BarChart3,
+	FileCheck,
+	FileText,
+	Flag,
+	Users,
+} from "lucide-react-native";
 import { useState } from "react";
 import { RefreshControl, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,18 +14,27 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NeoButton } from "@/components/ui";
 import { AdminHeader } from "@/features/admin/components/AdminHeader";
 import { AdminPostDirectory } from "@/features/admin/components/AdminPostDirectory";
+import { AdminReportsQueue } from "@/features/admin/components/AdminReportsQueue";
 import { AdminSkeleton } from "@/features/admin/components/AdminSkeleton";
 import { AdminStatsGrid } from "@/features/admin/components/AdminStatsGrid";
 import { AdminUserDirectory } from "@/features/admin/components/AdminUserDirectory";
 import { AdminVerificationDesk } from "@/features/admin/components/AdminVerificationDesk";
 import { useAdminStats } from "@/features/admin/hooks/useAdmin";
+import { useModerationReports } from "@/features/moderation/hooks/useModeration";
 
-type AdminSection = "queue" | "posts" | "stats" | "directory";
+type AdminSection = "queue" | "reports" | "posts" | "stats" | "directory";
 
 export default function AdminScreen() {
 	const insets = useSafeAreaInsets();
 	const user = useAuthStore((state) => state.user);
-	const [activeSection, setActiveSection] = useState<AdminSection>("queue");
+	const profile = useAuthStore((state) => state.profile);
+	const role = profile?.role;
+	const isHouseMod = role === "house_mod";
+	const isAdmin = role === "admin";
+
+	const [activeSection, setActiveSection] = useState<AdminSection>(
+		isHouseMod ? "reports" : "queue",
+	);
 
 	const {
 		data: stats,
@@ -28,7 +43,23 @@ export default function AdminScreen() {
 		isFetching: isStatsFetching,
 	} = useAdminStats();
 
-	if (isStatsLoading && !stats) {
+	const {
+		data: openReports,
+		refetch: refetchReports,
+		isFetching: isReportsFetching,
+	} = useModerationReports("open");
+
+	const pendingReportsCount = (openReports || []).filter((r) =>
+		isHouseMod && profile?.guild ? r.guild === profile.guild : true,
+	).length;
+
+	const handleRefresh = async () => {
+		await Promise.all([refetchStats(), refetchReports()]);
+	};
+
+	const isRefreshing = isStatsFetching || isReportsFetching;
+
+	if (isStatsLoading && !stats && !isHouseMod) {
 		return <AdminSkeleton />;
 	}
 
@@ -44,8 +75,8 @@ export default function AdminScreen() {
 			<StatusBar style="dark" />
 
 			<AdminHeader
-				onRefresh={() => void refetchStats()}
-				isRefreshing={isStatsFetching}
+				onRefresh={() => void handleRefresh()}
+				isRefreshing={isRefreshing}
 			/>
 
 			<ScrollView
@@ -54,8 +85,8 @@ export default function AdminScreen() {
 				showsVerticalScrollIndicator={false}
 				refreshControl={
 					<RefreshControl
-						refreshing={isStatsFetching}
-						onRefresh={() => void refetchStats()}
+						refreshing={isRefreshing}
+						onRefresh={() => void handleRefresh()}
 						tintColor="#000000"
 						colors={["#000000"]}
 					/>
@@ -66,19 +97,62 @@ export default function AdminScreen() {
 						showsHorizontalScrollIndicator={false}
 						contentContainerStyle={{ gap: 8 }}
 						className="pb-3">
+						{isAdmin && (
+							<NeoButton
+								size="sm"
+								variant={
+									activeSection === "queue"
+										? "primary"
+										: "outline"
+								}
+								onPress={() => setActiveSection("queue")}
+								startContent={
+									<FileCheck
+										size={14}
+										color={
+											activeSection === "queue"
+												? "#faf9f5"
+												: "#000000"
+										}
+										strokeWidth={2.5}
+									/>
+								}
+								endContent={
+									pendingCount > 0 ? (
+										<View
+											className={`rounded-none border border-border px-1.5 py-0.5 ${
+												activeSection === "queue"
+													? "bg-destructive"
+													: "bg-secondary"
+											}`}>
+											<Text
+												className={`font-bold text-[10px] tabular-nums ${
+													activeSection === "queue"
+														? "text-primary-foreground"
+														: "text-foreground"
+												}`}>
+												{pendingCount}
+											</Text>
+										</View>
+									) : undefined
+								}>
+								VERIFICATION QUEUE
+							</NeoButton>
+						)}
+
 						<NeoButton
 							size="sm"
 							variant={
-								activeSection === "queue"
+								activeSection === "reports"
 									? "primary"
 									: "outline"
 							}
-							onPress={() => setActiveSection("queue")}
+							onPress={() => setActiveSection("reports")}
 							startContent={
-								<FileCheck
+								<Flag
 									size={14}
 									color={
-										activeSection === "queue"
+										activeSection === "reports"
 											? "#faf9f5"
 											: "#000000"
 									}
@@ -86,25 +160,25 @@ export default function AdminScreen() {
 								/>
 							}
 							endContent={
-								pendingCount > 0 ? (
+								pendingReportsCount > 0 ? (
 									<View
 										className={`rounded-none border border-border px-1.5 py-0.5 ${
-											activeSection === "queue"
+											activeSection === "reports"
 												? "bg-destructive"
 												: "bg-secondary"
 										}`}>
 										<Text
 											className={`font-bold text-[10px] tabular-nums ${
-												activeSection === "queue"
+												activeSection === "reports"
 													? "text-primary-foreground"
 													: "text-foreground"
 											}`}>
-											{pendingCount}
+											{pendingReportsCount}
 										</Text>
 									</View>
 								) : undefined
 							}>
-							VERIFICATION QUEUE
+							REPORTS
 						</NeoButton>
 
 						<NeoButton
@@ -129,52 +203,72 @@ export default function AdminScreen() {
 							POSTS
 						</NeoButton>
 
-						<NeoButton
-							size="sm"
-							variant={
-								activeSection === "stats"
-									? "primary"
-									: "outline"
-							}
-							onPress={() => setActiveSection("stats")}
-							startContent={
-								<BarChart3
-									size={14}
-									color={
-										activeSection === "stats"
-											? "#faf9f5"
-											: "#000000"
-									}
-									strokeWidth={2.5}
-								/>
-							}>
-							STATS
-						</NeoButton>
+						{!isHouseMod && (
+							<NeoButton
+								size="sm"
+								variant={
+									activeSection === "stats"
+										? "primary"
+										: "outline"
+								}
+								onPress={() => setActiveSection("stats")}
+								startContent={
+									<BarChart3
+										size={14}
+										color={
+											activeSection === "stats"
+												? "#faf9f5"
+												: "#000000"
+										}
+										strokeWidth={2.5}
+									/>
+								}>
+								STATS
+							</NeoButton>
+						)}
 
-						<NeoButton
-							size="sm"
-							variant={
-								activeSection === "directory"
-									? "primary"
-									: "outline"
-							}
-							onPress={() => setActiveSection("directory")}
-							startContent={
-								<Users
-									size={14}
-									color={
-										activeSection === "directory"
-											? "#faf9f5"
-											: "#000000"
-									}
-									strokeWidth={2.5}
-								/>
-							}>
-							USER DIRECTORY
-						</NeoButton>
+						{!isHouseMod && (
+							<NeoButton
+								size="sm"
+								variant={
+									activeSection === "directory"
+										? "primary"
+										: "outline"
+								}
+								onPress={() => setActiveSection("directory")}
+								startContent={
+									<Users
+										size={14}
+										color={
+											activeSection === "directory"
+												? "#faf9f5"
+												: "#000000"
+										}
+										strokeWidth={2.5}
+									/>
+								}>
+								USER DIRECTORY
+							</NeoButton>
+						)}
 					</ScrollView>
 
-					{activeSection === "queue" && (
+					{activeSection === "reports" && (
+						<View className="mt-2 gap-4">
+							<View>
+								<Text className="font-display text-lg tracking-tight text-foreground uppercase">
+									Incident Reports Queue
+								</Text>
+								<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
+									{isHouseMod
+										? "Audit reports and manage flagged content within your house."
+										: "Inspect incident reports, remove abusive transmissions, and enforce campus conduct standards."}
+								</Text>
+							</View>
+							<AdminReportsQueue />
+						</View>
+					)}
+
+					{activeSection === "queue" && isAdmin && (
 						<View className="mt-2 gap-4">
 							<View>
 								<Text className="font-display text-lg tracking-tight text-foreground uppercase">
@@ -208,7 +302,7 @@ export default function AdminScreen() {
 						</View>
 					)}
 
-					{activeSection === "stats" && (
+					{activeSection === "stats" && !isHouseMod && (
 						<View className="mt-2 gap-4">
 							<View>
 								<Text className="font-display text-lg tracking-tight text-foreground uppercase">
@@ -223,7 +317,7 @@ export default function AdminScreen() {
 						</View>
 					)}
 
-					{activeSection === "directory" && (
+					{activeSection === "directory" && !isHouseMod && (
 						<View className="mt-2 gap-4">
 							<View>
 								<Text className="font-display text-lg tracking-tight text-foreground uppercase">

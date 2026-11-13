@@ -16,7 +16,7 @@ import {
 	View,
 } from "react-native";
 
-import { MobileTopBar } from "@/components/ui";
+import { MobileTopBar, NetworkErrorCard } from "@/components/ui";
 import { canCreateDispatch } from "@/features/auth/permissions";
 import { DispatchCard } from "@/features/dispatch/components/DispatchCard";
 import { DispatchComposerModal } from "@/features/dispatch/components/DispatchComposerModal";
@@ -47,6 +47,8 @@ export default function DispatchScreen() {
 		useState<DispatchFilterType>("all");
 	const [eventsOnly, setEventsOnly] = useState(false);
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [isRetrying, setIsRetrying] = useState(false);
 
 	const userId = user?.id;
 	const userRole = profile?.role;
@@ -113,11 +115,28 @@ export default function DispatchScreen() {
 			);
 
 			setPosts(dispatches);
+			setError(null);
+		} catch (err: unknown) {
+			const e = err as Error;
+			setError(
+				e?.message ||
+					"Unable to reach the server. Check your connection and try again.",
+			);
 		} finally {
 			setIsLoading(false);
 			setIsRefreshing(false);
 		}
 	}, [userId, userGuild, userRole]);
+
+	const handleRetry = useCallback(async () => {
+		triggerHaptic();
+		setIsRetrying(true);
+		try {
+			await loadData();
+		} finally {
+			setIsRetrying(false);
+		}
+	}, [loadData]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -276,6 +295,19 @@ export default function DispatchScreen() {
 
 	const renderEmpty = () => {
 		if (isLoading) return null;
+
+		if (error) {
+			return (
+				<View className="py-4">
+					<NetworkErrorCard
+						message={error}
+						onRetry={handleRetry}
+						isRetrying={isRetrying}
+					/>
+				</View>
+			);
+		}
+
 		const emptyState = getEmptyState();
 
 		return (
@@ -480,6 +512,17 @@ export default function DispatchScreen() {
 						</Text>
 					</Pressable>
 				</ScrollView>
+
+				{error && posts.length > 0 && (
+					<View className="mt-3">
+						<NetworkErrorCard
+							compact
+							message={error}
+							onRetry={handleRetry}
+							isRetrying={isRetrying}
+						/>
+					</View>
+				)}
 			</View>
 		);
 	};

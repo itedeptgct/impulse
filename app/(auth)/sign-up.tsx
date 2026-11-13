@@ -667,6 +667,28 @@ export default function SignUpScreen() {
 										CONTINUE TO VERIFICATION
 									</NeoButton>
 								</View>
+
+								<View className="px-2 pt-3">
+									<Text className="text-center font-mono text-[11px] leading-relaxed text-muted-foreground uppercase">
+										By creating an account, you agree to our{" "}
+										<Text
+											onPress={() =>
+												router.push("/legal/terms")
+											}
+											className="font-bold text-foreground underline">
+											Terms of Service
+										</Text>{" "}
+										and{" "}
+										<Text
+											onPress={() =>
+												router.push("/legal/privacy")
+											}
+											className="font-bold text-foreground underline">
+											Privacy Policy
+										</Text>
+										.
+									</Text>
+								</View>
 							</View>
 
 							<View className="mt-auto flex-row items-center justify-center pt-8">
@@ -877,6 +899,27 @@ export default function SignUpScreen() {
 									onPress={handleSubmitVerification}>
 									REGISTER ACCOUNT
 								</NeoButton>
+								<View className="px-2 pt-3">
+									<Text className="text-center font-mono text-[11px] leading-relaxed text-muted-foreground uppercase">
+										By creating an account, you agree to our{" "}
+										<Text
+											onPress={() =>
+												router.push("/legal/terms")
+											}
+											className="font-bold text-foreground underline">
+											Terms of Service
+										</Text>{" "}
+										and{" "}
+										<Text
+											onPress={() =>
+												router.push("/legal/privacy")
+											}
+											className="font-bold text-foreground underline">
+											Privacy Policy
+										</Text>
+										.
+									</Text>
+								</View>
 							</View>
 						</Animated.View>
 					)}

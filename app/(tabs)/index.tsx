@@ -14,7 +14,7 @@ import {
 	View,
 } from "react-native";
 
-import { MobileTopBar } from "@/components/ui";
+import { MobileTopBar, NetworkErrorCard } from "@/components/ui";
 import type { GuildId } from "@/features/guilds/types";
 import { fetchFeedPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
@@ -54,6 +54,8 @@ export default function FeedScreen() {
 	const [hasMore, setHasMore] = useState(true);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 	const [nextOffset, setNextOffset] = useState<number | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	const [isRetrying, setIsRetrying] = useState(false);
 
 	const PAGE_SIZE = 20;
 
@@ -105,6 +107,13 @@ export default function FeedScreen() {
 			setPosts(visiblePosts);
 			setHasMore(feedResult.hasMore);
 			setNextOffset(feedResult.nextOffset);
+			setError(null);
+		} catch (err: unknown) {
+			const e = err as Error;
+			setError(
+				e?.message ||
+					"Unable to reach the server. Check your connection and try again.",
+			);
 		} finally {
 			setIsLoading(false);
 			setIsRefreshing(false);
@@ -117,6 +126,16 @@ export default function FeedScreen() {
 		profileGuild,
 		profileRole,
 	]);
+
+	const handleRetry = useCallback(async () => {
+		triggerHaptic();
+		setIsRetrying(true);
+		try {
+			await loadData();
+		} finally {
+			setIsRetrying(false);
+		}
+	}, [loadData]);
 
 	const loadMore = useCallback(async () => {
 		if (
@@ -358,6 +377,17 @@ export default function FeedScreen() {
 						);
 					})}
 				</View>
+
+				{error && posts.length > 0 && (
+					<View className="mt-3">
+						<NetworkErrorCard
+							compact
+							message={error}
+							onRetry={handleRetry}
+							isRetrying={isRetrying}
+						/>
+					</View>
+				)}
 			</View>
 		);
 	};
@@ -385,6 +415,18 @@ export default function FeedScreen() {
 							</View>
 						</View>
 					))}
+				</View>
+			);
+		}
+
+		if (error) {
+			return (
+				<View className="py-4">
+					<NetworkErrorCard
+						message={error}
+						onRetry={handleRetry}
+						isRetrying={isRetrying}
+					/>
 				</View>
 			);
 		}

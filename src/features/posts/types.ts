@@ -49,6 +49,8 @@ export interface Comment {
 	parent_id?: string | null;
 	reply_to_username?: string | null;
 	created_at: string;
+	is_deleted?: boolean;
+	updated_at?: string | null;
 }
 
 export type FeedSort = "hot" | "new" | "top";

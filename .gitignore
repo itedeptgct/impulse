@@ -41,14 +41,16 @@ yarn-error.*
 /ios
 /android
 
-# misc
+# agentic
 .agents/
 skills-lock.json
 DESIGN.*
-backup/
+GEMINI.*
+
+# supabase
 supabase/*
 !supabase/schema.sql
 !supabase/migrations/
-docs/superpowers
-.superpowers
-plans/
+
+# cloudflare
+.cloudflare/

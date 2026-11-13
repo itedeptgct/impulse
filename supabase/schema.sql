@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT UNIQUE NOT NULL,
     display_name TEXT NOT NULL,
-    email TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'house_mod', 'mod', 'admin')),
     guild TEXT CHECK (guild IN ('octagram', 'chameleon', 'blue_jays')),
     course TEXT CHECK (course IN ('BSIT', 'BSCS')),
@@ -17,6 +16,40 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     CONSTRAINT username_min_length CHECK (char_length(TRIM(username)) >= 2),
     CONSTRAINT display_name_min_length CHECK (char_length(TRIM(display_name)) >= 2)
 );
+
+CREATE TABLE IF NOT EXISTS public.private_profiles (
+    user_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+ALTER TABLE public.private_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can select own private profile"
+    ON public.private_profiles FOR SELECT
+    TO authenticated
+    USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own private profile"
+    ON public.private_profiles FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own private profile"
+    ON public.private_profiles FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Admins and mods can select all private profiles"
+    ON public.private_profiles FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
@@ -87,13 +120,45 @@ BEGIN
         raw_display_name := 'Student';
     END IF;
 
-    INSERT INTO public.profiles (id, username, display_name, email)
-    VALUES (NEW.id, raw_username, raw_display_name, COALESCE(NEW.email, ''))
+    INSERT INTO public.profiles (id, username, display_name)
+    VALUES (NEW.id, raw_username, raw_display_name)
     ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO public.private_profiles (user_id, email)
+    VALUES (NEW.id, COALESCE(NEW.email, ''))
+    ON CONFLICT (user_id) DO NOTHING;
 
     RETURN NEW;
 END;
 $$;
+
+CREATE OR REPLACE FUNCTION public.delete_own_account()
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, storage, auth
+AS $$
+DECLARE
+    current_user_id UUID;
+BEGIN
+    current_user_id := auth.uid();
+    IF current_user_id IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    -- Delete user storage objects
+    DELETE FROM storage.objects WHERE owner = current_user_id;
+
+    -- Delete public profile (cascades posts, comments, votes, verifications, private_profiles)
+    DELETE FROM public.profiles WHERE id = current_user_id;
+
+    -- Delete auth user
+    DELETE FROM auth.users WHERE id = current_user_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.delete_own_account() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_own_account() TO authenticated;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -171,6 +236,54 @@ CREATE POLICY "Users can delete their own posts"
         OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
     );
 
+CREATE OR REPLACE FUNCTION public.get_post_access_status(p_post_id UUID)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_visibility TEXT;
+    v_post_guild TEXT;
+    v_author_id UUID;
+    v_caller_role TEXT;
+    v_caller_guild TEXT;
+BEGIN
+    SELECT visibility, guild, author_id
+    INTO v_visibility, v_post_guild, v_author_id
+    FROM public.posts
+    WHERE id = p_post_id;
+
+    IF NOT FOUND THEN
+        RETURN 'not_found';
+    END IF;
+
+    -- If public post or has no guild restriction
+    IF v_visibility = 'public' OR v_post_guild IS NULL THEN
+        RETURN 'accessible';
+    END IF;
+
+    -- At this point, post is house-restricted
+    IF auth.uid() IS NULL THEN
+        RETURN 'unauthenticated';
+    END IF;
+
+    SELECT role, guild
+    INTO v_caller_role, v_caller_guild
+    FROM public.profiles
+    WHERE id = auth.uid();
+
+    IF auth.uid() = v_author_id OR v_caller_role IN ('admin', 'mod') OR v_caller_guild = v_post_guild THEN
+        RETURN 'accessible';
+    ELSE
+        RETURN 'restricted';
+    END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_post_access_status(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_post_access_status(UUID) TO anon, authenticated;
+
 -- Post votes table and policies
 CREATE TABLE IF NOT EXISTS public.post_votes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -226,6 +339,8 @@ CREATE TABLE IF NOT EXISTS public.comments (
     content TEXT NOT NULL,
     parent_id UUID REFERENCES public.comments(id) ON DELETE CASCADE,
     reply_to_username TEXT,
+    is_deleted BOOLEAN NOT NULL DEFAULT false,
+    updated_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
@@ -246,26 +361,69 @@ CREATE POLICY "Authenticated users can create comments"
     TO authenticated
     WITH CHECK (auth.uid() = author_id);
 
+CREATE POLICY "Users can update own non-deleted comments"
+    ON public.comments FOR UPDATE
+    TO authenticated
+    USING (auth.uid() = author_id AND is_deleted = false)
+    WITH CHECK (auth.uid() = author_id);
+
+CREATE POLICY "Admins and mods can update comments"
+    ON public.comments FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
+CREATE POLICY "Users and admins can delete comments"
+    ON public.comments FOR DELETE
+    TO authenticated
+    USING (
+        auth.uid() = author_id
+        OR EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
 CREATE OR REPLACE FUNCTION public.handle_comment_count_change()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF TG_OP = 'DELETE' THEN
-        UPDATE public.posts
-        SET comments_count = GREATEST(0, comments_count - 1)
-        WHERE id = OLD.post_id;
-        RETURN OLD;
-    ELSE
+    IF TG_OP = 'INSERT' THEN
         UPDATE public.posts
         SET comments_count = comments_count + 1
         WHERE id = NEW.post_id;
         RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        IF OLD.is_deleted = false THEN
+            UPDATE public.posts
+            SET comments_count = GREATEST(0, comments_count - 1)
+            WHERE id = OLD.post_id;
+        END IF;
+        RETURN OLD;
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF OLD.is_deleted = false AND NEW.is_deleted = true THEN
+            UPDATE public.posts
+            SET comments_count = GREATEST(0, comments_count - 1)
+            WHERE id = NEW.post_id;
+        END IF;
+        RETURN NEW;
     END IF;
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS on_comment_count_change ON public.comments;
 CREATE TRIGGER on_comment_count_change
-    AFTER INSERT OR DELETE ON public.comments
+    AFTER INSERT OR UPDATE OR DELETE ON public.comments
     FOR EACH ROW EXECUTE FUNCTION public.handle_comment_count_change();
 
 -- ID Verification table and policies
@@ -384,3 +542,105 @@ CREATE POLICY "Users can delete own post media"
         bucket_id = 'post-media'
         AND (storage.foldername(name))[1] = auth.uid()::text
     );
+
+-- Reports & Moderation queue
+CREATE TABLE IF NOT EXISTS public.reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    target_type TEXT NOT NULL CHECK (target_type IN ('post', 'comment')),
+    target_id UUID NOT NULL,
+    guild TEXT CHECK (guild IN ('octagram', 'chameleon', 'blue_jays')),
+    reason TEXT NOT NULL CHECK (reason IN ('spam', 'harassment', 'misinformation', 'inappropriate', 'other')),
+    details TEXT,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved', 'dismissed')),
+    resolved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    resolved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS reports_unique_open_reporter_target 
+    ON public.reports (reporter_id, target_type, target_id) 
+    WHERE status = 'open';
+
+CREATE INDEX IF NOT EXISTS idx_reports_status_created 
+    ON public.reports (status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_reports_guild_status 
+    ON public.reports (guild, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_reports_target 
+    ON public.reports (target_type, target_id);
+
+ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can insert own reports"
+    ON public.reports FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = reporter_id);
+
+CREATE POLICY "Users can view own reports"
+    ON public.reports FOR SELECT
+    TO authenticated
+    USING (auth.uid() = reporter_id);
+
+CREATE POLICY "Admins and mods can view all reports"
+    ON public.reports FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
+CREATE POLICY "House mods can view guild reports"
+    ON public.reports FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid()
+              AND role = 'house_mod'
+              AND guild IS NOT NULL
+              AND guild = public.reports.guild
+        )
+    );
+
+CREATE POLICY "Admins and mods can update all reports"
+    ON public.reports FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
+CREATE POLICY "House mods can update guild reports"
+    ON public.reports FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid()
+              AND role = 'house_mod'
+              AND guild IS NOT NULL
+              AND guild = public.reports.guild
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid()
+              AND role = 'house_mod'
+              AND guild IS NOT NULL
+              AND guild = public.reports.guild
+        )
+    );
+

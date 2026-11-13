@@ -1,6 +1,7 @@
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { useAuthStore } from "./store";
 import type { IdVerification, Profile } from "./types";
 import {
 	getContentTypeFromExtension,
@@ -43,6 +44,7 @@ export async function signUp(
 }
 
 export async function signOut() {
+	useAuthStore.getState().markManualSignOut();
 	const { error } = await supabase.auth.signOut();
 	if (error) throw error;
 }
@@ -215,6 +217,28 @@ export async function fetchUserProfile(
 		profile = data as Profile | null;
 	} catch {}
 
+	let privateEmail = "";
+	try {
+		const { data: privData } = await supabase
+			.from("private_profiles")
+			.select("email")
+			.eq("user_id", userId)
+			.maybeSingle();
+
+		if (privData?.email) {
+			privateEmail = privData.email;
+		}
+	} catch {}
+
+	if (!privateEmail) {
+		try {
+			const { data: authData } = await supabase.auth.getUser();
+			if (authData?.user?.id === userId && authData.user.email) {
+				privateEmail = authData.user.email;
+			}
+		} catch {}
+	}
+
 	let cachedProfile: Profile | null = null;
 	try {
 		const rawCached = await AsyncStorage.getItem(
@@ -233,6 +257,7 @@ export async function fetchUserProfile(
 			...profile,
 		};
 	}
+
 	let localGuild: string | null = null;
 	try {
 		localGuild = await AsyncStorage.getItem(`impulse_user_guild_${userId}`);
@@ -248,6 +273,11 @@ export async function fetchUserProfile(
 	}
 
 	if (profile) {
+		if (privateEmail) {
+			profile.email = privateEmail;
+		} else if (!profile.email) {
+			profile.email = "";
+		}
 		if (!profile.guild && localGuild) {
 			profile.guild = localGuild as any;
 		}
@@ -259,7 +289,7 @@ export async function fetchUserProfile(
 			id: userId,
 			username: "student",
 			display_name: "Student",
-			email: "",
+			email: privateEmail || "",
 			role: "user",
 			guild: localGuild as any,
 			created_at: new Date().toISOString(),
@@ -310,18 +340,30 @@ export async function updateUserProfile(
 		updated_at: new Date().toISOString(),
 	};
 
+	const { email: emailUpdate, ...profileUpdates } = updates;
+
 	const { error: profileError } = await supabase
 		.from("profiles")
 		.update({
-			...updates,
+			...profileUpdates,
 			updated_at: updated.updated_at,
 		})
 		.eq("id", userId);
 	if (profileError) throw profileError;
 
+	if (emailUpdate) {
+		try {
+			await supabase
+				.from("private_profiles")
+				.upsert({ user_id: userId, email: emailUpdate });
+		} catch (err) {
+			console.warn("Failed to update private profile email:", err);
+		}
+	}
+
 	const { error: authError } = await supabase.auth.updateUser({
 		data: {
-			...updates,
+			...profileUpdates,
 		},
 	});
 	if (authError) throw authError;
@@ -349,6 +391,31 @@ export async function updateUserProfile(
 	return updated;
 }
 
+export async function deleteOwnAccount(): Promise<void> {
+	const { error } = await supabase.rpc("delete_own_account");
+	if (error) throw error;
+
+	useAuthStore.getState().markManualSignOut();
+
+	try {
+		const allKeys = await AsyncStorage.getAllKeys();
+		const impulseKeys = allKeys.filter((key) => key.startsWith("impulse_"));
+		if (impulseKeys.length > 0) {
+			await AsyncStorage.multiRemove(impulseKeys);
+		}
+	} catch (e) {
+		console.warn("Failed to clear impulse_ keys from AsyncStorage:", e);
+	}
+
+	try {
+		await supabase.auth.signOut({ scope: "local" });
+	} catch (e) {
+		console.warn("Failed to sign out locally:", e);
+	}
+
+	useAuthStore.getState().clearSession();
+}
+
 export async function fetchProfileByUsername(
 	username: string,
 ): Promise<Profile | null> {
@@ -363,7 +430,10 @@ export async function fetchProfileByUsername(
 			.maybeSingle();
 
 		if (!error && data) {
-			return data as Profile;
+			return {
+				...data,
+				email: (data as any).email || "",
+			} as Profile;
 		}
 	} catch {}
 
@@ -401,7 +471,10 @@ export async function searchUsers(query: string): Promise<Profile[]> {
 			.limit(20);
 
 		if (!error && data && data.length > 0) {
-			return data as Profile[];
+			return data.map((item: any) => ({
+				...item,
+				email: item.email || "",
+			})) as Profile[];
 		}
 	} catch {}
 

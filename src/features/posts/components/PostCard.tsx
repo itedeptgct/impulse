@@ -4,6 +4,7 @@ import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
 import {
+	Flag,
 	Lock,
 	MessageSquare,
 	MoreHorizontal,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui";
 import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
 import { canManagePost } from "@/features/auth/permissions";
+import { ReportModal } from "@/features/moderation/components/ReportModal";
 
 import { deletePost, normalizePostMedia, normalizePostTags } from "../api";
 import type { Post } from "../types";
@@ -65,6 +67,7 @@ function PostCardComponent({
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+	const [isReportOpen, setIsReportOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -165,7 +168,7 @@ function PostCardComponent({
 						{relativeTime}
 					</Text>
 
-					{canManage && (
+					{(canManage || Boolean(user)) && (
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Post options"
@@ -328,38 +331,73 @@ function PostCardComponent({
 				onOpenChange={setIsMenuOpen}
 				title="POST ACTIONS // TERMINAL">
 				<View className="gap-2.5 p-4">
-					<NeoButton
-						variant="outline"
-						startContent={
-							<PenSquare
-								size={16}
-								color="#000000"
-								strokeWidth={2.2}
-							/>
-						}
-						onPress={() => {
-							setIsMenuOpen(false);
-							setIsEditOpen(true);
-						}}>
-						EDIT POST
-					</NeoButton>
-					<NeoButton
-						variant="destructive"
-						startContent={
-							<Trash2
-								size={16}
-								color="#FFFFFF"
-								strokeWidth={2.2}
-							/>
-						}
-						onPress={() => {
-							setIsMenuOpen(false);
-							setIsDeleteOpen(true);
-						}}>
-						{isAdminModAction ? "PURGE POST" : "DELETE POST"}
-					</NeoButton>
+					{canManage && (
+						<>
+							{user?.id === post.author_id && (
+								<NeoButton
+									variant="outline"
+									startContent={
+										<PenSquare
+											size={16}
+											color="#000000"
+											strokeWidth={2.2}
+										/>
+									}
+									onPress={() => {
+										setIsMenuOpen(false);
+										setIsEditOpen(true);
+									}}>
+									EDIT POST
+								</NeoButton>
+							)}
+							<NeoButton
+								variant="destructive"
+								startContent={
+									<Trash2
+										size={16}
+										color="#FFFFFF"
+										strokeWidth={2.2}
+									/>
+								}
+								onPress={() => {
+									setIsMenuOpen(false);
+									setIsDeleteOpen(true);
+								}}>
+								{isAdminModAction
+									? "PURGE POST"
+									: "DELETE POST"}
+							</NeoButton>
+						</>
+					)}
+
+					{user && user.id !== post.author_id && (
+						<NeoButton
+							variant="outline"
+							startContent={
+								<Flag
+									size={16}
+									color="#ff2a00"
+									strokeWidth={2.2}
+								/>
+							}
+							onPress={() => {
+								setIsMenuOpen(false);
+								setIsReportOpen(true);
+							}}>
+							REPORT POST
+						</NeoButton>
+					)}
 				</View>
 			</MobileSheet>
+
+			<ReportModal
+				open={isReportOpen}
+				onOpenChange={setIsReportOpen}
+				targetType="post"
+				targetId={post.id}
+				guild={post.guild || post.author?.guild}
+				targetTitle={post.title}
+			/>
 
 			{isEditOpen && (
 				<PostComposerModal
