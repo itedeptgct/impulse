@@ -409,7 +409,7 @@ export default function UserProfileScreen() {
 														{targetProfile.bio}
 													</Text>
 												) : (
-													<Text className="mt-1.5 font-mono text-xs text-muted-foreground italic">
+													<Text className="mt-1.5 font-mono text-xs text-muted-foreground">
 														No biography provided
 														yet.
 													</Text>

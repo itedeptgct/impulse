@@ -80,9 +80,7 @@ export function PostComposerModal({
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
 	const [visibility, setVisibility] = useState<PostVisibility>("public");
-	const [activeTray, setActiveTray] = useState<
-		"code" | "media" | "voice" | "bounty" | null
-	>(null);
+	const [activeTray, setActiveTray] = useState<"code" | "media" | null>(null);
 	const [codeSnippet, setCodeSnippet] = useState("");
 	const [codeLanguage, setCodeLanguage] = useState("RUST");
 	const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -261,8 +259,7 @@ export function PostComposerModal({
 
 	const attachedCount =
 		(activeTray === "code" && codeSnippet.trim() ? 1 : 0) +
-		mediaUrls.length +
-		(activeTray === "voice" ? 1 : 0);
+		mediaUrls.length;
 
 	const mediaActive = activeTray === "media" || mediaUrls.length > 0;
 	const traySlots = [
@@ -390,18 +387,18 @@ export function PostComposerModal({
 
 							<View className="mb-5">
 								<View className="mb-2 flex-row items-center justify-between">
-									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
-										// AUDIENCE VISIBILITY
+									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
+										TARGET AUDIENCE
 									</Text>
 								</View>
 
 								<View className="flex-row gap-2">
 									<Pressable
 										onPress={() => setVisibility("public")}
-										className={`flex-1 border-2 border-border p-2.5 ${
+										className={`flex-1 border-2 border-border p-2.5 shadow-neo-sm ${
 											visibility === "public"
 												? "bg-neo-green shadow-neo-sm"
-												: "bg-surface"
+												: "bg-surface "
 										}`}>
 										<View className="flex-row items-center justify-center gap-1.5">
 											<Globe
@@ -417,9 +414,9 @@ export function PostComposerModal({
 
 									<Pressable
 										onPress={() => setVisibility("house")}
-										className={`flex-1 border-2 border-border p-2.5 ${
+										className={`flex-1 border-2 border-border p-2.5 shadow-neo-sm ${
 											visibility === "house"
-												? "bg-neo-green shadow-neo-sm"
+												? "bg-neo-green"
 												: "bg-surface"
 										}`}>
 										<View className="flex-row items-center justify-center gap-1.5">
@@ -438,11 +435,11 @@ export function PostComposerModal({
 
 							<View className="mb-5">
 								<View className="mb-1.5 flex-row items-center justify-between">
-									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
-										[POST_TITLE]
+									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
+										HEADLINE / TITLE *
 									</Text>
 									<Text className="font-mono text-2xs text-foreground/60 uppercase">
-										MAX 120 CHARS
+										{title.length}/120
 									</Text>
 								</View>
 								<TextInput
@@ -458,10 +455,10 @@ export function PostComposerModal({
 							<View className="mb-5">
 								<View className="mb-1.5 flex-row items-center justify-between">
 									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
-										[POST_CONTENT] [MD + TeX SUPPORT SOON™]
+										POST CONTENT *
 									</Text>
 									<Text className="font-mono text-2xs text-foreground/60 uppercase">
-										{content.length}/5000 CHR
+										{content.length}/5000
 									</Text>
 								</View>
 
@@ -482,10 +479,10 @@ export function PostComposerModal({
 							<View className="mb-5">
 								<View className="mb-1.5 flex-row items-center justify-between">
 									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
-										[CATEGORICAL_INDEX_TAGS]
+										TAGS (MAX OF 5 TAGS)
 									</Text>
 									<Text className="font-mono text-2xs text-foreground/60 uppercase">
-										LIMIT: 5
+										{selectedTags.length}/5
 									</Text>
 								</View>
 
@@ -560,7 +557,7 @@ export function PostComposerModal({
 							<View className="mb-5">
 								<View className="mb-1.5 flex-row items-center justify-between">
 									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
-										[ATTACHMENT_BUS_ARRAY]
+										ATTACHMENTS (CODE SNIPPET, MEDIA)
 									</Text>
 									<View className="border border-border bg-neo-green px-1.5 py-0.5">
 										<Text className="font-bold text-2xs text-foreground uppercase">

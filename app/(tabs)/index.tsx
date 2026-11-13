@@ -327,22 +327,17 @@ export default function FeedScreen() {
 								setSelectedGuild(currentHouse);
 							}}
 							className={`min-h-9 flex-1 flex-row items-center justify-center gap-1.5 border-2 border-border px-3 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
-								isHouseSelected ? "bg-primary" : "bg-surface"
+								isHouseSelected
+									? `${HOUSE_META[currentHouse]?.dotClass}`
+									: "bg-surface"
 							}`}>
-							{houseMeta ? (
-								<View
-									className={`size-2 ${houseMeta.dotClass}`}
-								/>
-							) : null}
 							<Text
 								className={`font-bold text-xs uppercase ${
 									isHouseSelected
-										? "text-primary-foreground"
+										? "text-primary"
 										: "text-foreground"
 								}`}>
-								{houseMeta
-									? `[${houseMeta.label}]`
-									: "[NO HOUSE]"}
+								{houseMeta ? `[HOUSE FEED]` : "[NO HOUSE]"}
 							</Text>
 						</Pressable>
 					)}

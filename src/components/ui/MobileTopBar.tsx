@@ -14,27 +14,6 @@ export interface MobileTopBarProps {
 	onBackPress?: () => void;
 }
 
-const GUILD_PILLS: Record<
-	string,
-	{ name: string; bg: string; textClass: string }
-> = {
-	octagram: {
-		name: "OCTOGRAM",
-		bg: "#00FF66",
-		textClass: "text-foreground",
-	},
-	chameleon: {
-		name: "CHAMELEON",
-		bg: "#FF007A",
-		textClass: "text-primary-foreground",
-	},
-	blue_jays: {
-		name: "BLUE JAYS",
-		bg: "#00E5FF",
-		textClass: "text-foreground",
-	},
-};
-
 const triggerHaptic = () => {
 	if (Platform.OS !== "web") {
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -57,8 +36,6 @@ export function MobileTopBar({
 		user?.email?.split("@")[0] ||
 		"0xKAI";
 	const initials = displayName.slice(0, 2).toUpperCase();
-
-	const guildPill = profile?.guild ? GUILD_PILLS[profile.guild] : null;
 
 	const upperSector = sector.toUpperCase();
 	const isSearchActive = upperSector === "SEARCH";
@@ -133,36 +110,6 @@ export function MobileTopBar({
 							color={isSearchActive ? "#FAF9F5" : "#000000"}
 							strokeWidth={2.5}
 						/>
-					</Pressable>
-
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel={
-							guildPill
-								? `Active guild ${guildPill.name}`
-								: "No affiliated house"
-						}
-						hitSlop={6}
-						onPress={() => {
-							triggerHaptic();
-							router.push("/(tabs)/guilds");
-						}}
-						style={
-							guildPill
-								? { backgroundColor: guildPill.bg }
-								: undefined
-						}
-						className={`h-9 items-center justify-center border-2 border-border px-2.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-							guildPill ? "" : "bg-surface"
-						}`}>
-						<Text
-							className={`font-bold text-[10px] tracking-wider uppercase ${
-								guildPill
-									? guildPill.textClass
-									: "text-muted-foreground"
-							}`}>
-							{guildPill ? `[${guildPill.name}]` : "[NO HOUSE]"}
-						</Text>
 					</Pressable>
 
 					<Pressable

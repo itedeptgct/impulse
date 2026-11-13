@@ -56,3 +56,6 @@ supabase/*
 .cloudflare/
 workers/r2-storage/.wrangler/
 workers/r2-storage/wrangler.toml
+
+# ts getting annoying now
+src/types/uniwind-types.d.ts

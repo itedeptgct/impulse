@@ -5,7 +5,7 @@
 		"scheme": "impulse",
 		"version": "1.0.0",
 		"orientation": "portrait",
-		"icon": "./assets/logo.png",
+		"icon": "./assets/icon.png",
 		"userInterfaceStyle": "automatic",
 		"android": {
 			"predictiveBackGestureEnabled": false,
@@ -42,7 +42,7 @@
 				"expo-splash-screen",
 				{
 					"backgroundColor": "#ffffff",
-					"image": "./assets/logo.png",
+					"image": "./assets/icon.png",
 					"imageWidth": 220,
 					"resizeMode": "contain"
 				}

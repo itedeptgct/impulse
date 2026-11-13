@@ -6,12 +6,41 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NeoButton } from "@/components/ui";
 
+const GRID_COLUMNS = 6;
+const GRID_ROWS = 12;
+
 export default function OnboardingScreen() {
 	const insets = useSafeAreaInsets();
 
 	return (
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
+			<View
+				pointerEvents="none"
+				className="absolute inset-0 opacity-20"
+				accessibilityElementsHidden>
+				<View className="absolute inset-0 flex-row">
+					{Array.from({ length: GRID_COLUMNS - 1 }).map(
+						(_, index) => (
+							<View
+								key={`column-${index}`}
+								className="flex-1 border-r border-border/20"
+							/>
+						),
+					)}
+					<View className="flex-1" />
+				</View>
+				<View className="absolute inset-0">
+					{Array.from({ length: GRID_ROWS - 1 }).map((_, index) => (
+						<View
+							key={`row-${index}`}
+							className="flex-1 border-b border-border/20"
+						/>
+					))}
+					<View className="flex-1" />
+				</View>
+				<View className="absolute top-1/4 left-1/2 size-3 bg-destructive" />
+			</View>
 			<ScrollView
 				contentContainerStyle={{
 					flexGrow: 1,
@@ -20,12 +49,12 @@ export default function OnboardingScreen() {
 				}}
 				showsVerticalScrollIndicator={false}>
 				<View className="items-center pt-48">
-					<Text className="text-center font-display text-6xl tracking-tighter text-foreground uppercase sm:text-7xl">
+					<Text className="text-center font-display text-6xl tracking-tight text-foreground uppercase sm:text-7xl">
 						IMPULSE<Text className="text-destructive">.</Text>
 					</Text>
 
-					<Text className="mt-2 text-center font-bold text-xs tracking-widest text-muted-foreground uppercase">
-						THE ITE DEPT STUDENT NETWORK
+					<Text className="text-md mt-2 text-center font-display tracking-widest text-muted-foreground uppercase">
+						THE ITE DEPARTMENT STUDENT NETWORK
 					</Text>
 				</View>
 

@@ -7,6 +7,7 @@
       "dependencies": {
         "@expo-google-fonts/anton": "^0.4.2",
         "@expo-google-fonts/courier-prime": "^0.4.1",
+        "@expo-google-fonts/jetbrains-mono": "^0.4.1",
         "@hugeicons/core-free-icons": "^4.4.0",
         "@react-native-async-storage/async-storage": "2.2.0",
         "@react-native-clipboard/clipboard": "^1.16.3",
@@ -325,6 +326,8 @@
     "@expo-google-fonts/anton": ["@expo-google-fonts/anton@0.4.2", "", {}, "sha512-VXxS6ZppH1W/0ch06c52iVpZhVwHX9sXEctyFy/NiF/gb3i697R4va+qpiDQHB71NI8pLyecdBjNrc5FA9qKrw=="],
 
     "@expo-google-fonts/courier-prime": ["@expo-google-fonts/courier-prime@0.4.1", "", {}, "sha512-92Mb2Qi70yvL4XqA8VzM+Q/uFFxVulZXPU5WNTPeDzo1P1q6/bCTsZzE1BnfhYwcsp+PmrB0Ulq3E6zmZSrI6g=="],
+
+    "@expo-google-fonts/jetbrains-mono": ["@expo-google-fonts/jetbrains-mono@0.4.1", "", {}, "sha512-CslACrtMOcRwoWXCO7OMEI+9w3fukWSoBtvNz46OqPoogEuuoY0tkDY1O8sFumk8t0pC6Cx0Xr95O0TOQhpkug=="],
 
     "@expo-google-fonts/material-symbols": ["@expo-google-fonts/material-symbols@0.4.52", "", {}, "sha512-iC9GRpj7WV0GENbHTYPtJqGjyy/7yI3soG9SrKTY1ta19cbMZm2HA0nUdIK8d6OD9uv1BZHAh3Zn/UWV57IeWg=="],
 

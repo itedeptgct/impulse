@@ -24,15 +24,6 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		sector: "HARDWARE, SOFTWARE & NETWORKING",
 		actionLabel: "[ ENTER TERMINAL ]",
 		HeroIcon: Cpu,
-		metrics: {
-			col1Label: "ACTIVE NODES",
-			col1Val: "TBD",
-			col1Sub: "DEVS ONLINE",
-			col1SubColor: "#008033",
-			col2Label: "REPO LOGS",
-			col2Val: "TBD",
-			col2Sub: "COMMITS",
-		},
 	},
 	chameleon: {
 		id: "chameleon",
@@ -48,15 +39,6 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		sector: "3D, GFX & TYPOGRAPHY",
 		actionLabel: "[ VIEW GALLERY ]",
 		HeroIcon: Palette,
-		metrics: {
-			col1Label: "CREATORS",
-			col1Val: "TBD",
-			col1Sub: "ARTISTS IN HUB",
-			col1SubColor: "#FF007A",
-			col2Label: "EXHIBITS",
-			col2Val: "TBD",
-			col2Sub: "CURATED LIVE",
-		},
 	},
 	blue_jays: {
 		id: "blue_jays",
@@ -73,15 +55,6 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		sector: "JOURNALISM & MEDIA",
 		actionLabel: "[ TUNE IN ]",
 		HeroIcon: Radio,
-		metrics: {
-			col1Label: "PRODUCERS",
-			col1Val: "TBD",
-			col1Sub: "ON RECORD",
-			col1SubColor: "#4c4546",
-			col2Label: "LISTENERS",
-			col2Val: "TBD",
-			col2Sub: "WEEKLY AVG",
-		},
 	},
 };
 

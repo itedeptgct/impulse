@@ -397,8 +397,7 @@ export default function SignUpScreen() {
 									CREATE ACCOUNT
 								</Text>
 								<Text className="mt-1.5 font-mono text-xs text-muted-foreground uppercase">
-									ENTER ACADEMIC CREDENTIALS TO BEGIN
-									VERIFICATION
+									ENTER CREDENTIALS TO START USING IMPULSE
 								</Text>
 							</View>
 

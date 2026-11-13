@@ -809,6 +809,36 @@ export default function ProfileScreen() {
 				title="Account & Settings"
 				subtitle="Manage your student verification, house, and account.">
 				<View className="gap-3 py-2">
+					{isStaff && (
+						<NeoCard
+							variant="accent"
+							onPress={() => {
+								setIsAccountActionsOpen(false);
+								router.push("/admin");
+							}}
+							className="flex-row items-center justify-between bg-primary p-3.5 shadow-neo-sm">
+							<View className="flex-row items-center gap-2">
+								<ShieldCheck
+									size={16}
+									color="#ffffff"
+									strokeWidth={2.2}
+								/>
+								<Text className="text-md font-bold text-background uppercase">
+									{role === "house_mod"
+										? "House Moderation"
+										: role === "mod"
+											? "Moderation Desk"
+											: "Admin Moderation"}
+								</Text>
+							</View>
+							<ArrowUpRight
+								size={14}
+								color="#ffffff"
+								strokeWidth={2.2}
+							/>
+						</NeoCard>
+					)}
+
 					<View className="flex-row items-center justify-between rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
 						<View>
 							<Text className="font-mono text-xs text-foreground uppercase">
@@ -852,36 +882,6 @@ export default function ProfileScreen() {
 							Member since {memberSinceDate}
 						</Text>
 					</View>
-
-					{isStaff && (
-						<NeoCard
-							variant="accent"
-							onPress={() => {
-								setIsAccountActionsOpen(false);
-								router.push("/admin");
-							}}
-							className="flex-row items-center justify-between p-3.5 shadow-neo-sm">
-							<View className="flex-row items-center gap-2">
-								<ShieldCheck
-									size={16}
-									color="#000000"
-									strokeWidth={2.2}
-								/>
-								<Text className="text-md font-bold text-foreground uppercase">
-									{role === "house_mod"
-										? "House Moderation"
-										: role === "mod"
-											? "Moderation Desk"
-											: "Admin Moderation"}
-								</Text>
-							</View>
-							<ArrowUpRight
-								size={14}
-								color="#000000"
-								strokeWidth={2.2}
-							/>
-						</NeoCard>
-					)}
 
 					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
 						<Text className="font-bold text-xs text-foreground uppercase">

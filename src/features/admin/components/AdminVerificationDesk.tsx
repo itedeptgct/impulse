@@ -111,7 +111,7 @@ export function AdminVerificationDesk({
 													: "bg-primary/10"
 											}`}>
 											<Text
-												className={`font-bold text-[10px] tabular-nums ${
+												className={`font-mono text-[10px] tabular-nums ${
 													isActive
 														? "text-primary-foreground"
 														: "text-foreground"

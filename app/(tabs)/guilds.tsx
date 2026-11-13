@@ -4,7 +4,7 @@ import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ArrowRight, Clock, Lock } from "lucide-react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
 	ActivityIndicator,
 	FlatList,
@@ -17,8 +17,9 @@ import {
 import { MobileAlertSheet, MobileTopBar, NeoBadge } from "@/components/ui";
 import { updateUserProfile } from "@/features/auth/api";
 import { canSwitchGuild } from "@/features/auth/permissions";
+import { fetchGuildMetrics } from "@/features/guilds/api";
 import { GUILD_LIST } from "@/features/guilds/constants";
-import type { GuildInfo } from "@/features/guilds/types";
+import type { GuildId, GuildInfo } from "@/features/guilds/types";
 
 const triggerHaptic = () => {
 	if (Platform.OS !== "web") {
@@ -36,6 +37,42 @@ export default function GuildsScreen() {
 		null,
 	);
 	const [errorAlert, setErrorAlert] = useState<string | null>(null);
+	const [guildCounts, setGuildCounts] = useState<
+		Partial<Record<GuildId, { users: number; posts: number }>>
+	>({});
+
+	useEffect(() => {
+		let cancelled = false;
+
+		Promise.all(
+			GUILD_LIST.map(
+				async (guild) =>
+					[guild.id, await fetchGuildMetrics(guild.id)] as const,
+			),
+		)
+			.then((counts) => {
+				if (cancelled) return;
+				setGuildCounts(
+					counts.reduce<
+						Partial<
+							Record<GuildId, { users: number; posts: number }>
+						>
+					>((result, [guildId, guildMetrics]) => {
+						result[guildId] = guildMetrics;
+						return result;
+					}, {}),
+				);
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setErrorAlert("Could not load current house metrics.");
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	const isSwitchLocked = !canSwitchGuild(profile?.role);
 	const isPending =
@@ -126,7 +163,8 @@ export default function GuildsScreen() {
 	const renderGuildCard = ({ item: guild }: { item: GuildInfo }) => {
 		const isMember = profile?.guild === guild.id;
 		const isUpdating = updatingGuildId === guild.id;
-		const { HeroIcon, metrics } = guild;
+		const { HeroIcon } = guild;
+		const counts = guildCounts[guild.id];
 
 		return (
 			<View className="mb-6 border-2 border-border bg-surface p-4 shadow-neo">
@@ -195,27 +233,25 @@ export default function GuildsScreen() {
 				<View className="mb-3.5 flex-row border-2 border-border bg-card">
 					<View className="flex-1 border-r border-border p-2.5">
 						<Text className="font-mono text-2xs tracking-wider text-foreground/60 uppercase">
-							{metrics.col1Label}
+							USERS
 						</Text>
 						<Text className="my-0.5 font-display text-lg text-foreground tabular-nums">
-							{metrics.col1Val}
+							{counts ? counts.users.toLocaleString() : "—"}
 						</Text>
-						<Text
-							className="font-bold text-3xs uppercase"
-							style={{ color: metrics.col1SubColor }}>
-							{metrics.col1Sub}
+						<Text className="font-bold text-2xs text-foreground/70 uppercase">
+							IN HOUSE
 						</Text>
 					</View>
 
 					<View className="flex-1 border-r border-border p-2.5">
 						<Text className="font-mono text-2xs tracking-wider text-foreground/60 uppercase">
-							{metrics.col2Label}
+							POSTS
 						</Text>
 						<Text className="my-0.5 font-display text-lg text-foreground tabular-nums">
-							{metrics.col2Val}
+							{counts ? counts.posts.toLocaleString() : "—"}
 						</Text>
-						<Text className="font-mono text-3xs text-foreground/70 uppercase">
-							{metrics.col2Sub}
+						<Text className="font-bold text-2xs text-foreground/70 uppercase">
+							TOTAL POSTS
 						</Text>
 					</View>
 				</View>
