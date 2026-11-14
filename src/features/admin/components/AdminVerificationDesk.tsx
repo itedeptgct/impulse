@@ -268,7 +268,9 @@ export function AdminVerificationDesk({
 										}
 										onPress={() =>
 											handleOpenInspector(item)
-										}></NeoButton>
+										}>
+										View ID
+									</NeoButton>
 									{isPending && (
 										<>
 											<NeoButton
@@ -289,7 +291,9 @@ export function AdminVerificationDesk({
 												}
 												onPress={() =>
 													void handleApprove(item.id)
-												}></NeoButton>
+												}>
+												Approve
+											</NeoButton>
 											<NeoButton
 												size="sm"
 												variant="destructive"
@@ -304,7 +308,9 @@ export function AdminVerificationDesk({
 												textClassName="text-primary-foreground font-bold"
 												onPress={() =>
 													handleOpenInspector(item)
-												}></NeoButton>
+												}>
+												Reject
+											</NeoButton>
 										</>
 									)}
 								</View>

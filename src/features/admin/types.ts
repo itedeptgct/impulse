@@ -26,3 +26,10 @@ export interface VerificationReviewPayload {
 	status: "approved" | "rejected";
 	rejectionReason?: string;
 }
+
+export interface AdminUpdateUserPayload {
+	targetUserId: string;
+	username?: string;
+	email?: string;
+	password?: string;
+}

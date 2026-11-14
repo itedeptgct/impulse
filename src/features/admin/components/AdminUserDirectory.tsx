@@ -1,3 +1,4 @@
+import { useAuthStore } from "@auth/store";
 import type { UserRole } from "@auth/types";
 import { Image as ExpoImage } from "expo-image";
 import {
@@ -6,10 +7,12 @@ import {
 	CheckCircle2,
 	Clock,
 	GraduationCap,
+	Pencil,
 	RefreshCw,
 	Search,
 	Shield,
 	ShieldCheck,
+	Trash2,
 	User,
 	XCircle,
 } from "lucide-react-native";
@@ -24,8 +27,13 @@ import {
 	NeoInput,
 } from "@/components/ui";
 
-import { useAdminUsers, useUpdateUserRole } from "../hooks/useAdmin";
+import {
+	useAdminDeleteUser,
+	useAdminUsers,
+	useUpdateUserRole,
+} from "../hooks/useAdmin";
 import type { AdminUserItem } from "../types";
+import { AdminEditUserModal } from "./AdminEditUserModal";
 
 const ROLE_TABS = [
 	{ key: "all", label: "All Roles" },
@@ -59,6 +67,7 @@ const ROLE_OPTIONS: { role: UserRole; label: string; desc: string }[] = [
 ];
 
 export function AdminUserDirectory() {
+	const currentUserId = useAuthStore((state) => state.user?.id);
 	const [search, setSearch] = useState("");
 	const [roleFilter, setRoleFilter] = useState("all");
 
@@ -69,6 +78,7 @@ export function AdminUserDirectory() {
 		isFetching,
 	} = useAdminUsers(search, roleFilter);
 	const updateRoleMutation = useUpdateUserRole();
+	const deleteUserMutation = useAdminDeleteUser();
 
 	const [selectedUser, setSelectedUser] = useState<AdminUserItem | null>(
 		null,
@@ -77,11 +87,47 @@ export function AdminUserDirectory() {
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 	const [roleError, setRoleError] = useState<string | null>(null);
 
+	const [editingUser, setEditingUser] = useState<AdminUserItem | null>(null);
+	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+	const [userToDelete, setUserToDelete] = useState<AdminUserItem | null>(
+		null,
+	);
+	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+	const [deleteError, setDeleteError] = useState<string | null>(null);
+
 	const handleOpenRoleDialog = (u: AdminUserItem) => {
 		setSelectedUser(u);
 		setNewRole(u.role);
 		setRoleError(null);
 		setIsConfirmOpen(true);
+	};
+
+	const handleOpenEditModal = (u: AdminUserItem) => {
+		setEditingUser(u);
+		setIsEditModalOpen(true);
+	};
+
+	const handleOpenDeleteModal = (u: AdminUserItem) => {
+		setUserToDelete(u);
+		setDeleteError(null);
+		setIsDeleteConfirmOpen(true);
+	};
+
+	const handleConfirmDelete = async () => {
+		if (!userToDelete) return;
+		try {
+			await deleteUserMutation.mutateAsync(userToDelete.id);
+			setIsDeleteConfirmOpen(false);
+			setUserToDelete(null);
+			setDeleteError(null);
+		} catch (err: unknown) {
+			const message =
+				err instanceof Error
+					? err.message
+					: "Failed to delete user account.";
+			setDeleteError(message);
+		}
 	};
 
 	const isHouseModWithoutGuild =
@@ -253,6 +299,10 @@ export function AdminUserDirectory() {
 				<View className="gap-3">
 					{users.map((u) => {
 						const verifStatus = u.verification?.status || "none";
+						const isCallingAdmin = Boolean(
+							currentUserId && u.id === currentUserId,
+						);
+						const isHausmaster = u.username === "hausmaster";
 
 						return (
 							<NeoCard
@@ -292,11 +342,14 @@ export function AdminUserDirectory() {
 											{u.guild
 												? ` • House: ${u.guild.toUpperCase()}`
 												: ""}
+											{u.karma !== undefined
+												? ` • ${u.karma} Karma`
+												: ""}
 										</Text>
 									</View>
 								</View>
 
-								<View className="flex-row items-center justify-between border-t border-border/40 pt-2.5">
+								<View className="flex-row flex-wrap items-center justify-between gap-2 border-t border-border/40 pt-2.5">
 									<View className="flex-row items-center gap-1.5">
 										{verifStatus === "approved" ? (
 											<NeoBadge
@@ -340,30 +393,82 @@ export function AdminUserDirectory() {
 												}>
 												PENDING
 											</NeoBadge>
-										) : (
+										) : isHausmaster ? (
 											<Text className="font-mono text-xs text-muted-foreground">
-												{u.username === "hausmaster"
-													? "Default Admin"
-													: ""}
+												Default Admin
 											</Text>
+										) : null}
+
+										{isCallingAdmin && (
+											<NeoBadge
+												variant="default"
+												size="sm">
+												YOU
+											</NeoBadge>
 										)}
 									</View>
 
-									{u.username === "hausmaster" ? (
-										<Text className="font-mono text-xs text-muted-foreground">
-											Default Admin
-										</Text>
-									) : (
+									<View className="flex-row items-center gap-1.5">
+										{!isHausmaster && (
+											<NeoButton
+												size="sm"
+												variant="outline"
+												disabled={
+													verifStatus === "pending" ||
+													isCallingAdmin
+												}
+												onPress={() =>
+													handleOpenRoleDialog(u)
+												}>
+												Role
+											</NeoButton>
+										)}
+
 										<NeoButton
 											size="sm"
 											variant="outline"
-											disabled={verifStatus === "pending"}
+											startContent={
+												<Pencil
+													size={11}
+													color="#000000"
+													strokeWidth={2.5}
+												/>
+											}
 											onPress={() =>
-												handleOpenRoleDialog(u)
+												handleOpenEditModal(u)
 											}>
-											Change Role
+											Edit Account
 										</NeoButton>
-									)}
+
+										<NeoButton
+											size="sm"
+											variant="destructive"
+											disabled={
+												isCallingAdmin || isHausmaster
+											}
+											startContent={
+												<Trash2
+													size={11}
+													color={
+														isCallingAdmin ||
+														isHausmaster
+															? "#767676"
+															: "#ffffff"
+													}
+													strokeWidth={2.5}
+												/>
+											}
+											textClassName={
+												isCallingAdmin || isHausmaster
+													? "text-muted-foreground"
+													: "text-primary-foreground font-bold"
+											}
+											onPress={() =>
+												handleOpenDeleteModal(u)
+											}>
+											Delete User
+										</NeoButton>
+									</View>
 								</View>
 							</NeoCard>
 						);
@@ -462,6 +567,63 @@ export function AdminUserDirectory() {
 					)}
 				</View>
 			</MobileAlertSheet>
+
+			<MobileAlertSheet
+				open={isDeleteConfirmOpen}
+				onOpenChange={(open) => {
+					setIsDeleteConfirmOpen(open);
+					if (!open) {
+						setUserToDelete(null);
+						setDeleteError(null);
+					}
+				}}
+				title="Delete User Account"
+				type="error"
+				description={`Are you sure you want to permanently delete @${userToDelete?.username || "user"}? All associated account credentials and profile records will be removed.`}
+				actions={[
+					{
+						label: deleteUserMutation.isPending
+							? "Deleting..."
+							: "Permanently Delete",
+						onPress: handleConfirmDelete,
+						variant: "destructive",
+						loading: deleteUserMutation.isPending,
+					},
+					{
+						label: "Cancel",
+						onPress: () => {
+							setIsDeleteConfirmOpen(false);
+							setUserToDelete(null);
+							setDeleteError(null);
+						},
+						variant: "outline",
+					},
+				]}>
+				{deleteError && (
+					<View className="mt-2 flex-row items-center gap-2 border-2 border-destructive bg-destructive/10 p-2.5">
+						<AlertTriangle
+							size={16}
+							color="#ff2a00"
+							strokeWidth={2.5}
+						/>
+						<Text className="flex-1 font-mono text-xs text-destructive">
+							{deleteError}
+						</Text>
+					</View>
+				)}
+			</MobileAlertSheet>
+
+			<AdminEditUserModal
+				user={editingUser}
+				open={isEditModalOpen}
+				onClose={() => {
+					setIsEditModalOpen(false);
+					setEditingUser(null);
+				}}
+				onUserUpdated={() => {
+					void refetch();
+				}}
+			/>
 		</View>
 	);
 }
