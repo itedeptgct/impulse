@@ -507,3 +507,174 @@ export async function searchUsers(query: string): Promise<Profile[]> {
 
 	return results;
 }
+
+export async function changeUsername(
+	userId: string,
+	username: string,
+): Promise<Profile> {
+	const trimmed = username.trim();
+	if (trimmed.length < 1 || trimmed.length > 20) {
+		throw new Error("Username must be between 1 and 20 characters.");
+	}
+	if (!/^[A-Za-z0-9_]+$/.test(trimmed)) {
+		throw new Error(
+			"Username can only contain letters, numbers, and underscores.",
+		);
+	}
+
+	const normalized = trimmed.toLowerCase();
+
+	const { error: profileError } = await supabase
+		.from("profiles")
+		.update({
+			username: normalized,
+			updated_at: new Date().toISOString(),
+		})
+		.eq("id", userId);
+
+	if (profileError) {
+		const msg = profileError.message?.toLowerCase() || "";
+		if (
+			profileError.code === "23505" ||
+			msg.includes("unique") ||
+			msg.includes("already exists") ||
+			msg.includes("duplicate key")
+		) {
+			throw new Error(
+				"This username is already taken. Please choose another.",
+			);
+		}
+		throw profileError;
+	}
+
+	try {
+		await supabase.auth.updateUser({
+			data: {
+				username: normalized,
+			},
+		});
+	} catch (e) {
+		console.warn("Failed to update auth metadata for username:", e);
+	}
+
+	const currentProfile = await fetchUserProfile(userId);
+	const updatedProfile: Profile = currentProfile
+		? {
+				...currentProfile,
+				username: normalized,
+				updated_at: new Date().toISOString(),
+			}
+		: {
+				id: userId,
+				username: normalized,
+				display_name: normalized,
+				email: "",
+				role: "user",
+				karma: 0,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+			};
+
+	try {
+		await AsyncStorage.setItem(
+			`impulse_profile_${userId}`,
+			JSON.stringify(updatedProfile),
+		);
+		await AsyncStorage.setItem(
+			`impulse_profile_by_username_${normalized}`,
+			JSON.stringify(updatedProfile),
+		);
+	} catch {}
+
+	try {
+		const { useAuthStore } = require("./store");
+		if (useAuthStore?.getState) {
+			useAuthStore.getState().setProfile(updatedProfile);
+		}
+	} catch {}
+
+	return updatedProfile;
+}
+
+export async function requestEmailChange(
+	currentEmail: string,
+	currentPassword: string,
+	newEmail: string,
+): Promise<void> {
+	const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
+	const trimmedNewEmail = newEmail.trim().toLowerCase();
+
+	if (!trimmedNewEmail || !trimmedNewEmail.includes("@")) {
+		throw new Error("Please enter a valid email address.");
+	}
+	if (trimmedNewEmail === trimmedCurrentEmail) {
+		throw new Error("New email must be different from current email.");
+	}
+	if (!currentPassword) {
+		throw new Error("Please enter your current password.");
+	}
+
+	const { error: signInError } = await supabase.auth.signInWithPassword({
+		email: trimmedCurrentEmail,
+		password: currentPassword,
+	});
+
+	if (signInError) {
+		const msg = signInError.message?.toLowerCase() || "";
+		if (msg.includes("invalid") || msg.includes("credential")) {
+			throw new Error("Current password is incorrect.");
+		}
+		throw signInError;
+	}
+
+	let redirectTo = "auth/callback";
+	try {
+		const Linking = require("expo-linking");
+		redirectTo = Linking.createURL("auth/callback");
+	} catch {}
+
+	const { error: updateError } = await supabase.auth.updateUser(
+		{ email: trimmedNewEmail },
+		{ emailRedirectTo: redirectTo },
+	);
+
+	if (updateError) {
+		throw updateError;
+	}
+}
+
+export async function changePassword(
+	currentEmail: string,
+	currentPassword: string,
+	newPassword: string,
+): Promise<void> {
+	const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
+
+	if (!currentPassword) {
+		throw new Error("Please enter your current password.");
+	}
+	if (!newPassword || newPassword.length < 8) {
+		throw new Error("New password must be at least 8 characters long.");
+	}
+
+	const { error: signInError } = await supabase.auth.signInWithPassword({
+		email: trimmedCurrentEmail,
+		password: currentPassword,
+	});
+
+	if (signInError) {
+		const msg = signInError.message?.toLowerCase() || "";
+		if (msg.includes("invalid") || msg.includes("credential")) {
+			throw new Error("Current password is incorrect.");
+		}
+		throw signInError;
+	}
+
+	const { error: updateError } = await supabase.auth.updateUser({
+		password: newPassword,
+	});
+
+	if (updateError) {
+		throw updateError;
+	}
+}

@@ -28,6 +28,7 @@ import { getGuildInfo } from "@/features/guilds/constants";
 import { fetchUserPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import type { Post } from "@/features/posts/types";
+import { ActiveDot } from "@/features/presence";
 
 export default function UserProfileScreen() {
 	const insets = useSafeAreaInsets();
@@ -326,28 +327,39 @@ export default function UserProfileScreen() {
 									className="mb-4 p-4 shadow-neo">
 									<View className="flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 										<View className="flex-row items-start gap-3">
-											{targetProfile?.avatar_url?.startsWith(
-												"http",
-											) ? (
-												<Image
-													source={{
-														uri: targetProfile.avatar_url,
-													}}
-													style={{
-														width: 64,
-														height: 64,
-														borderWidth: 2,
-														borderColor: "#000000",
-													}}
-													contentFit="cover"
+											<View className="relative">
+												{targetProfile?.avatar_url?.startsWith(
+													"http",
+												) ? (
+													<Image
+														source={{
+															uri: targetProfile.avatar_url,
+														}}
+														style={{
+															width: 64,
+															height: 64,
+															borderWidth: 2,
+															borderColor:
+																"#000000",
+														}}
+														contentFit="cover"
+													/>
+												) : (
+													<View className="size-16 items-center justify-center rounded-none border-2 border-border bg-muted shadow-neo-sm">
+														<Text className="font-bold text-2xl text-foreground">
+															{initials}
+														</Text>
+													</View>
+												)}
+												<ActiveDot
+													userId={targetProfile?.id}
+													targetShowActiveStatus={
+														targetProfile?.show_active_status
+													}
+													size="md"
+													className="absolute -right-1 -bottom-1"
 												/>
-											) : (
-												<View className="size-16 items-center justify-center rounded-none border-2 border-border bg-muted shadow-neo-sm">
-													<Text className="font-bold text-2xl text-foreground">
-														{initials}
-													</Text>
-												</View>
-											)}
+											</View>
 
 											<View className="flex-1">
 												<View className="flex-row flex-wrap items-center gap-2">
