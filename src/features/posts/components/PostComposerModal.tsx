@@ -643,7 +643,7 @@ export function PostComposerModal({
 											multiline
 											placeholder="hola mundo!"
 											placeholderTextColor="#444444"
-											className="min-h-24 border border-white/20 p-2 font-mono text-xs text-neo-green"
+											className="min-h-24 border border-white/20 p-2 font-code text-xs text-neo-green"
 										/>
 									</View>
 								)}

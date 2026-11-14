@@ -56,7 +56,7 @@ export const TerminalCodeViewport: React.FC<TerminalCodeViewportProps> = ({
 							className="flex-row items-start">
 							{showLineNumbers && (
 								<Text
-									className="mr-3 font-mono text-xs text-on-primary-container select-none"
+									className="mr-3 font-code text-xs text-on-primary-container select-none"
 									style={{
 										minWidth: padLength * 8 + 4,
 										textAlign: "right",
@@ -67,7 +67,7 @@ export const TerminalCodeViewport: React.FC<TerminalCodeViewportProps> = ({
 									)}
 								</Text>
 							)}
-							<Text className="font-mono text-xs leading-relaxed select-text">
+							<Text className="font-code text-xs leading-relaxed select-text">
 								{line.tokens.length > 0 ? (
 									line.tokens.map((token, tIdx) => (
 										<Text

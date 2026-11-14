@@ -41,7 +41,7 @@
 			[
 				"expo-splash-screen",
 				{
-					"backgroundColor": "#ffffff",
+					"backgroundColor": "#FAF9F5",
 					"image": "./assets/icon.png",
 					"imageWidth": 220,
 					"resizeMode": "contain"
@@ -55,6 +55,13 @@
 				"projectId": "9a4799d7-c269-4a7c-93b8-09fec77e0b50"
 			}
 		},
-		"owner": "janleigh"
+		"owner": "janleigh",
+		"runtimeVersion": {
+			"policy": "appVersion"
+		},
+		"updates": {
+			"url": "https://u.expo.dev/9a4799d7-c269-4a7c-93b8-09fec77e0b50"
+		},
+		"ios": {}
 	}
 }

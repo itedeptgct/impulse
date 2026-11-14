@@ -47,6 +47,7 @@ import {
 import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
 import { canManagePost } from "@/features/auth/permissions";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
+import { SharePostModal } from "@/features/messages/components/SharePostModal";
 import { ReportModal } from "@/features/moderation/components/ReportModal";
 import {
 	addPostComment,
@@ -71,7 +72,6 @@ import {
 	countSubtreeReplies,
 	MAX_VISUAL_DEPTH,
 } from "@/features/posts/utils/comment-tree";
-import { sharePost } from "@/features/posts/utils/share";
 
 const GUILD_META: Record<string, { tag: string; badge: string; bg: string }> = {
 	octagram: { tag: "OCTOGRAM", badge: "0x", bg: "bg-primary" },
@@ -119,6 +119,7 @@ export default function PostDetailScreen() {
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [isPostReportOpen, setIsPostReportOpen] = useState(false);
+	const [isShareOpen, setIsShareOpen] = useState(false);
 	const [commentToReport, setCommentToReport] = useState<Comment | null>(
 		null,
 	);
@@ -260,10 +261,10 @@ export default function PostDetailScreen() {
 		}
 	};
 
-	const handleOpenShare = async () => {
+	const handleOpenShare = () => {
 		if (!post) return;
 		triggerHaptic();
-		await sharePost(post);
+		setIsShareOpen(true);
 	};
 
 	const handleSendReply = async () => {
@@ -431,8 +432,8 @@ export default function PostDetailScreen() {
 							</Text>
 							<Text className="mt-2 text-center font-mono text-xs leading-relaxed text-muted-foreground">
 								This is a house-restricted post. Sign in with
-								your operative account to verify clearance and
-								view its contents.
+								your user account to verify clearance and view
+								its contents.
 							</Text>
 							<NeoButton
 								variant="primary"
@@ -925,8 +926,7 @@ export default function PostDetailScreen() {
 									NO RESPONSES RECORDED
 								</Text>
 								<Text className="mt-1 text-center font-mono text-xs text-muted-foreground">
-									Be the first operative to respond to this
-									post.
+									Be the first user to respond to this post.
 								</Text>
 							</View>
 						) : (
@@ -1541,7 +1541,7 @@ export default function PostDetailScreen() {
 								}
 								onPress={() => {
 									setIsMenuOpen(false);
-									void handleOpenShare();
+									handleOpenShare();
 								}}>
 								SHARE POST
 							</NeoButton>
@@ -1657,6 +1657,14 @@ export default function PostDetailScreen() {
 					},
 				]}
 			/>
+
+			{post ? (
+				<SharePostModal
+					open={isShareOpen}
+					onOpenChange={setIsShareOpen}
+					post={post}
+				/>
+			) : null}
 		</KeyboardAvoidingView>
 	);
 }

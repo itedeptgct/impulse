@@ -13,6 +13,8 @@ import {
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { fetchConversations } from "@/features/messages/api";
+import { useMessagesStore } from "@/features/messages/store";
 import { PostComposerModal } from "@/features/posts/components/PostComposerModal";
 import { useComposerStore } from "@/features/posts/store";
 
@@ -33,6 +35,18 @@ export default function TabsLayout() {
 	const isComposerOpen = useComposerStore((state) => state.isOpen);
 	const composerInitialTray = useComposerStore((state) => state.initialTray);
 	const closeComposer = useComposerStore((state) => state.closeComposer);
+
+	const totalUnreadCount = useMessagesStore((s) =>
+		s.conversations.reduce((acc, c) => acc + c.unread_count, 0),
+	);
+
+	React.useEffect(() => {
+		const uid = session?.user?.id;
+		if (!uid) return;
+		void fetchConversations(uid)
+			.then((data) => useMessagesStore.getState().setConversations(data))
+			.catch(() => {});
+	}, [session?.user?.id]);
 
 	// I present you
 	// the worst gesture detection code in the history of mankind
@@ -215,15 +229,29 @@ export default function TabsLayout() {
 															className={`absolute inset-x-0 top-0 h-1 ${item.barClass}`}
 														/>
 													)}
-													<Icon
-														size={18}
-														color={
-															item.active
-																? "#FAF9F5"
-																: "#000000"
-														}
-														strokeWidth={2.5}
-													/>
+													<View className="relative">
+														<Icon
+															size={18}
+															color={
+																item.active
+																	? "#FAF9F5"
+																	: "#000000"
+															}
+															strokeWidth={2.5}
+														/>
+														{item.key ===
+															"messages" &&
+														totalUnreadCount > 0 ? (
+															<View className="absolute -top-1.5 -right-2.5 min-w-4 items-center justify-center rounded-full border border-border bg-destructive px-1">
+																<Text className="font-mono text-2xs text-primary-foreground">
+																	{totalUnreadCount >
+																	99
+																		? "99+"
+																		: totalUnreadCount}
+																</Text>
+															</View>
+														) : null}
+													</View>
 													<Text
 														className={`mt-1 font-bold text-[10px] tracking-wider uppercase ${
 															item.active

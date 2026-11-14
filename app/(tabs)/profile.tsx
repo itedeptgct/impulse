@@ -2,6 +2,7 @@ import {
 	createIdVerification,
 	deleteOwnAccount,
 	signOut,
+	updateUserProfile,
 	uploadIdDocument,
 } from "@auth/api";
 import { EditProfileModal } from "@auth/components/EditProfileModal";
@@ -35,6 +36,7 @@ import {
 	FlatList,
 	Pressable,
 	RefreshControl,
+	Switch,
 	Text,
 	View,
 } from "react-native";
@@ -74,6 +76,7 @@ export default function ProfileScreen() {
 		null,
 	);
 	const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+	const [isUpdatingPresence, setIsUpdatingPresence] = useState(false);
 
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -926,6 +929,46 @@ export default function ProfileScreen() {
 								}}>
 								DELETE ACCOUNT
 							</NeoButton>
+						</View>
+					</View>
+
+					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
+						<View className="flex-row items-center justify-between gap-3">
+							<View className="flex-1">
+								<Text className="font-bold text-xs text-foreground uppercase">
+									Show Active Status
+								</Text>
+								<Text className="mt-1 font-mono text-xs text-muted-foreground">
+									Let other users see when you are active.
+									When off, you also cannot see others'
+									status.
+								</Text>
+							</View>
+							<Switch
+								value={profile?.show_active_status ?? true}
+								disabled={isUpdatingPresence}
+								trackColor={{
+									false: "#d4d4d8",
+									true: "#00ff66",
+								}}
+								thumbColor="#000000"
+								accessibilityLabel="Show Active Status"
+								onValueChange={async (nextValue) => {
+									if (!user?.id || isUpdatingPresence) return;
+									setIsUpdatingPresence(true);
+									try {
+										const updated = await updateUserProfile(
+											user.id,
+											{ show_active_status: nextValue },
+										);
+										useAuthStore
+											.getState()
+											.setProfile(updated);
+									} finally {
+										setIsUpdatingPresence(false);
+									}
+								}}
+							/>
 						</View>
 					</View>
 

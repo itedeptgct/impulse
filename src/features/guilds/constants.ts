@@ -14,7 +14,7 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		name: "Octagram",
 		tagline: "Developers & Coders",
 		manifesto:
-			"Quis exercitation dolor sunt laboris ex excepteur reprehenderit excepteur exercitation et.",
+			"Building ideas through code, creating solutions through technology, and connecting people through innovation.",
 		accentColor: "#00FF66",
 		badgeBgColor: "bg-[#00FF66]",
 		badgeTextColor: "text-foreground",
@@ -29,7 +29,8 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		id: "chameleon",
 		name: "Chameleon",
 		tagline: "GFX & Artists",
-		manifesto: "Magna irure veniam fugiat magna cillum deserunt.",
+		manifesto:
+			"Bringing ideas to life through creative designs, colorful visuals, and engaging media.",
 		accentColor: "#FF007A",
 		badgeBgColor: "bg-[#FF007A]",
 		badgeTextColor: "text-primary-foreground",
@@ -45,7 +46,7 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		name: "Blue Jays",
 		tagline: "Influencers & Media",
 		manifesto:
-			"Minim do veniam exercitation irure proident reprehenderit ipsum.",
+			"Creating meaningful content, connecting people, and sharing stories that inspire.",
 		accentColor: "#00E5FF",
 		badgeBgColor: "bg-[#00E5FF]",
 		badgeTextColor: "text-foreground",

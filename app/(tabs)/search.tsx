@@ -22,6 +22,7 @@ import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import { searchPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import type { Post } from "@/features/posts/types";
+import { ActiveDot } from "@/features/presence";
 
 type SearchFilterTab = "all" | "posts" | "users";
 
@@ -299,24 +300,34 @@ export default function SearchScreen() {
 							}}
 							className="flex-row items-center justify-between rounded-none border-2 border-border bg-card p-3 shadow-neo-sm active:translate-x-px active:translate-y-px">
 							<View className="flex-1 flex-row items-center gap-3">
-								<View className="size-11 items-center justify-center overflow-hidden rounded-none border-2 border-border bg-secondary shadow-neo-sm">
-									{usr.avatar_url &&
-									usr.avatar_url.startsWith("http") ? (
-										<ExpoImage
-											source={{
-												uri: usr.avatar_url,
-											}}
-											style={{
-												width: "100%",
-												height: "100%",
-											}}
-											contentFit="cover"
-										/>
-									) : (
-										<Text className="font-bold text-xs text-foreground">
-											{uInitials}
-										</Text>
-									)}
+								<View className="relative">
+									<View className="size-11 items-center justify-center overflow-hidden rounded-none border-2 border-border bg-secondary shadow-neo-sm">
+										{usr.avatar_url &&
+										usr.avatar_url.startsWith("http") ? (
+											<ExpoImage
+												source={{
+													uri: usr.avatar_url,
+												}}
+												style={{
+													width: "100%",
+													height: "100%",
+												}}
+												contentFit="cover"
+											/>
+										) : (
+											<Text className="font-bold text-xs text-foreground">
+												{uInitials}
+											</Text>
+										)}
+									</View>
+									<ActiveDot
+										userId={usr.id}
+										targetShowActiveStatus={
+											usr.show_active_status
+										}
+										size="md"
+										className="absolute -right-1 -bottom-1"
+									/>
 								</View>
 
 								<View className="flex-1">

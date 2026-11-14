@@ -13,6 +13,7 @@ export interface PostAuthor {
 	role?: string;
 	guild?: GuildId | null;
 	is_verified?: boolean | null;
+	show_active_status?: boolean;
 }
 
 export interface Post {

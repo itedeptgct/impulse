@@ -23,11 +23,12 @@ import {
 } from "@/components/ui";
 import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
 import { canManagePost } from "@/features/auth/permissions";
+import { SharePostModal } from "@/features/messages/components/SharePostModal";
 import { ReportModal } from "@/features/moderation/components/ReportModal";
+import { ActiveDot } from "@/features/presence";
 
 import { deletePost, normalizePostMedia, normalizePostTags } from "../api";
 import type { Post } from "../types";
-import { sharePost } from "../utils/share";
 import { PostComposerModal } from "./PostComposerModal";
 import { PostMediaCarousel } from "./PostMediaCarousel";
 import { PostMediaLightboxModal } from "./PostMediaLightboxModal";
@@ -68,6 +69,7 @@ function PostCardComponent({
 	const [isEditOpen, setIsEditOpen] = useState(false);
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [isReportOpen, setIsReportOpen] = useState(false);
+	const [isShareOpen, setIsShareOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -124,19 +126,28 @@ function PostCardComponent({
 						}
 					}}
 					className="min-w-0 flex-1 flex-row items-center gap-2 pr-2 active:opacity-75">
-					<View
-						className={`size-6 shrink-0 items-center justify-center border border-border ${guildMeta?.bg ?? "bg-primary"}`}>
-						{post.author?.avatar_url?.startsWith("http") ? (
-							<ExpoImage
-								source={{ uri: post.author.avatar_url }}
-								style={{ width: "100%", height: "100%" }}
-								contentFit="cover"
-							/>
-						) : (
-							<Text className="font-bold text-2xs text-primary-foreground">
-								{guildMeta?.badge ?? "0x"}
-							</Text>
-						)}
+					<View className="relative shrink-0">
+						<View
+							className={`size-6 items-center justify-center overflow-hidden border border-border ${guildMeta?.bg ?? "bg-primary"}`}>
+							{post.author?.avatar_url?.startsWith("http") ? (
+								<ExpoImage
+									source={{ uri: post.author.avatar_url }}
+									style={{ width: "100%", height: "100%" }}
+									contentFit="cover"
+								/>
+							) : (
+								<Text className="font-bold text-2xs text-primary-foreground">
+									{guildMeta?.badge ?? "0x"}
+								</Text>
+							)}
+						</View>
+						<ActiveDot
+							userId={post.author_id}
+							targetShowActiveStatus={
+								post.author?.show_active_status
+							}
+							className="absolute -right-0.5 -bottom-0.5"
+						/>
 					</View>
 
 					<View className="min-w-0 flex-1 flex-row items-center gap-1.5">
@@ -302,9 +313,9 @@ function PostCardComponent({
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Share post"
-							onPress={async () => {
+							onPress={() => {
 								triggerHaptic();
-								await sharePost(post);
+								setIsShareOpen(true);
 							}}
 							className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
 							<Share2
@@ -325,6 +336,12 @@ function PostCardComponent({
 					onClose={() => setLightboxIndex(null)}
 				/>
 			)}
+
+			<SharePostModal
+				open={isShareOpen}
+				onOpenChange={setIsShareOpen}
+				post={post}
+			/>
 
 			<MobileSheet
 				open={isMenuOpen}

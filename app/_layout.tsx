@@ -4,6 +4,7 @@ import {
 	CourierPrime_400Regular,
 	CourierPrime_700Bold,
 } from "@expo-google-fonts/courier-prime";
+import { JetBrainsMono_400Regular } from "@expo-google-fonts/jetbrains-mono";
 import {
 	isSupabaseConfigured,
 	supabase,
@@ -22,6 +23,11 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Uniwind } from "uniwind";
 
 import { MobileAlertSheet, NeoCard } from "@/components/ui";
+import {
+	registerForPushNotificationsAsync,
+	setupNotificationResponseListener,
+} from "@/features/notifications/push";
+import { useGlobalPresence } from "@/features/presence";
 
 import "@theme/global.css";
 
@@ -41,12 +47,26 @@ export const unstable_settings = {
 };
 
 export default function RootLayout() {
+	const userId = useAuthStore((state) => state.user?.id);
 	const sessionExpiredMessage = useAuthStore(
 		(state) => state.sessionExpiredMessage,
 	);
 	const dismissSessionExpired = useAuthStore(
 		(state) => state.dismissSessionExpired,
 	);
+
+	useGlobalPresence();
+
+	useEffect(() => {
+		if (!userId) return;
+		void registerForPushNotificationsAsync(userId);
+	}, [userId]);
+
+	useEffect(() => {
+		return setupNotificationResponseListener((path) => {
+			router.push(path as never);
+		});
+	}, []);
 
 	useEffect(() => {
 		if (sessionExpiredMessage) {
@@ -58,6 +78,7 @@ export default function RootLayout() {
 		Anton_400Regular,
 		CourierPrime_400Regular,
 		CourierPrime_700Bold,
+		JetBrainsMono_400Regular,
 	});
 
 	useEffect(() => {
@@ -160,6 +181,17 @@ export default function RootLayout() {
 							<Stack.Screen
 								name="legal/privacy"
 								options={{ headerShown: false }}
+							/>
+							<Stack.Screen
+								name="messages/[id]"
+								options={{ headerShown: false }}
+							/>
+							<Stack.Screen
+								name="messages/new"
+								options={{
+									presentation: "modal",
+									headerShown: false,
+								}}
 							/>
 						</Stack>
 						<MobileAlertSheet

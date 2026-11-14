@@ -222,9 +222,6 @@ export default function GuildsScreen() {
 				</View>
 
 				<View className="mb-3 border border-border/30 bg-secondary p-3">
-					<Text className="mb-1 font-bold text-[10px] tracking-widest text-foreground/60 uppercase">
-						// MANIFESTO EXCERPT
-					</Text>
 					<Text className="font-bold text-xs leading-relaxed text-foreground">
 						"{guild.manifesto}"
 					</Text>

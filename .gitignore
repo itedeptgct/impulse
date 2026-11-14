@@ -51,6 +51,7 @@ GEMINI.*
 supabase/*
 !supabase/schema.sql
 !supabase/migrations/
+!supabase/functions/
 
 # cloudflare
 .cloudflare/
@@ -59,3 +60,13 @@ workers/r2-storage/wrangler.toml
 
 # ts getting annoying now
 src/types/uniwind-types.d.ts
+
+# tests
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+tests/
+
+# superpowers
+.superpowers/
