@@ -210,6 +210,11 @@ export default function UserProfileScreen() {
 					downvotes_count: res.downvotes_count,
 					user_vote: res.user_vote,
 				});
+				if (username) {
+					void fetchProfileByUsername(username).then((updated) => {
+						if (updated) setTargetProfile(updated);
+					});
+				}
 			} catch {
 				patchPost(post.id, {
 					upvotes_count: post.upvotes_count,
@@ -218,7 +223,7 @@ export default function UserProfileScreen() {
 				});
 			}
 		},
-		[currentUser?.id, patchPost],
+		[currentUser?.id, patchPost, username],
 	);
 
 	const handleOpenComments = useCallback((post: Post) => {
@@ -263,7 +268,6 @@ export default function UserProfileScreen() {
 		"Student";
 
 	const initials = displayName.slice(0, 2).toUpperCase();
-	const totalUpvotes = posts.reduce((acc, p) => acc + p.upvotes_count, 0);
 	const guildData = getGuildInfo(targetProfile?.guild);
 	const trunGuildName =
 		guildData?.name === "Octagram"
@@ -472,7 +476,7 @@ export default function UserProfileScreen() {
 											</Text>
 										</View>
 										<Text className="mt-1 font-display text-2xl tracking-tight text-destructive">
-											{totalUpvotes}
+											{targetProfile?.karma ?? 0}
 										</Text>
 									</NeoCard>
 

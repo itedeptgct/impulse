@@ -254,6 +254,9 @@ export default function PostDetailScreen() {
 						}
 					: null,
 			);
+			if (user.id === post.author_id) {
+				void useAuthStore.getState().refreshUserData();
+			}
 		} catch (err: unknown) {
 			setPost(previousPost);
 			const e = err as Error;
@@ -975,7 +978,7 @@ export default function PostDetailScreen() {
 												<View className="flex-row items-center justify-between gap-2">
 													<View className="min-w-0 flex-1 flex-row items-center gap-2">
 														{isDeleted ? (
-															<Text className="font-semibold text-xs text-muted-foreground italic">
+															<Text className="italic font-semibold text-xs text-muted-foreground">
 																[deleted]
 															</Text>
 														) : (
@@ -1112,7 +1115,7 @@ export default function PostDetailScreen() {
 														</Text>
 													</Pressable>
 												) : isDeleted ? (
-													<Text className="mt-1.5 font-mono text-xs text-muted-foreground italic select-text">
+													<Text className="mt-1.5 italic font-mono text-xs text-muted-foreground select-text">
 														[deleted]
 													</Text>
 												) : (

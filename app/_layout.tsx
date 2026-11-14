@@ -15,7 +15,7 @@ import {
 	supabase,
 	supabaseConfigError,
 } from "@lib/supabase";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -36,14 +36,7 @@ import { useGlobalPresence } from "@/features/presence";
 
 import "@theme/global.css";
 
-const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			staleTime: 1000 * 60,
-			retry: 2,
-		},
-	},
-});
+import { queryClient } from "@/lib/queryClient";
 
 // oxlint-disable-next-line react/only-export-components
 export const unstable_settings = {

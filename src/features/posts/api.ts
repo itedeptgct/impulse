@@ -350,6 +350,7 @@ export async function fetchFeedPosts(
 					: item.author;
 				return {
 					...item,
+					tags: normalizePostTags(item.tags),
 					author: authorObj || {
 						id: item.author_id,
 						username: "User",
@@ -485,7 +486,7 @@ export async function createPost(
 		image_url: serializedImageUrl,
 		image_urls: mediaUrls,
 		guild: input.guild !== undefined ? input.guild : author.guild || null,
-		tags: input.tags || [],
+		tags: normalizePostTags(input.tags),
 		post_type: input.post_type || "post",
 		event_date: input.event_date || null,
 		event_location: input.event_location || null,
@@ -545,6 +546,9 @@ export async function createPost(
 		newPost.id = data.id;
 		newPost.created_at = data.created_at || nowIso;
 		newPost.updated_at = data.updated_at || data.created_at || nowIso;
+		if (data.tags) {
+			newPost.tags = normalizePostTags(data.tags);
+		}
 	}
 
 	const { error: voteError } = await supabase.from("post_votes").upsert(
@@ -759,6 +763,7 @@ export async function fetchPostById(
 				: data.author;
 			post = {
 				...data,
+				tags: normalizePostTags(data.tags),
 				author: authorObj || {
 					id: data.author_id,
 					username: "User",
@@ -960,7 +965,7 @@ export async function votePost(
 
 	const { data: remoteCounts } = await supabase
 		.from("posts")
-		.select("upvotes_count, downvotes_count")
+		.select("upvotes_count, downvotes_count, author_id")
 		.eq("id", postId)
 		.maybeSingle();
 
@@ -982,6 +987,29 @@ export async function votePost(
 		post.user_vote = newVote;
 		await saveCachedPosts(posts);
 	}
+
+	// Invalidate relevant profile / user queries on vote success
+	try {
+		const { queryClient } = require("@/lib/queryClient");
+		void queryClient.invalidateQueries({ queryKey: ["profile"] });
+		void queryClient.invalidateQueries({ queryKey: ["profiles"] });
+		void queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+		void queryClient.invalidateQueries({ queryKey: ["admin", "stats"] });
+	} catch {}
+
+	// If post author is current user and not self-vote, sync auth profile karma
+	try {
+		const authorId = remoteCounts?.author_id || post?.author_id;
+		const { useAuthStore } = require("@/features/auth/store");
+		const currentAuthUser = useAuthStore?.getState?.()?.user;
+		if (
+			currentAuthUser?.id &&
+			authorId === currentAuthUser.id &&
+			userId !== authorId
+		) {
+			void useAuthStore.getState?.().refreshUserData?.();
+		}
+	} catch {}
 
 	return {
 		upvotes_count: upCount,
@@ -1300,6 +1328,7 @@ export async function fetchUserPosts(
 					: item.author;
 				return {
 					...item,
+					tags: normalizePostTags(item.tags),
 					author: authorObj || {
 						id: item.author_id,
 						username: "User",
@@ -1427,6 +1456,7 @@ export async function searchPosts(
 					: item.author;
 				return {
 					...item,
+					tags: normalizePostTags(item.tags),
 					author: authorObj || {
 						id: item.author_id,
 						username: "User",

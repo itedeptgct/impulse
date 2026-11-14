@@ -167,12 +167,15 @@ export default function ProfileScreen() {
 		if (!userId) return;
 		let cancelled = false;
 		queueMicrotask(() => {
-			if (!cancelled) void loadUserData();
+			if (!cancelled) {
+				void loadUserData();
+				void refreshUserData();
+			}
 		});
 		return () => {
 			cancelled = true;
 		};
-	}, [userId, loadUserData]);
+	}, [userId, loadUserData, refreshUserData]);
 
 	const onRefresh = useCallback(async () => {
 		setIsRefreshing(true);
@@ -300,6 +303,7 @@ export default function ProfileScreen() {
 					upvotes_count: res.upvotes_count,
 					downvotes_count: res.downvotes_count,
 				});
+				void refreshUserData();
 			} catch {
 				patchMyPost(post.id, {
 					user_vote: currentVote,
@@ -308,7 +312,7 @@ export default function ProfileScreen() {
 				});
 			}
 		},
-		[user?.id, patchMyPost],
+		[user?.id, patchMyPost, refreshUserData],
 	);
 
 	const handleOpenComments = useCallback((post: Post) => {
@@ -354,7 +358,6 @@ export default function ProfileScreen() {
 			})
 		: "Recent";
 
-	const totalUpvotes = myPosts.reduce((acc, p) => acc + p.upvotes_count, 0);
 	const totalComments = myPosts.reduce((acc, p) => acc + p.comments_count, 0);
 
 	if (!profile) {
@@ -631,7 +634,7 @@ export default function ProfileScreen() {
 									</Text>
 								</View>
 								<Text className="mt-1 font-display text-2xl tracking-tight text-destructive">
-									{totalUpvotes}
+									{profile?.karma ?? 0}
 								</Text>
 							</NeoCard>
 

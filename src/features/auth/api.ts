@@ -210,6 +210,9 @@ export async function fetchUserProfile(
 
 		if (error) throw error;
 		profile = data as Profile | null;
+		if (profile && typeof profile.karma !== "number") {
+			profile.karma = 0;
+		}
 	} catch {}
 
 	let privateEmail = "";
@@ -268,6 +271,9 @@ export async function fetchUserProfile(
 	}
 
 	if (profile) {
+		if (typeof profile.karma !== "number") {
+			profile.karma = cachedProfile?.karma ?? 0;
+		}
 		if (privateEmail) {
 			profile.email = privateEmail;
 		} else if (!profile.email) {
@@ -287,6 +293,7 @@ export async function fetchUserProfile(
 			email: privateEmail || "",
 			role: "user",
 			guild: localGuild as any,
+			karma: 0,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -433,6 +440,10 @@ export async function fetchProfileByUsername(
 		if (!error && data) {
 			return {
 				...data,
+				karma:
+					typeof (data as any).karma === "number"
+						? (data as any).karma
+						: 0,
 				email: (data as any).email || "",
 			} as Profile;
 		}
@@ -474,6 +485,7 @@ export async function searchUsers(query: string): Promise<Profile[]> {
 		if (!error && data && data.length > 0) {
 			return data.map((item: any) => ({
 				...item,
+				karma: typeof item.karma === "number" ? item.karma : 0,
 				email: item.email || "",
 			})) as Profile[];
 		}

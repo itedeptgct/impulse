@@ -66,21 +66,72 @@ export function resolvePostGuild(
 }
 
 export function normalizePostTags(tags: unknown): string[] {
+	if (!tags) return [];
+
+	let rawList: unknown[] = [];
+
 	if (Array.isArray(tags)) {
-		return tags
-			.map((t) => String(t).trim())
-			.filter(Boolean)
-			.map((t) => (t.startsWith("#") ? t : `#${t}`));
+		rawList = tags;
+	} else if (typeof tags === "string") {
+		const trimmed = tags.trim();
+		if (
+			!trimmed ||
+			trimmed === "{}" ||
+			trimmed === "[]" ||
+			trimmed === '""' ||
+			trimmed === "''"
+		) {
+			return [];
+		}
+		// JSON array string: '["tech", "react"]'
+		if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+			try {
+				const parsed = JSON.parse(trimmed);
+				if (Array.isArray(parsed)) {
+					rawList = parsed;
+				}
+			} catch {}
+		}
+		// Postgres array literal: '{"tech","react"}' or '{tech,react}'
+		if (
+			rawList.length === 0 &&
+			trimmed.startsWith("{") &&
+			trimmed.endsWith("}")
+		) {
+			const inner = trimmed.slice(1, -1).trim();
+			if (!inner) return [];
+			rawList = inner.split(",").map((t) => t.trim());
+		}
+		// Fallback for comma-separated string: 'tech, react'
+		if (rawList.length === 0) {
+			rawList = trimmed.split(",").map((t) => t.trim());
+		}
+	} else if (typeof tags === "object") {
+		rawList = Object.values(tags as Record<string, unknown>);
 	}
-	if (typeof tags === "string") {
-		return tags
-			.replace(/[{}]/g, "")
-			.split(",")
-			.map((t) => t.trim())
-			.filter(Boolean)
-			.map((t) => (t.startsWith("#") ? t : `#${t}`));
+
+	const seen = new Set<string>();
+	const result: string[] = [];
+
+	for (const item of rawList) {
+		if (typeof item !== "string" && typeof item !== "number") continue;
+		let s = String(item).trim();
+		// Strip wrapping quotes (single, double, or escaped quotes from postgres/json)
+		s = s.replace(/^["'\\]+|["'\\]+$/g, "").trim();
+		// Strip wrapping braces or brackets if any leaked through
+		s = s.replace(/^[{[]+|[}\]]+$/g, "").trim();
+		// Strip leading hash symbols
+		s = s.replace(/^#+/, "").trim();
+		if (!s) continue;
+
+		const tag = `#${s.toUpperCase()}`;
+		if (!seen.has(tag)) {
+			seen.add(tag);
+			result.push(tag);
+		}
 	}
-	return [];
+
+	return result;
 }
 
 const ALLOWED_MEDIA_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif"]);

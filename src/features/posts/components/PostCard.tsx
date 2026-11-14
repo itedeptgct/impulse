@@ -235,7 +235,7 @@ function PostCardComponent({
 									key={tag}
 									className="border border-border bg-secondary px-2 py-0.5">
 									<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
-										{tag}
+										{tag.startsWith("#") ? tag : `#${tag}`}
 									</Text>
 								</View>
 							))}
