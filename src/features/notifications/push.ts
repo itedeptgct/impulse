@@ -42,6 +42,10 @@ export async function registerForPushNotificationsAsync(
 		}
 
 		if (finalStatus !== "granted") {
+			console.warn(
+				"[push] Notification permission not granted:",
+				finalStatus,
+			);
 			return null;
 		}
 
@@ -55,14 +59,21 @@ export async function registerForPushNotificationsAsync(
 		const token = tokenResponse.data;
 
 		if (token) {
-			await supabase
+			const { error } = await supabase
 				.from("profiles")
 				.update({ expo_push_token: token })
 				.eq("id", userId);
+			if (error) {
+				console.warn(
+					"[push] Failed to save expo_push_token:",
+					error.message,
+				);
+			}
 		}
 
 		return token;
-	} catch {
+	} catch (err) {
+		console.warn("[push] Push notification registration failed:", err);
 		return null;
 	}
 }

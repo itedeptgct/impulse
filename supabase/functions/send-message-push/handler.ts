@@ -33,6 +33,7 @@ export interface ExpoPushMessage {
 
 export interface PushHandlerDeps {
 	webhookSecret?: string;
+	verifyUserJwt?: (jwt: string) => Promise<string | null>;
 	getConversation: (
 		conversationId: string,
 	) => Promise<ConversationMeta | null>;
@@ -81,11 +82,16 @@ export async function handlePushWebhook(
 		return jsonResponse({ error: "Method Not Allowed" }, 405);
 	}
 
-	if (deps.webhookSecret) {
-		const authHeader = request.headers.get("Authorization");
-		if (authHeader !== `Bearer ${deps.webhookSecret}`) {
-			return jsonResponse({ error: "Unauthorized" }, 401);
-		}
+	const authHeader = request.headers.get("Authorization") ?? "";
+	const bearerToken = authHeader.startsWith("Bearer ")
+		? authHeader.slice(7).trim()
+		: "";
+
+	let isAuthorizedWebhook = false;
+	if (!deps.webhookSecret) {
+		isAuthorizedWebhook = true;
+	} else if (bearerToken && bearerToken === deps.webhookSecret) {
+		isAuthorizedWebhook = true;
 	}
 
 	let payload: WebhookPayload;
@@ -102,6 +108,16 @@ export async function handlePushWebhook(
 		!payload.record?.sender_id
 	) {
 		return jsonResponse({ sent: 0, skipped: true });
+	}
+
+	if (!isAuthorizedWebhook) {
+		const authedUserId =
+			bearerToken && deps.verifyUserJwt
+				? await deps.verifyUserJwt(bearerToken)
+				: null;
+		if (!authedUserId || authedUserId !== payload.record.sender_id) {
+			return jsonResponse({ error: "Unauthorized" }, 401);
+		}
 	}
 
 	const record = payload.record;

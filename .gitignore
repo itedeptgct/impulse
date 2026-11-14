@@ -53,6 +53,10 @@ supabase/*
 !supabase/migrations/
 !supabase/functions/
 
+# firebase
+google-services.json
+impulse-*.json
+
 # cloudflare
 .cloudflare/
 workers/r2-storage/.wrangler/

@@ -16,6 +16,11 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 Deno.serve(async (request: Request) => {
 	return handlePushWebhook(request, {
 		webhookSecret: PUSH_WEBHOOK_SECRET,
+		verifyUserJwt: async (jwt: string) => {
+			const { data, error } = await supabaseAdmin.auth.getUser(jwt);
+			if (error || !data?.user?.id) return null;
+			return data.user.id;
+		},
 		getConversation: async (conversationId: string) => {
 			const { data } = await supabaseAdmin
 				.from("conversations")

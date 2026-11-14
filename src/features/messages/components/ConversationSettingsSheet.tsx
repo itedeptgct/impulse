@@ -482,7 +482,7 @@ export function ConversationSettingsSheet({
 												onPress={() =>
 													void handleAddMember(user)
 												}>
-												<Text className="font-display text-xs text-foreground uppercase">
+												<Text className="font-display text-xs text-background uppercase">
 													Add
 												</Text>
 											</NeoButton>

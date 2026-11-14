@@ -344,6 +344,27 @@ export async function sendMessage(
 
 	if (error) throw error;
 
+	if ((data.message_type ?? "text") !== "system") {
+		void supabase.functions
+			.invoke("send-message-push", {
+				body: {
+					type: "INSERT",
+					table: "messages",
+					record: {
+						id: data.id,
+						conversation_id: data.conversation_id,
+						sender_id: data.sender_id,
+						content: data.content,
+						media_urls: data.media_urls || [],
+						shared_post_id: data.shared_post_id,
+					},
+				},
+			})
+			.catch((err) => {
+				console.warn("[push] Failed to invoke send-message-push:", err);
+			});
+	}
+
 	const rawSender = Array.isArray(data.sender) ? data.sender[0] : data.sender;
 	const rawPost = Array.isArray(data.shared_post)
 		? data.shared_post[0]

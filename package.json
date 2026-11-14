@@ -4,6 +4,9 @@
 	"private": true,
 	"main": "expo-router/entry",
 	"scripts": {
+		"easbuild:dev": "eas-cli@latest build --platform android --profile preview",
+		"easbuild:prod": "eas-cli@latest build --platform android --profile production",
+		"easbuild:prev": "eas-cli@latest build --platform android --profile preview",
 		"dev": "expo start",
 		"dev:tunnel": "EXPO_TUNNEL_SUBDOMAIN='sussy-baka-jnlghmz-8081' expo start --tunnel",
 		"android": "expo start --android",
