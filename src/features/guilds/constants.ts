@@ -2,10 +2,10 @@ import { Cpu, Palette, Radio } from "lucide-react-native";
 
 import type { GuildId, GuildInfo } from "./types";
 
-const GUILD_LOGOS = {
-	octagram: require("../../../assets/guilds/octagram.svg"),
-	chameleon: require("../../../assets/guilds/chameleon.svg"),
-	blue_jays: require("../../../assets/guilds/bluejays.svg"),
+export const GUILD_BADGES: Record<GuildId, string> = {
+	octagram: "0x",
+	chameleon: "★",
+	blue_jays: "BJ",
 };
 
 const GUILDS: Record<GuildId, GuildInfo> = {
@@ -18,9 +18,9 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		accentColor: "#00FF66",
 		badgeBgColor: "bg-[#00FF66]",
 		badgeTextColor: "text-foreground",
-		logo: GUILD_LOGOS.octagram,
+		logo: undefined,
 		houseNumber: "01",
-		houseSymbol: "○",
+		houseSymbol: "0x",
 		sector: "HARDWARE, SOFTWARE & NETWORKING",
 		actionLabel: "[ ENTER TERMINAL ]",
 		HeroIcon: Cpu,
@@ -34,9 +34,9 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		accentColor: "#FF007A",
 		badgeBgColor: "bg-[#FF007A]",
 		badgeTextColor: "text-primary-foreground",
-		logo: GUILD_LOGOS.chameleon,
+		logo: undefined,
 		houseNumber: "02",
-		houseSymbol: "◆",
+		houseSymbol: "★",
 		sector: "3D, GFX & TYPOGRAPHY",
 		actionLabel: "[ VIEW GALLERY ]",
 		HeroIcon: Palette,
@@ -50,9 +50,9 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		accentColor: "#00E5FF",
 		badgeBgColor: "bg-[#00E5FF]",
 		badgeTextColor: "text-foreground",
-		logo: GUILD_LOGOS.blue_jays,
+		logo: undefined,
 		houseNumber: "03",
-		houseSymbol: "❖",
+		houseSymbol: "BJ",
 		sector: "JOURNALISM & MEDIA",
 		actionLabel: "[ TUNE IN ]",
 		HeroIcon: Radio,
@@ -74,4 +74,10 @@ export function getGuildInfo(guildId?: string | null): GuildInfo | null {
 	if (!guildId || typeof guildId !== "string") return null;
 	const normalized = guildId.replace("-", "_") as GuildId;
 	return GUILDS[normalized] || GUILDS_RECORD[guildId] || null;
+}
+
+export function getGuildBadge(guildId?: string | null): string | null {
+	if (!guildId || typeof guildId !== "string") return null;
+	const info = getGuildInfo(guildId);
+	return info?.houseSymbol ?? null;
 }

@@ -2,9 +2,14 @@ import { useAuthStore } from "@auth/store";
 import { Anton_400Regular } from "@expo-google-fonts/anton";
 import {
 	CourierPrime_400Regular,
+	CourierPrime_400Regular_Italic,
 	CourierPrime_700Bold,
+	CourierPrime_700Bold_Italic,
 } from "@expo-google-fonts/courier-prime";
-import { JetBrainsMono_400Regular } from "@expo-google-fonts/jetbrains-mono";
+import {
+	JetBrainsMono_400Regular,
+	JetBrainsMono_400Regular_Italic,
+} from "@expo-google-fonts/jetbrains-mono";
 import {
 	isSupabaseConfigured,
 	supabase,
@@ -77,8 +82,11 @@ export default function RootLayout() {
 	const [fontsLoaded] = useFonts({
 		Anton_400Regular,
 		CourierPrime_400Regular,
+		CourierPrime_400Regular_Italic,
 		CourierPrime_700Bold,
+		CourierPrime_700Bold_Italic,
 		JetBrainsMono_400Regular,
+		JetBrainsMono_400Regular_Italic,
 	});
 
 	useEffect(() => {
