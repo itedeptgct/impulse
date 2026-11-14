@@ -883,7 +883,7 @@ export default function ProfileScreen() {
 								color="#000000"
 								strokeWidth={2.2}
 							/>
-							<Text className="text-md font-bold text-foreground uppercase">
+							<Text className="font-bold text-base text-foreground uppercase">
 								Account Settings
 							</Text>
 						</View>

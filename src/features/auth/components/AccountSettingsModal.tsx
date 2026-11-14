@@ -132,6 +132,10 @@ export function AccountSettingsModal({
 	};
 
 	const handleRequestEmailChange = async () => {
+		if (!currentEmail) {
+			setEmailError("No current email address found on your account.");
+			return;
+		}
 		const trimmedEmail = newEmail.trim().toLowerCase();
 		if (!trimmedEmail) {
 			setEmailError("Please enter a new email address.");
@@ -176,6 +180,10 @@ export function AccountSettingsModal({
 	};
 
 	const handleUpdatePassword = async () => {
+		if (!currentEmail) {
+			setPasswordError("No current email address found on your account.");
+			return;
+		}
 		if (!currentPassword) {
 			setPasswordError("Please enter your current password.");
 			return;
@@ -312,7 +320,7 @@ export function AccountSettingsModal({
 												CURRENT USERNAME
 											</Text>
 										</View>
-										<Text className="font-bold font-mono text-base text-foreground">
+										<Text className="font-bold text-base text-foreground">
 											@{profile?.username || "student"}
 										</Text>
 									</View>
@@ -343,7 +351,7 @@ export function AccountSettingsModal({
 												color="#000000"
 												strokeWidth={2.5}
 											/>
-											<Text className="flex-1 font-bold font-mono text-xs text-foreground">
+											<Text className="flex-1 font-bold text-xs text-foreground">
 												{usernameSuccess}
 											</Text>
 											<Pressable
@@ -430,7 +438,7 @@ export function AccountSettingsModal({
 												CURRENT EMAIL
 											</Text>
 										</View>
-										<Text className="font-bold font-mono text-sm text-foreground">
+										<Text className="font-bold text-sm text-foreground">
 											{currentEmail ||
 												"No email available"}
 										</Text>
@@ -586,7 +594,7 @@ export function AccountSettingsModal({
 												color="#000000"
 												strokeWidth={2.5}
 											/>
-											<Text className="flex-1 font-bold font-mono text-xs text-foreground">
+											<Text className="flex-1 font-bold text-xs text-foreground">
 												{passwordSuccess}
 											</Text>
 											<Pressable

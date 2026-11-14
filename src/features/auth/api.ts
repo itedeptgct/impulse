@@ -604,6 +604,9 @@ export async function requestEmailChange(
 	const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
 	const trimmedNewEmail = newEmail.trim().toLowerCase();
 
+	if (!trimmedCurrentEmail) {
+		throw new Error("Current account email is missing.");
+	}
 	if (!trimmedNewEmail || !trimmedNewEmail.includes("@")) {
 		throw new Error("Please enter a valid email address.");
 	}
@@ -650,6 +653,9 @@ export async function changePassword(
 ): Promise<void> {
 	const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
 
+	if (!trimmedCurrentEmail) {
+		throw new Error("Current account email is missing.");
+	}
 	if (!currentPassword) {
 		throw new Error("Please enter your current password.");
 	}
