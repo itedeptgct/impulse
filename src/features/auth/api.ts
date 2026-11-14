@@ -2,6 +2,8 @@ import { deleteOwnR2Objects, uploadToR2 } from "@lib/r2-storage";
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { unregisterPushTokenAsync } from "@/features/notifications/push";
+
 import { useAuthStore } from "./store";
 import type { IdVerification, Profile } from "./types";
 import {
@@ -46,6 +48,16 @@ export async function signUp(
 
 export async function signOut() {
 	useAuthStore.getState().markManualSignOut();
+	try {
+		const currentUserId = useAuthStore.getState().user?.id;
+		const userId =
+			currentUserId ?? (await supabase.auth.getUser()).data.user?.id;
+		if (userId) {
+			await unregisterPushTokenAsync(userId);
+		}
+	} catch (e) {
+		console.warn("Failed to unregister push token during sign out:", e);
+	}
 	const { error } = await supabase.auth.signOut();
 	if (error) throw error;
 }
@@ -394,6 +406,18 @@ export async function updateUserProfile(
 }
 
 export async function deleteOwnAccount(): Promise<void> {
+	try {
+		const currentUserId = useAuthStore.getState().user?.id;
+		if (currentUserId) {
+			await unregisterPushTokenAsync(currentUserId);
+		}
+	} catch (e) {
+		console.warn(
+			"Failed to unregister push token during account deletion:",
+			e,
+		);
+	}
+
 	try {
 		await deleteOwnR2Objects();
 	} catch (e) {
