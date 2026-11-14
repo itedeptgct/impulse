@@ -27,12 +27,21 @@ export interface ConversationParticipant {
 
 export type MessageType = "text" | "system";
 
+export interface MessageAttachment {
+	url: string;
+	type: "image";
+	width?: number;
+	height?: number;
+	size?: number;
+}
+
 export interface Message {
 	id: string;
 	conversation_id: string;
 	sender_id: string;
 	content: string | null;
 	media_urls: string[];
+	attachments?: MessageAttachment[] | null;
 	shared_post_id: string | null;
 	message_type?: MessageType;
 	edited_at?: string | null;
@@ -57,6 +66,7 @@ export interface DirectConversationSummary {
 	type: ConversationType;
 	title: string | null;
 	avatar_url: string | null;
+	created_by?: string | null;
 	is_pinned?: boolean;
 	updated_at: string;
 	last_message: Message | null;
@@ -68,6 +78,7 @@ export interface DirectConversationSummary {
 export interface SendMessagePayload {
 	content?: string;
 	mediaUrls?: string[];
+	attachments?: MessageAttachment[];
 	sharedPostId?: string;
 	messageType?: MessageType;
 }
