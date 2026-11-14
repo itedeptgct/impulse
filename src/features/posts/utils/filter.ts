@@ -190,12 +190,28 @@ export function isAllowedPostMediaAsset(asset: {
 }
 
 export function normalizePostMedia(
-	post?: {
-		image_url?: string | null;
-		image_urls?: string[] | null;
-	} | null,
+	post?:
+		| {
+				image_url?: string | null;
+				image_urls?: string[] | null;
+		  }
+		| string
+		| null,
 ): string[] {
 	if (!post) return [];
+	if (typeof post === "string") {
+		const raw = post.trim();
+		if (!raw) return [];
+		if (raw.startsWith("[")) {
+			try {
+				const parsed = JSON.parse(raw);
+				if (Array.isArray(parsed)) {
+					return parsed.map((u) => String(u).trim()).filter(Boolean);
+				}
+			} catch {}
+		}
+		return [raw];
+	}
 	if (Array.isArray(post.image_urls) && post.image_urls.length > 0) {
 		return post.image_urls.map((u) => String(u).trim()).filter(Boolean);
 	}

@@ -11,3 +11,24 @@ export function formatRelativeTime(isoString: string): string {
 
 	return `${Math.floor(hours / 24)}d ago`;
 }
+
+export function formatEventDateTime(dateString?: string | null): string {
+	if (!dateString) return "";
+	const trimmed = dateString.trim();
+	if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+		const date = new Date(trimmed);
+		if (!Number.isNaN(date.getTime())) {
+			const datePart = date.toLocaleDateString("en-US", {
+				month: "short",
+				day: "numeric",
+				year: "numeric",
+			});
+			const timePart = date.toLocaleTimeString("en-US", {
+				hour: "numeric",
+				minute: "2-digit",
+			});
+			return `${datePart.toUpperCase()} • ${timePart.toUpperCase()}`;
+		}
+	}
+	return trimmed;
+}

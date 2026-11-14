@@ -1,5 +1,5 @@
 import { useAuthStore } from "@auth/store";
-import { formatRelativeTime } from "@lib/date";
+import { formatEventDateTime, formatRelativeTime } from "@lib/date";
 import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
@@ -103,7 +103,7 @@ function DispatchCardComponent({
 			profile?.role === "house_mod") &&
 		user?.id !== post.author_id;
 	const tags = normalizePostTags(post.tags);
-	const mediaUrls = normalizePostMedia(post);
+	const mediaUrls = normalizePostMedia(post.image_url || post);
 
 	const authorUsername = (post.author?.username || "anon").toUpperCase();
 	const guildId = post.guild || post.author?.guild;
@@ -260,7 +260,7 @@ function DispatchCardComponent({
 										strokeWidth={2.4}
 									/>
 									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-										{post.event_date}
+										{formatEventDateTime(post.event_date)}
 									</Text>
 								</View>
 							)}
@@ -490,6 +490,7 @@ function areEqual(
 		p.code_snippet !== n.code_snippet ||
 		p.code_language !== n.code_language ||
 		p.image_url !== n.image_url ||
+		p.image_urls !== n.image_urls ||
 		p.upvotes_count !== n.upvotes_count ||
 		p.downvotes_count !== n.downvotes_count ||
 		p.comments_count !== n.comments_count ||

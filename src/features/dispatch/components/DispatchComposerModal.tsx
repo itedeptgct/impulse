@@ -1,13 +1,20 @@
 import { useAuthStore } from "@auth/store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import DateTimePicker, {
+	DateTimePickerAndroid,
+} from "@react-native-community/datetimepicker";
 import * as Haptics from "expo-haptics";
+import { Image as ExpoImage } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import {
 	AlertCircle,
 	Calendar,
 	Check,
+	Image as ImageIcon,
 	Lock,
 	MapPin,
 	Send,
+	X,
 } from "lucide-react-native";
 import { useState } from "react";
 import {
@@ -24,8 +31,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { GuildId } from "@/features/guilds/types";
-import { createPost } from "@/features/posts/api";
+import { createPost, serializePostMediaUrl } from "@/features/posts/api";
 import type { Post } from "@/features/posts/types";
+import { formatEventDateTime } from "@/lib/date";
+import { validateUploadFileSize } from "@/lib/media-validation";
 
 export interface DispatchComposerModalProps {
 	visible: boolean;
@@ -49,6 +58,16 @@ const triggerHaptic = () => {
 	}
 };
 
+function formatDatetimeLocal(date: Date): string {
+	const pad = (n: number) => String(n).padStart(2, "0");
+	const y = date.getFullYear();
+	const m = pad(date.getMonth() + 1);
+	const d = pad(date.getDate());
+	const h = pad(date.getHours());
+	const min = pad(date.getMinutes());
+	return `${y}-${m}-${d}T${h}:${min}`;
+}
+
 export function DispatchComposerModal({
 	visible,
 	open,
@@ -69,6 +88,10 @@ export function DispatchComposerModal({
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
 	const [eventDate, setEventDate] = useState("");
+	const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+	const [fallbackDate] = useState(() => new Date());
+	const [showIosPicker, setShowIosPicker] = useState(false);
+	const [mediaUrls, setMediaUrls] = useState<string[]>([]);
 	const [eventLocation, setEventLocation] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -78,6 +101,9 @@ export function DispatchComposerModal({
 		setTitle("");
 		setContent("");
 		setEventDate("");
+		setSelectedDate(null);
+		setShowIosPicker(false);
+		setMediaUrls([]);
 		setEventLocation("");
 		setError(null);
 		setIsSubmitting(false);
@@ -86,6 +112,104 @@ export function DispatchComposerModal({
 	const handleClose = () => {
 		resetForm();
 		onClose();
+	};
+
+	const handlePickMedia = async () => {
+		try {
+			const result = await ImagePicker.launchImageLibraryAsync({
+				mediaTypes: ["images"],
+				allowsMultipleSelection: true,
+			});
+			if (result.canceled || !result.assets?.length) return;
+
+			for (const asset of result.assets) {
+				const sizeCheck = validateUploadFileSize(asset.fileSize);
+				if (!sizeCheck.valid) {
+					triggerHaptic();
+					setError(
+						sizeCheck.error || "File exceeds the 10 MB size limit.",
+					);
+					return;
+				}
+			}
+
+			const validUris = result.assets
+				.map((asset) => asset.uri)
+				.filter(Boolean);
+
+			if (validUris.length > 0) {
+				setMediaUrls((prev) =>
+					Array.from(new Set([...prev, ...validUris])),
+				);
+				setError(null);
+				triggerHaptic();
+			}
+		} catch (err: unknown) {
+			const e = err as Error;
+			setError(e?.message || "Failed to open image library.");
+		}
+	};
+
+	const handleRemoveMedia = (index: number) => {
+		triggerHaptic();
+		setMediaUrls((prev) => prev.filter((_, i) => i !== index));
+	};
+
+	const openAndroidDatePicker = () => {
+		triggerHaptic();
+		const current = selectedDate || new Date();
+		DateTimePickerAndroid.open({
+			value: current,
+			mode: "date",
+			is24Hour: false,
+			onChange: (event, date) => {
+				if (event.type === "set" && date) {
+					const pickedDate = date;
+					DateTimePickerAndroid.open({
+						value: pickedDate,
+						mode: "time",
+						is24Hour: false,
+						onChange: (timeEvent, time) => {
+							if (timeEvent.type === "set" && time) {
+								const finalDateTime = new Date(pickedDate);
+								finalDateTime.setHours(time.getHours());
+								finalDateTime.setMinutes(time.getMinutes());
+								finalDateTime.setSeconds(0);
+								finalDateTime.setMilliseconds(0);
+								setSelectedDate(finalDateTime);
+								setEventDate(finalDateTime.toISOString());
+							} else if (timeEvent.type === "dismissed") {
+								setSelectedDate(pickedDate);
+								setEventDate(pickedDate.toISOString());
+							}
+						},
+					});
+				}
+			},
+		});
+	};
+
+	const openIosDatePicker = () => {
+		triggerHaptic();
+		if (!selectedDate) {
+			const now = new Date();
+			setSelectedDate(now);
+			setEventDate(now.toISOString());
+		}
+		setShowIosPicker((prev) => !prev);
+	};
+
+	const handleWebDateChange = (val: string) => {
+		if (!val) {
+			setSelectedDate(null);
+			setEventDate("");
+			return;
+		}
+		const d = new Date(val);
+		if (!Number.isNaN(d.getTime())) {
+			setSelectedDate(d);
+			setEventDate(d.toISOString());
+		}
 	};
 
 	const isValid =
@@ -130,6 +254,8 @@ export function DispatchComposerModal({
 					post_type: "dispatch",
 					event_date: eventDate.trim() || null,
 					event_location: eventLocation.trim() || null,
+					image_url: serializePostMediaUrl(mediaUrls),
+					image_urls: mediaUrls,
 				},
 				authorObj,
 			);
@@ -140,6 +266,9 @@ export function DispatchComposerModal({
 				guild: target,
 				event_date: eventDate.trim() || null,
 				event_location: eventLocation.trim() || null,
+				image_url:
+					created.image_url || serializePostMediaUrl(mediaUrls),
+				image_urls: created.image_urls || mediaUrls,
 			};
 
 			// Sync into AsyncStorage cache so dispatch tab and feed retain full metadata
@@ -362,6 +491,71 @@ export function DispatchComposerModal({
 								/>
 							</View>
 
+							{/* Media Attachments (Optional - Max 10 MB) */}
+							<View className="mb-4">
+								<View className="mb-1.5 flex-row items-center justify-between">
+									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
+										ATTACH MEDIA (OPTIONAL - MAX 10 MB)
+									</Text>
+									<Text className="font-mono text-2xs text-foreground/60 tabular-nums">
+										{mediaUrls.length}{" "}
+										{mediaUrls.length === 1
+											? "FILE"
+											: "FILES"}
+									</Text>
+								</View>
+
+								{mediaUrls.length > 0 && (
+									<View className="mb-2 flex-row flex-wrap gap-2 border-2 border-border bg-surface p-2 shadow-neo-xs">
+										{mediaUrls.map((uri, idx) => (
+											<View
+												key={uri}
+												className="relative size-16 border-2 border-border bg-neo-surface-active">
+												<ExpoImage
+													source={{ uri }}
+													style={{
+														width: "100%",
+														height: "100%",
+													}}
+													contentFit="cover"
+												/>
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel={`Remove media ${idx + 1}`}
+													onPress={() =>
+														handleRemoveMedia(idx)
+													}
+													className="absolute -top-1.5 -right-1.5 border border-border bg-destructive p-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+													<X
+														size={10}
+														color="#FFFFFF"
+														strokeWidth={2.5}
+													/>
+												</Pressable>
+											</View>
+										))}
+									</View>
+								)}
+
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Attach media image"
+									disabled={isSubmitting}
+									onPress={handlePickMedia}
+									className="flex-row items-center justify-center gap-2 border-2 border-dashed border-border bg-surface px-4 py-3 shadow-neo-xs active:bg-neo-surface-active">
+									<ImageIcon
+										size={16}
+										color="#000000"
+										strokeWidth={2.4}
+									/>
+									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
+										{mediaUrls.length > 0
+											? "ATTACH MORE IMAGES"
+											: "ATTACH IMAGES (PNG, JPG, WEBP)"}
+									</Text>
+								</Pressable>
+							</View>
+
 							{/* Event Metadata (Optional) */}
 							<View className="mb-6 border-2 border-border bg-neo-surface-active p-3">
 								<Text className="mb-2.5 font-bold text-xs tracking-wider text-foreground uppercase">
@@ -369,7 +563,7 @@ export function DispatchComposerModal({
 								</Text>
 
 								<View className="mb-3">
-									<View className="mb-1 flex-row items-center gap-1.5">
+									<View className="mb-1.5 flex-row items-center gap-1.5">
 										<Calendar
 											size={13}
 											color="#000000"
@@ -379,15 +573,164 @@ export function DispatchComposerModal({
 											EVENT DATE / TIME
 										</Text>
 									</View>
-									<TextInput
-										value={eventDate}
-										onChangeText={setEventDate}
-										maxLength={50}
-										editable={!isSubmitting}
-										placeholder="e.g. 2026-11-20 or NOV 20, 18:00 UTC"
-										placeholderTextColor="#666666"
-										className="border border-border bg-surface px-3 py-2 font-mono text-xs text-foreground"
-									/>
+
+									{Platform.OS === "web" ? (
+										<View className="border border-border bg-surface p-2 shadow-neo-xs">
+											<input
+												type="datetime-local"
+												value={
+													selectedDate
+														? formatDatetimeLocal(
+																selectedDate,
+															)
+														: ""
+												}
+												onChange={(e: any) =>
+													handleWebDateChange(
+														e.target.value,
+													)
+												}
+												style={{
+													width: "100%",
+													padding: "8px 10px",
+													fontFamily: "monospace",
+													fontSize: "12px",
+													fontWeight: "bold",
+													border: "1px solid #000000",
+													backgroundColor: "#FAF9F5",
+													color: "#000000",
+													borderRadius: 0,
+													outline: "none",
+													boxSizing: "border-box",
+													textTransform: "uppercase",
+												}}
+											/>
+											{selectedDate && (
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel="Clear event date"
+													onPress={() => {
+														triggerHaptic();
+														setSelectedDate(null);
+														setEventDate("");
+													}}
+													className="mt-2 self-start border border-border bg-destructive/10 px-2 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+													<Text className="font-bold text-2xs text-destructive uppercase">
+														[ CLEAR DATE ]
+													</Text>
+												</Pressable>
+											)}
+										</View>
+									) : selectedDate ? (
+										<View className="border border-border bg-surface p-2.5 shadow-neo-xs">
+											<View className="flex-row items-center justify-between">
+												<View className="flex-1 pr-2">
+													<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
+														{formatEventDateTime(
+															selectedDate.toISOString(),
+														)}
+													</Text>
+												</View>
+												<View className="flex-row items-center gap-1.5">
+													<Pressable
+														accessibilityRole="button"
+														accessibilityLabel="Edit date"
+														disabled={isSubmitting}
+														onPress={() => {
+															if (
+																Platform.OS ===
+																"android"
+															) {
+																openAndroidDatePicker();
+															} else {
+																openIosDatePicker();
+															}
+														}}
+														className="border border-border bg-surface px-2.5 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+														<Text className="font-bold text-2xs text-foreground uppercase">
+															[ EDIT ]
+														</Text>
+													</Pressable>
+													<Pressable
+														accessibilityRole="button"
+														accessibilityLabel="Clear date"
+														disabled={isSubmitting}
+														onPress={() => {
+															triggerHaptic();
+															setSelectedDate(
+																null,
+															);
+															setEventDate("");
+															setShowIosPicker(
+																false,
+															);
+														}}
+														className="border border-border bg-destructive/10 px-2.5 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+														<Text className="font-bold text-2xs text-destructive uppercase">
+															[ CLEAR ]
+														</Text>
+													</Pressable>
+												</View>
+											</View>
+										</View>
+									) : (
+										<Pressable
+											accessibilityRole="button"
+											accessibilityLabel="Select event date and time"
+											disabled={isSubmitting}
+											onPress={() => {
+												if (Platform.OS === "android") {
+													openAndroidDatePicker();
+												} else {
+													openIosDatePicker();
+												}
+											}}
+											className="flex-row items-center justify-between border border-border bg-surface px-3 py-2.5 shadow-neo-xs active:translate-x-px active:translate-y-px">
+											<Text className="font-mono text-xs text-foreground/60 uppercase">
+												SELECT EVENT DATE & TIME...
+											</Text>
+											<Text className="font-bold text-2xs text-primary uppercase">
+												[ PICK DATE ]
+											</Text>
+										</Pressable>
+									)}
+
+									{Platform.OS === "ios" && showIosPicker && (
+										<View className="mt-2 border-2 border-border bg-surface p-2.5 shadow-neo-xs">
+											<View className="mb-2 flex-row items-center justify-between border-b border-border pb-1.5">
+												<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
+													SELECT DATE & TIME
+												</Text>
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel="Confirm date"
+													onPress={() =>
+														setShowIosPicker(false)
+													}
+													className="border border-border bg-primary px-3 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+													<Text className="font-bold text-2xs tracking-wider text-primary-foreground uppercase">
+														DONE
+													</Text>
+												</Pressable>
+											</View>
+											<DateTimePicker
+												value={
+													selectedDate || fallbackDate
+												}
+												mode="datetime"
+												display="spinner"
+												themeVariant="light"
+												onChange={(_event, date) => {
+													if (date) {
+														setSelectedDate(date);
+														setEventDate(
+															date.toISOString(),
+														);
+													}
+												}}
+											/>
+										</View>
+									)}
 								</View>
 
 								<View>
