@@ -11,9 +11,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     year_level INT CHECK (year_level BETWEEN 1 AND 4),
     bio TEXT,
     avatar_url TEXT,
+    karma INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     CONSTRAINT username_min_length CHECK (char_length(TRIM(username)) >= 2),
+    CONSTRAINT profiles_username_length_chk CHECK (char_length(username) <= 20),
     CONSTRAINT display_name_min_length CHECK (char_length(TRIM(display_name)) >= 2)
 );
 
@@ -328,6 +330,89 @@ CREATE TRIGGER on_post_vote_change
     AFTER INSERT OR UPDATE OR DELETE ON public.post_votes
     FOR EACH ROW EXECUTE FUNCTION public.handle_post_vote_change();
 
+CREATE OR REPLACE FUNCTION public.sync_author_karma_from_post_vote()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_author_id UUID;
+    v_old_author_id UUID;
+    v_delta INT;
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        SELECT author_id INTO v_author_id
+        FROM public.posts
+        WHERE id = NEW.post_id;
+
+        IF v_author_id IS NOT NULL AND NEW.user_id <> v_author_id THEN
+            UPDATE public.profiles
+            SET karma = COALESCE(karma, 0) + NEW.vote
+            WHERE id = v_author_id;
+        END IF;
+        RETURN NEW;
+
+    ELSIF TG_OP = 'DELETE' THEN
+        SELECT author_id INTO v_author_id
+        FROM public.posts
+        WHERE id = OLD.post_id;
+
+        IF v_author_id IS NOT NULL AND OLD.user_id <> v_author_id THEN
+            UPDATE public.profiles
+            SET karma = COALESCE(karma, 0) - OLD.vote
+            WHERE id = v_author_id;
+        END IF;
+        RETURN OLD;
+
+    ELSIF TG_OP = 'UPDATE' THEN
+        IF NEW.post_id = OLD.post_id THEN
+            SELECT author_id INTO v_author_id
+            FROM public.posts
+            WHERE id = NEW.post_id;
+
+            IF v_author_id IS NOT NULL AND NEW.user_id <> v_author_id THEN
+                v_delta := NEW.vote - OLD.vote;
+                IF v_delta <> 0 THEN
+                    UPDATE public.profiles
+                    SET karma = COALESCE(karma, 0) + v_delta
+                    WHERE id = v_author_id;
+                END IF;
+            END IF;
+        ELSE
+            SELECT author_id INTO v_old_author_id
+            FROM public.posts
+            WHERE id = OLD.post_id;
+
+            IF v_old_author_id IS NOT NULL AND OLD.user_id <> v_old_author_id THEN
+                UPDATE public.profiles
+                SET karma = COALESCE(karma, 0) - OLD.vote
+                WHERE id = v_old_author_id;
+            END IF;
+
+            SELECT author_id INTO v_author_id
+            FROM public.posts
+            WHERE id = NEW.post_id;
+
+            IF v_author_id IS NOT NULL AND NEW.user_id <> v_author_id THEN
+                UPDATE public.profiles
+                SET karma = COALESCE(karma, 0) + NEW.vote
+                WHERE id = v_author_id;
+            END IF;
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_author_karma ON public.post_votes;
+CREATE TRIGGER trg_sync_author_karma
+    AFTER INSERT OR UPDATE OR DELETE ON public.post_votes
+    FOR EACH ROW
+    EXECUTE FUNCTION public.sync_author_karma_from_post_vote();
+
 -- Comments table and policies
 CREATE TABLE IF NOT EXISTS public.comments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -561,7 +646,8 @@ CREATE POLICY "House mods can update guild reports"
 ALTER TABLE public.profiles
 ADD COLUMN IF NOT EXISTS show_active_status BOOLEAN NOT NULL DEFAULT TRUE,
 ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ DEFAULT NOW(),
-ADD COLUMN IF NOT EXISTS expo_push_token TEXT;
+ADD COLUMN IF NOT EXISTS expo_push_token TEXT,
+ADD COLUMN IF NOT EXISTS karma INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS public.conversations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -590,6 +676,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
     sender_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     content TEXT,
     media_urls TEXT[] DEFAULT '{}',
+    attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
     shared_post_id UUID REFERENCES public.posts(id) ON DELETE SET NULL,
     message_type TEXT NOT NULL DEFAULT 'text' CHECK (message_type IN ('text', 'system')),
     edited_at TIMESTAMPTZ,
@@ -601,6 +688,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
         (unsent_at IS NOT NULL) OR
         (content IS NOT NULL AND length(trim(content)) > 0) OR
         (media_urls IS NOT NULL AND array_length(media_urls, 1) > 0) OR
+        (attachments IS NOT NULL AND jsonb_typeof(attachments) = 'array' AND jsonb_array_length(attachments) > 0) OR
         (shared_post_id IS NOT NULL)
     )
 );
@@ -839,4 +927,61 @@ CREATE TRIGGER trg_message_inserted
     AFTER INSERT ON public.messages
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_message_inserted();
+
+CREATE OR REPLACE FUNCTION public.delete_empty_group_conversation(target_conversation_id UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_current_uid UUID;
+    v_created_by UUID;
+    v_type TEXT;
+    v_participant_count INT;
+    v_other_participant_count INT;
+BEGIN
+    v_current_uid := auth.uid();
+    IF v_current_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    SELECT created_by, type
+    INTO v_created_by, v_type
+    FROM public.conversations
+    WHERE id = target_conversation_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Conversation not found';
+    END IF;
+
+    IF v_type <> 'group' THEN
+        RAISE EXCEPTION 'Only group conversations can be deleted';
+    END IF;
+
+    IF v_created_by IS DISTINCT FROM v_current_uid THEN
+        RAISE EXCEPTION 'Only the group creator can delete this conversation';
+    END IF;
+
+    SELECT
+        COUNT(*),
+        COUNT(*) FILTER (WHERE user_id <> v_current_uid)
+    INTO
+        v_participant_count,
+        v_other_participant_count
+    FROM public.conversation_participants
+    WHERE conversation_id = target_conversation_id;
+
+    IF v_participant_count > 1 OR v_other_participant_count > 0 THEN
+        RAISE EXCEPTION 'Cannot delete group with other participants present';
+    END IF;
+
+    DELETE FROM public.conversations
+    WHERE id = target_conversation_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.delete_empty_group_conversation(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.delete_empty_group_conversation(UUID) TO authenticated;
+
 
