@@ -124,7 +124,7 @@ export function MobileTopBar({
 							/>
 							{unreadCount > 0 && (
 								<View className="absolute -top-1.5 -right-1.5 min-w-4 items-center justify-center border border-border bg-primary px-1 py-px">
-									<Text className="font-bold text-[9px] leading-none text-primary-foreground">
+									<Text className="font-bold text-2xs leading-none text-primary-foreground">
 										{unreadCount > 99 ? "99+" : unreadCount}
 									</Text>
 								</View>
