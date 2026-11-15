@@ -92,9 +92,12 @@ jobs:
               env:
                   GOOGLE_SERVICES_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
               run: |
-                  if [ -n "$GOOGLE_SERVICES_JSON_CONTENT" ]; then
-                      printf '%s' "$GOOGLE_SERVICES_JSON_CONTENT" > ./google-services.json
+                  if [ -z "$GOOGLE_SERVICES_JSON_CONTENT" ]; then
+                      echo "::error::GOOGLE_SERVICES_JSON secret is not set. Add the contents of google-services.json as a repository secret."
+                      exit 1
                   fi
+                  printf '%s' "$GOOGLE_SERVICES_JSON_CONTENT" > /tmp/google-services.json
+                  echo "GOOGLE_SERVICES_JSON=/tmp/google-services.json" >> "$GITHUB_ENV"
 
             - name: Build Android APK with EAS Local
               env:
