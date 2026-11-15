@@ -46,8 +46,8 @@ yarn-error.*
 .superpowers/
 skills-lock.json
 DESIGN.*
+CLAUDE.*
 GEMINI.*
-
 
 # supabase
 supabase/*

@@ -1,0 +1,83 @@
+# EAS Build uses .easignore instead of .gitignore when present.
+# Keep everything from .gitignore ignored except google-services.json,
+# which is required by `expo prebuild` (app.config.js -> android.googleServicesFile).
+
+# dependencies
+node_modules/
+package-lock.json
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# agentic
+.agents/
+.superpowers/
+skills-lock.json
+DESIGN.*
+CLAUDE.*
+GEMINI.*
+
+# supabase
+supabase/*
+!supabase/schema.sql
+!supabase/migrations/
+!supabase/functions/
+
+# firebase
+# google-services.json
+impulse-*.json
+
+# cloudflare
+.cloudflare/
+workers/r2-storage/.wrangler/
+workers/r2-storage/wrangler.toml
+
+# ts getting annoying now
+src/types/uniwind-types.d.ts
+
+# tests
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+tests/
+
+# git
+.worktrees/
+
+# local dev
+artifacts/
