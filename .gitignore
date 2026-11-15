@@ -43,8 +43,12 @@ yarn-error.*
 
 # agentic
 .agents/
+.claude/
+.gemini/
+.superpowers/
 skills-lock.json
 DESIGN.*
+CLAUDE.*
 GEMINI.*
 
 # supabase
@@ -72,6 +76,5 @@ src/types/uniwind-types.d.ts
 *.spec.tsx
 tests/
 
-# superpowers
-.superpowers/
+# git worktree
 .worktrees/
