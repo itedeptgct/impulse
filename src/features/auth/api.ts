@@ -2,6 +2,8 @@ import { deleteOwnR2Objects, uploadToR2 } from "@lib/r2-storage";
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { unregisterPushTokenAsync } from "@/features/notifications/push";
+
 import { useAuthStore } from "./store";
 import type { IdVerification, Profile } from "./types";
 import {
@@ -46,6 +48,16 @@ export async function signUp(
 
 export async function signOut() {
 	useAuthStore.getState().markManualSignOut();
+	try {
+		const currentUserId = useAuthStore.getState().user?.id;
+		const userId =
+			currentUserId ?? (await supabase.auth.getUser()).data.user?.id;
+		if (userId) {
+			await unregisterPushTokenAsync(userId);
+		}
+	} catch (e) {
+		console.warn("Failed to unregister push token during sign out:", e);
+	}
 	const { error } = await supabase.auth.signOut();
 	if (error) throw error;
 }
@@ -210,6 +222,9 @@ export async function fetchUserProfile(
 
 		if (error) throw error;
 		profile = data as Profile | null;
+		if (profile && typeof profile.karma !== "number") {
+			profile.karma = 0;
+		}
 	} catch {}
 
 	let privateEmail = "";
@@ -268,6 +283,9 @@ export async function fetchUserProfile(
 	}
 
 	if (profile) {
+		if (typeof profile.karma !== "number") {
+			profile.karma = cachedProfile?.karma ?? 0;
+		}
 		if (privateEmail) {
 			profile.email = privateEmail;
 		} else if (!profile.email) {
@@ -287,6 +305,7 @@ export async function fetchUserProfile(
 			email: privateEmail || "",
 			role: "user",
 			guild: localGuild as any,
+			karma: 0,
 			created_at: new Date().toISOString(),
 			updated_at: new Date().toISOString(),
 		};
@@ -388,6 +407,18 @@ export async function updateUserProfile(
 
 export async function deleteOwnAccount(): Promise<void> {
 	try {
+		const currentUserId = useAuthStore.getState().user?.id;
+		if (currentUserId) {
+			await unregisterPushTokenAsync(currentUserId);
+		}
+	} catch (e) {
+		console.warn(
+			"Failed to unregister push token during account deletion:",
+			e,
+		);
+	}
+
+	try {
 		await deleteOwnR2Objects();
 	} catch (e) {
 		console.warn("Failed to delete R2 objects:", e);
@@ -433,6 +464,10 @@ export async function fetchProfileByUsername(
 		if (!error && data) {
 			return {
 				...data,
+				karma:
+					typeof (data as any).karma === "number"
+						? (data as any).karma
+						: 0,
 				email: (data as any).email || "",
 			} as Profile;
 		}
@@ -474,6 +509,7 @@ export async function searchUsers(query: string): Promise<Profile[]> {
 		if (!error && data && data.length > 0) {
 			return data.map((item: any) => ({
 				...item,
+				karma: typeof item.karma === "number" ? item.karma : 0,
 				email: item.email || "",
 			})) as Profile[];
 		}
@@ -494,4 +530,181 @@ export async function searchUsers(query: string): Promise<Profile[]> {
 	} catch {}
 
 	return results;
+}
+
+export async function changeUsername(
+	userId: string,
+	username: string,
+): Promise<Profile> {
+	const trimmed = username.trim();
+	if (trimmed.length < 1 || trimmed.length > 20) {
+		throw new Error("Username must be between 1 and 20 characters.");
+	}
+	if (!/^[A-Za-z0-9_]+$/.test(trimmed)) {
+		throw new Error(
+			"Username can only contain letters, numbers, and underscores.",
+		);
+	}
+
+	const normalized = trimmed.toLowerCase();
+
+	const { error: profileError } = await supabase
+		.from("profiles")
+		.update({
+			username: normalized,
+			updated_at: new Date().toISOString(),
+		})
+		.eq("id", userId);
+
+	if (profileError) {
+		const msg = profileError.message?.toLowerCase() || "";
+		if (
+			profileError.code === "23505" ||
+			msg.includes("unique") ||
+			msg.includes("already exists") ||
+			msg.includes("duplicate key")
+		) {
+			throw new Error(
+				"This username is already taken. Please choose another.",
+			);
+		}
+		throw profileError;
+	}
+
+	try {
+		await supabase.auth.updateUser({
+			data: {
+				username: normalized,
+			},
+		});
+	} catch (e) {
+		console.warn("Failed to update auth metadata for username:", e);
+	}
+
+	const currentProfile = await fetchUserProfile(userId);
+	const updatedProfile: Profile = currentProfile
+		? {
+				...currentProfile,
+				username: normalized,
+				updated_at: new Date().toISOString(),
+			}
+		: {
+				id: userId,
+				username: normalized,
+				display_name: normalized,
+				email: "",
+				role: "user",
+				karma: 0,
+				created_at: new Date().toISOString(),
+				updated_at: new Date().toISOString(),
+			};
+
+	try {
+		await AsyncStorage.setItem(
+			`impulse_profile_${userId}`,
+			JSON.stringify(updatedProfile),
+		);
+		await AsyncStorage.setItem(
+			`impulse_profile_by_username_${normalized}`,
+			JSON.stringify(updatedProfile),
+		);
+	} catch {}
+
+	try {
+		const { useAuthStore } = require("./store");
+		if (useAuthStore?.getState) {
+			useAuthStore.getState().setProfile(updatedProfile);
+		}
+	} catch {}
+
+	return updatedProfile;
+}
+
+export async function requestEmailChange(
+	currentEmail: string,
+	currentPassword: string,
+	newEmail: string,
+): Promise<void> {
+	const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
+	const trimmedNewEmail = newEmail.trim().toLowerCase();
+
+	if (!trimmedCurrentEmail) {
+		throw new Error("Current account email is missing.");
+	}
+	if (!trimmedNewEmail || !trimmedNewEmail.includes("@")) {
+		throw new Error("Please enter a valid email address.");
+	}
+	if (trimmedNewEmail === trimmedCurrentEmail) {
+		throw new Error("New email must be different from current email.");
+	}
+	if (!currentPassword) {
+		throw new Error("Please enter your current password.");
+	}
+
+	const { error: signInError } = await supabase.auth.signInWithPassword({
+		email: trimmedCurrentEmail,
+		password: currentPassword,
+	});
+
+	if (signInError) {
+		const msg = signInError.message?.toLowerCase() || "";
+		if (msg.includes("invalid") || msg.includes("credential")) {
+			throw new Error("Current password is incorrect.");
+		}
+		throw signInError;
+	}
+
+	let redirectTo = "auth/callback";
+	try {
+		const Linking = require("expo-linking");
+		redirectTo = Linking.createURL("auth/callback");
+	} catch {}
+
+	const { error: updateError } = await supabase.auth.updateUser(
+		{ email: trimmedNewEmail },
+		{ emailRedirectTo: redirectTo },
+	);
+
+	if (updateError) {
+		throw updateError;
+	}
+}
+
+export async function changePassword(
+	currentEmail: string,
+	currentPassword: string,
+	newPassword: string,
+): Promise<void> {
+	const trimmedCurrentEmail = currentEmail.trim().toLowerCase();
+
+	if (!trimmedCurrentEmail) {
+		throw new Error("Current account email is missing.");
+	}
+	if (!currentPassword) {
+		throw new Error("Please enter your current password.");
+	}
+	if (!newPassword || newPassword.length < 8) {
+		throw new Error("New password must be at least 8 characters long.");
+	}
+
+	const { error: signInError } = await supabase.auth.signInWithPassword({
+		email: trimmedCurrentEmail,
+		password: currentPassword,
+	});
+
+	if (signInError) {
+		const msg = signInError.message?.toLowerCase() || "";
+		if (msg.includes("invalid") || msg.includes("credential")) {
+			throw new Error("Current password is incorrect.");
+		}
+		throw signInError;
+	}
+
+	const { error: updateError } = await supabase.auth.updateUser({
+		password: newPassword,
+	});
+
+	if (updateError) {
+		throw updateError;
+	}
 }

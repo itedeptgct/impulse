@@ -55,6 +55,7 @@ module.exports = {
 			],
 			"expo-sharing",
 			"expo-notifications",
+			"@react-native-community/datetimepicker",
 		],
 		extra: {
 			router: {},

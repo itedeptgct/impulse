@@ -94,6 +94,8 @@ export default function DispatchScreen() {
 						event_date: remote.event_date || local?.event_date,
 						event_location:
 							remote.event_location || local?.event_location,
+						image_url: remote.image_url || local?.image_url,
+						image_urls: remote.image_urls || local?.image_urls,
 					};
 				}),
 			];

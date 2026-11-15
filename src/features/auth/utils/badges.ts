@@ -28,12 +28,12 @@ interface HouseBadgeMetadata {
 }
 
 const HOUSE_METADATA: Record<string, HouseBadgeMetadata> = {
-	octagram: { label: "OCTAGRAM", colorHex: "#00FF66" },
-	octogram: { label: "OCTAGRAM", colorHex: "#00FF66" },
-	chameleon: { label: "CHAMELEON", colorHex: "#FF007A" },
-	blue_jays: { label: "BLUE JAYS", colorHex: "#00E5FF" },
-	"blue-jays": { label: "BLUE JAYS", colorHex: "#00E5FF" },
-	bluejays: { label: "BLUE JAYS", colorHex: "#00E5FF" },
+	octagram: { label: "0x", colorHex: "#00FF66" },
+	octogram: { label: "0x", colorHex: "#00FF66" },
+	chameleon: { label: "★", colorHex: "#FF007A" },
+	blue_jays: { label: "BJ", colorHex: "#00E5FF" },
+	"blue-jays": { label: "BJ", colorHex: "#00E5FF" },
+	bluejays: { label: "BJ", colorHex: "#00E5FF" },
 };
 
 function normalizeGuild(guild: string): string {

@@ -445,6 +445,7 @@ export default function SignUpScreen() {
 									label="USERNAME (HANDLE)"
 									placeholder="janedoe"
 									value={username}
+									maxLength={20}
 									onChangeText={(text) => {
 										const clean = text
 											.toLowerCase()
@@ -461,6 +462,7 @@ export default function SignUpScreen() {
 									autoCorrect={false}
 									returnKeyType="next"
 									error={fieldErrors.username}
+									helperText={`${username.length}/20 characters`}
 									startContent={
 										<AtSign
 											size={16}

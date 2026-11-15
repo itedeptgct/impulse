@@ -1,10 +1,11 @@
-import { updateUserProfile, uploadAvatar } from "@auth/api";
+import { changeUsername, updateUserProfile, uploadAvatar } from "@auth/api";
 import { useAuthStore } from "@auth/store";
 import type { Course, Profile, YearLevel } from "@auth/types";
 import { Image as ExpoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import {
 	AlertCircle,
+	AtSign,
 	BookOpen,
 	Camera,
 	FileText,
@@ -43,6 +44,7 @@ export function EditProfileModal({
 	const profile = useAuthStore((state) => state.profile);
 	const setProfile = useAuthStore((state) => state.setProfile);
 
+	const [username, setUsername] = useState(profile?.username || "");
 	const [displayName, setDisplayName] = useState(
 		profile?.display_name || profile?.username || "",
 	);
@@ -58,6 +60,7 @@ export function EditProfileModal({
 	const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [initialValues, setInitialValues] = useState({
+		username: profile?.username || "",
 		displayName: profile?.display_name || profile?.username || "",
 		course: profile?.course || null,
 		yearLevel: profile?.year_level || null,
@@ -69,12 +72,14 @@ export function EditProfileModal({
 
 	useEffect(() => {
 		if (open && !prevOpenRef.current && profile) {
+			setUsername(profile.username || "");
 			setDisplayName(profile.display_name || profile.username || "");
 			setCourse(profile.course || null);
 			setYearLevel(profile.year_level || null);
 			setBio(profile.bio || "");
 			setAvatarUrl(profile.avatar_url || "");
 			setInitialValues({
+				username: profile.username || "",
 				displayName: profile.display_name || profile.username || "",
 				course: profile.course || null,
 				yearLevel: profile.year_level || null,
@@ -87,6 +92,8 @@ export function EditProfileModal({
 	}, [open, profile]);
 
 	const hasChanges =
+		username.trim().toLowerCase() !==
+			initialValues.username.trim().toLowerCase() ||
 		displayName.trim() !== initialValues.displayName.trim() ||
 		course !== initialValues.course ||
 		yearLevel !== initialValues.yearLevel ||
@@ -140,6 +147,17 @@ export function EditProfileModal({
 
 	const handleSave = async () => {
 		if (!user?.id) return;
+		const cleanUsername = username.trim().toLowerCase();
+		if (cleanUsername.length < 1 || cleanUsername.length > 20) {
+			setError("Username must be between 1 and 20 characters.");
+			return;
+		}
+		if (!/^[a-zA-Z0-9_]+$/.test(cleanUsername)) {
+			setError(
+				"Username can only contain letters, numbers, and underscores.",
+			);
+			return;
+		}
 		if (displayName.trim().length > 50) {
 			setError("Display name must be 50 characters or less.");
 			return;
@@ -157,7 +175,12 @@ export function EditProfileModal({
 		setError(null);
 
 		try {
+			if (cleanUsername !== initialValues.username.toLowerCase()) {
+				await changeUsername(user.id, cleanUsername);
+			}
+
 			const updated = await updateUserProfile(user.id, {
+				username: cleanUsername,
 				display_name: displayName.trim(),
 				course: course,
 				year_level: yearLevel,
@@ -296,6 +319,29 @@ export function EditProfileModal({
 										</View>
 									</View>
 								</View>
+
+								<NeoInput
+									label="USERNAME (HANDLE)"
+									value={username}
+									onChangeText={(text) => {
+										const clean = text
+											.toLowerCase()
+											.replace(/[^a-z0-9_]/g, "");
+										setUsername(clean);
+									}}
+									placeholder="janedoe"
+									maxLength={20}
+									autoCapitalize="none"
+									autoCorrect={false}
+									startContent={
+										<AtSign
+											size={15}
+											color="#000000"
+											strokeWidth={2.2}
+										/>
+									}
+									helperText={`${username.length}/20 characters • Letters, numbers, underscores`}
+								/>
 
 								<NeoInput
 									label="DISPLAY NAME"

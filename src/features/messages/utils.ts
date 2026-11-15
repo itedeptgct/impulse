@@ -91,12 +91,18 @@ export function formatConversationTitle(
 export function isMediaOnlyMessage(
 	message: Pick<
 		Message,
-		"content" | "media_urls" | "shared_post_id" | "unsent_at"
+		| "content"
+		| "media_urls"
+		| "attachments"
+		| "shared_post_id"
+		| "unsent_at"
 	>,
 ): boolean {
 	if (message.unsent_at) return false;
 	const hasMedia =
-		Array.isArray(message.media_urls) && message.media_urls.length > 0;
+		(Array.isArray(message.attachments) &&
+			message.attachments.length > 0) ||
+		(Array.isArray(message.media_urls) && message.media_urls.length > 0);
 	const hasText = Boolean(
 		message.content && message.content.trim().length > 0,
 	);
@@ -139,8 +145,14 @@ export function formatConversationSnippet(
 	if (message.shared_post_id) {
 		return `${prefix}Shared a transmission`;
 	}
-	if (message.media_urls && message.media_urls.length > 0) {
-		return `${prefix}Sent an attachment`;
+	const attachmentCount =
+		message.attachments && message.attachments.length > 0
+			? message.attachments.length
+			: (message.media_urls?.length ?? 0);
+	if (attachmentCount > 0) {
+		return attachmentCount > 1
+			? `${prefix}Sent ${attachmentCount} photos`
+			: `${prefix}Sent an attachment`;
 	}
 	return "New message";
 }

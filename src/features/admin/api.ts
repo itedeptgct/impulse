@@ -8,6 +8,7 @@ import type { Post } from "@/features/posts/types";
 import type {
 	AdminPostVisibilityFilter,
 	AdminStats,
+	AdminUpdateUserPayload,
 	AdminUserItem,
 	AdminVerificationItem,
 	VerificationFilter,
@@ -76,7 +77,7 @@ export async function fetchAdminStats(): Promise<AdminStats> {
 const VERIFICATION_PROJECTION =
 	"id, user_id, document_url, status, rejection_reason, reviewed_by, reviewed_at, created_at, updated_at";
 const PROFILE_PROJECTION =
-	"id, username, display_name, avatar_url, role, guild, created_at, updated_at";
+	"id, username, display_name, avatar_url, role, guild, karma, created_at, updated_at";
 
 export async function fetchAdminVerifications(
 	filter: VerificationFilter = "all",
@@ -340,4 +341,88 @@ export async function fetchAdminPosts(
 	}
 
 	return posts;
+}
+
+async function extractFunctionErrorMessage(
+	error: unknown,
+	fallback: string,
+): Promise<string> {
+	if (!error) return fallback;
+	if (typeof error === "object" && error !== null) {
+		const anyErr = error as {
+			message?: string;
+			context?: { json?: () => Promise<{ error?: string }> };
+		};
+		if (anyErr.context && typeof anyErr.context.json === "function") {
+			try {
+				const body = await anyErr.context.json();
+				if (body?.error && typeof body.error === "string") {
+					return body.error;
+				}
+			} catch {}
+		}
+		if (anyErr.message) {
+			return anyErr.message;
+		}
+	}
+	if (typeof error === "string") return error;
+	return fallback;
+}
+
+export async function adminDeleteUser(targetUserId: string): Promise<void> {
+	if (!targetUserId) {
+		throw new Error("Target user ID is required");
+	}
+
+	const { data, error } = await supabase.functions.invoke(
+		"admin-user-actions",
+		{
+			body: {
+				action: "delete_user",
+				targetUserId,
+			},
+		},
+	);
+
+	if (error) {
+		const message = await extractFunctionErrorMessage(
+			error,
+			"Failed to delete user",
+		);
+		throw new Error(message);
+	}
+
+	if (!data?.success) {
+		throw new Error(data?.error || "Failed to delete user");
+	}
+}
+
+export async function adminUpdateUserAccount(
+	payload: AdminUpdateUserPayload,
+): Promise<void> {
+	if (!payload.targetUserId) {
+		throw new Error("Target user ID is required");
+	}
+
+	const { data, error } = await supabase.functions.invoke(
+		"admin-user-actions",
+		{
+			body: {
+				action: "update_user",
+				...payload,
+			},
+		},
+	);
+
+	if (error) {
+		const message = await extractFunctionErrorMessage(
+			error,
+			"Failed to update user account",
+		);
+		throw new Error(message);
+	}
+
+	if (!data?.success) {
+		throw new Error(data?.error || "Failed to update user account");
+	}
 }

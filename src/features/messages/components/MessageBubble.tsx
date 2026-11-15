@@ -28,6 +28,91 @@ interface MessageBubbleProps {
 	onMediaPress?: (urls: string[], index: number) => void;
 }
 
+interface MediaCollageProps {
+	messageId: string;
+	urls: string[];
+	onMediaPress?: (urls: string[], index: number) => void;
+	onLongPress: () => void;
+}
+
+function MediaCollage({
+	messageId,
+	urls,
+	onMediaPress,
+	onLongPress,
+}: MediaCollageProps) {
+	if (urls.length === 0) return null;
+
+	const renderTile = (
+		url: string,
+		index: number,
+		styleClass: string,
+		extraCount = 0,
+	) => (
+		<Pressable
+			key={`${messageId}-media-${index}`}
+			accessibilityRole="button"
+			accessibilityLabel={`View media ${index + 1} of ${urls.length} fullscreen`}
+			onPress={() => onMediaPress?.(urls, index)}
+			onLongPress={onLongPress}
+			delayLongPress={300}
+			className={`relative overflow-hidden border border-border bg-secondary ${styleClass}`}>
+			<ExpoImage
+				source={{ uri: url }}
+				style={{ width: "100%", height: "100%" }}
+				contentFit="cover"
+			/>
+			{extraCount > 0 ? (
+				<View className="absolute inset-0 items-center justify-center bg-black/60">
+					<Text className="font-display text-lg text-white">
+						+{extraCount}
+					</Text>
+				</View>
+			) : null}
+		</Pressable>
+	);
+
+	if (urls.length === 1) {
+		return renderTile(urls[0], 0, "h-[165px] w-[220px]");
+	}
+
+	if (urls.length === 2) {
+		return (
+			<View className="w-[224px] flex-row gap-1">
+				{renderTile(urls[0], 0, "h-32 flex-1")}
+				{renderTile(urls[1], 1, "h-32 flex-1")}
+			</View>
+		);
+	}
+
+	if (urls.length === 3) {
+		return (
+			<View className="h-[172px] w-[224px] flex-row gap-1">
+				{renderTile(urls[0], 0, "h-full flex-1")}
+				<View className="flex-1 gap-1">
+					{renderTile(urls[1], 1, "flex-1")}
+					{renderTile(urls[2], 2, "flex-1")}
+				</View>
+			</View>
+		);
+	}
+
+	const extraCount = urls.length > 4 ? urls.length - 4 : 0;
+
+	return (
+		<View className="w-[224px] gap-1">
+			<View className="flex-row gap-1">
+				{renderTile(urls[0], 0, "h-24 flex-1")}
+				{renderTile(urls[1], 1, "h-24 flex-1")}
+			</View>
+			<View className="flex-row gap-1">
+				{renderTile(urls[2], 2, "h-24 flex-1")}
+				{renderTile(urls[3], 3, "h-24 flex-1", extraCount)}
+			</View>
+		</View>
+	);
+}
+
 export const MessageBubble = memo(function MessageBubble({
 	message,
 	isOwnMessage,
@@ -57,6 +142,10 @@ export const MessageBubble = memo(function MessageBubble({
 	const isUnsent = Boolean(message.unsent_at);
 	const isSystem = message.message_type === "system" && !isUnsent;
 	const mediaOnly = isMediaOnlyMessage(message);
+	const mediaUrls =
+		message.attachments && message.attachments.length > 0
+			? message.attachments.map((a) => a.url)
+			: (message.media_urls ?? []);
 
 	if (isSystem) {
 		return (
@@ -106,31 +195,17 @@ export const MessageBubble = memo(function MessageBubble({
 
 			{isUnsent ? (
 				<View className="border border-dashed border-border/50 bg-secondary/50 px-3 py-2">
-					<Text className="font-mono text-xs text-muted-foreground italic">
+					<Text className="italic font-mono text-xs text-muted-foreground">
 						{senderName} unsent a message
 					</Text>
 				</View>
 			) : mediaOnly ? (
-				<View className="gap-1.5">
-					{message.media_urls.map((url, idx) => (
-						<Pressable
-							key={`${message.id}-media-${idx}`}
-							accessibilityRole="button"
-							accessibilityLabel="View media fullscreen"
-							onPress={() =>
-								onMediaPress?.(message.media_urls, idx)
-							}
-							onLongPress={handleLongPress}
-							delayLongPress={300}>
-							<ExpoImage
-								source={{ uri: url }}
-								style={{ width: 220, height: 165 }}
-								contentFit="cover"
-								className="border border-border bg-secondary"
-							/>
-						</Pressable>
-					))}
-				</View>
+				<MediaCollage
+					messageId={message.id}
+					urls={mediaUrls}
+					onMediaPress={onMediaPress}
+					onLongPress={handleLongPress}
+				/>
 			) : (
 				<Pressable
 					onLongPress={handleLongPress}
@@ -138,26 +213,14 @@ export const MessageBubble = memo(function MessageBubble({
 					className={`border-2 border-border px-3 py-2 shadow-neo-xs ${
 						isOwnMessage ? "bg-neo-green" : "bg-card"
 					}`}>
-					{message.media_urls && message.media_urls.length > 0 ? (
-						<View className="mb-1.5 gap-1.5">
-							{message.media_urls.map((url, idx) => (
-								<Pressable
-									key={`${message.id}-media-${idx}`}
-									accessibilityRole="button"
-									accessibilityLabel="View media fullscreen"
-									onPress={() =>
-										onMediaPress?.(message.media_urls, idx)
-									}
-									onLongPress={handleLongPress}
-									delayLongPress={300}>
-									<ExpoImage
-										source={{ uri: url }}
-										style={{ width: 220, height: 165 }}
-										contentFit="cover"
-										className="border border-border bg-secondary"
-									/>
-								</Pressable>
-							))}
+					{mediaUrls.length > 0 ? (
+						<View className="mb-1.5">
+							<MediaCollage
+								messageId={message.id}
+								urls={mediaUrls}
+								onMediaPress={onMediaPress}
+								onLongPress={handleLongPress}
+							/>
 						</View>
 					) : null}
 

@@ -55,6 +55,10 @@ interface MessagesState {
 		conversationId: string,
 		title: string | null,
 	) => void;
+	updateConversationAvatarLocally: (
+		conversationId: string,
+		avatarUrl: string | null,
+	) => void;
 	updateParticipantLastReadLocally: (
 		conversationId: string,
 		targetUserId: string,
@@ -343,6 +347,14 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
 		set((state) => ({
 			conversations: state.conversations.map((c) =>
 				c.id === conversationId ? { ...c, title } : c,
+			),
+		}));
+	},
+
+	updateConversationAvatarLocally: (conversationId, avatarUrl) => {
+		set((state) => ({
+			conversations: state.conversations.map((c) =>
+				c.id === conversationId ? { ...c, avatar_url: avatarUrl } : c,
 			),
 		}));
 	},

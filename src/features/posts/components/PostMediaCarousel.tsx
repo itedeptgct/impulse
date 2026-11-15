@@ -51,12 +51,6 @@ export function PostMediaCarousel({
 						contentFit="cover"
 					/>
 				</Pressable>
-
-				<View className="pointer-events-none absolute right-2.5 bottom-2.5 border border-white/40 bg-primary/90 px-2 py-0.5">
-					<Text className="font-mono text-2xs tracking-widest text-primary-foreground uppercase tabular-nums">
-						SINGLE ASSET RENDER
-					</Text>
-				</View>
 			</View>
 		);
 	}
@@ -119,7 +113,7 @@ export function PostMediaCarousel({
 			</View>
 
 			{/* Paging Dots Indicator */}
-			<View className="pointer-events-none absolute bottom-2.5 left-2.5 flex-row items-center gap-1">
+			<View className="pointer-events-none absolute bottom-2.5 left-2.5 flex-row items-center gap-1 border border-white/40 bg-primary/90 p-1">
 				{mediaUrls.map((_, idx) => (
 					<View
 						key={idx}

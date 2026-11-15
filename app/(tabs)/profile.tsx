@@ -5,6 +5,7 @@ import {
 	updateUserProfile,
 	uploadIdDocument,
 } from "@auth/api";
+import { AccountSettingsModal } from "@auth/components/AccountSettingsModal";
 import { EditProfileModal } from "@auth/components/EditProfileModal";
 import { useAuthStore } from "@auth/store";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,6 +17,7 @@ import {
 	AlertCircle,
 	ArrowUpRight,
 	BookOpen,
+	Calendar,
 	CheckCircle2,
 	Clock,
 	FileText,
@@ -27,7 +29,6 @@ import {
 	Settings,
 	ShieldAlert,
 	ShieldCheck,
-	Trash2,
 	UploadCloud,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
@@ -55,6 +56,7 @@ import { fetchUserPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import { PostComposerModal } from "@/features/posts/components/PostComposerModal";
 import type { Post } from "@/features/posts/types";
+import { ActiveDot } from "@/features/presence";
 
 export default function ProfileScreen() {
 	const insets = useSafeAreaInsets();
@@ -82,6 +84,7 @@ export default function ProfileScreen() {
 
 	const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 	const [isAccountActionsOpen, setIsAccountActionsOpen] = useState(false);
+	const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
 
 	const [myPosts, setMyPosts] = useState<Post[]>([]);
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -167,12 +170,15 @@ export default function ProfileScreen() {
 		if (!userId) return;
 		let cancelled = false;
 		queueMicrotask(() => {
-			if (!cancelled) void loadUserData();
+			if (!cancelled) {
+				void loadUserData();
+				void refreshUserData();
+			}
 		});
 		return () => {
 			cancelled = true;
 		};
-	}, [userId, loadUserData]);
+	}, [userId, loadUserData, refreshUserData]);
 
 	const onRefresh = useCallback(async () => {
 		setIsRefreshing(true);
@@ -300,6 +306,7 @@ export default function ProfileScreen() {
 					upvotes_count: res.upvotes_count,
 					downvotes_count: res.downvotes_count,
 				});
+				void refreshUserData();
 			} catch {
 				patchMyPost(post.id, {
 					user_vote: currentVote,
@@ -308,7 +315,7 @@ export default function ProfileScreen() {
 				});
 			}
 		},
-		[user?.id, patchMyPost],
+		[user?.id, patchMyPost, refreshUserData],
 	);
 
 	const handleOpenComments = useCallback((post: Post) => {
@@ -354,7 +361,6 @@ export default function ProfileScreen() {
 			})
 		: "Recent";
 
-	const totalUpvotes = myPosts.reduce((acc, p) => acc + p.upvotes_count, 0);
 	const totalComments = myPosts.reduce((acc, p) => acc + p.comments_count, 0);
 
 	if (!profile) {
@@ -409,26 +415,36 @@ export default function ProfileScreen() {
 							variant="default"
 							className="mb-5 p-5 shadow-neo">
 							<View className="flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-								{profile.avatar_url &&
-								profile.avatar_url.startsWith("http") ? (
-									<Image
-										source={{ uri: profile.avatar_url }}
-										style={{
-											width: 68,
-											height: 68,
-											borderRadius: 0,
-											borderWidth: 2,
-											borderColor: "#000000",
-										}}
-										contentFit="cover"
+								<View className="relative size-17 shrink-0 self-start">
+									{profile.avatar_url &&
+									profile.avatar_url.startsWith("http") ? (
+										<Image
+											source={{ uri: profile.avatar_url }}
+											style={{
+												width: 68,
+												height: 68,
+												borderRadius: 0,
+												borderWidth: 2,
+												borderColor: "#000000",
+											}}
+											contentFit="cover"
+										/>
+									) : (
+										<View className="size-17 items-center justify-center rounded-none border-2 border-border bg-muted shadow-neo-sm">
+											<Text className="font-bold text-2xl text-foreground">
+												{initials}
+											</Text>
+										</View>
+									)}
+									<ActiveDot
+										userId={profile.id}
+										targetShowActiveStatus={
+											profile.show_active_status
+										}
+										size="md"
+										className="absolute -right-1 -bottom-1"
 									/>
-								) : (
-									<View className="size-17 items-center justify-center rounded-none border-2 border-border bg-muted shadow-neo-sm">
-										<Text className="font-bold text-2xl text-foreground">
-											{initials}
-										</Text>
-									</View>
-								)}
+								</View>
 
 								<View className="min-w-0 flex-1">
 									<View className="flex-row flex-wrap items-center gap-2">
@@ -577,6 +593,17 @@ export default function ProfileScreen() {
 											about your interests!
 										</Text>
 									)}
+
+									<View className="mt-2.5 flex-row items-center gap-1.5">
+										<Calendar
+											size={12}
+											color="#71717a"
+											strokeWidth={2}
+										/>
+										<Text className="font-mono text-xs text-muted-foreground">
+											Member since {memberSinceDate}
+										</Text>
+									</View>
 								</View>
 							</View>
 
@@ -594,6 +621,22 @@ export default function ProfileScreen() {
 									}
 									onPress={() => setIsEditProfileOpen(true)}>
 									EDIT PROFILE
+								</NeoButton>
+								<NeoButton
+									size="sm"
+									variant="outline"
+									className="flex-1"
+									startContent={
+										<Settings
+											size={13}
+											color="#000000"
+											strokeWidth={2.2}
+										/>
+									}
+									onPress={() =>
+										setIsAccountSettingsOpen(true)
+									}>
+									ACCOUNT SETTINGS
 								</NeoButton>
 							</View>
 						</NeoCard>
@@ -631,7 +674,7 @@ export default function ProfileScreen() {
 									</Text>
 								</View>
 								<Text className="mt-1 font-display text-2xl tracking-tight text-destructive">
-									{totalUpvotes}
+									{profile?.karma ?? 0}
 								</Text>
 							</NeoCard>
 
@@ -806,12 +849,44 @@ export default function ProfileScreen() {
 				onOpenChange={setIsEditProfileOpen}
 			/>
 
+			<AccountSettingsModal
+				open={isAccountSettingsOpen}
+				onOpenChange={setIsAccountSettingsOpen}
+				onDeleteAccountPress={() => {
+					setIsAccountSettingsOpen(false);
+					setIsDeleteAccountDialogOpen(true);
+				}}
+			/>
+
 			<MobileSheet
 				open={isAccountActionsOpen}
 				onOpenChange={setIsAccountActionsOpen}
 				title="Account & Settings"
 				subtitle="Manage your student verification, house, and account.">
 				<View className="gap-3 py-2">
+					<NeoCard
+						variant="default"
+						onPress={() => {
+							setIsAccountActionsOpen(false);
+							setIsAccountSettingsOpen(true);
+						}}
+						className="flex-row items-center justify-between p-3.5 shadow-neo-sm">
+						<View className="flex-row items-center gap-2">
+							<Settings
+								size={16}
+								color="#000000"
+								strokeWidth={2.2}
+							/>
+							<Text className="font-bold text-base text-foreground uppercase">
+								Account Settings
+							</Text>
+						</View>
+						<ArrowUpRight
+							size={14}
+							color="#000000"
+							strokeWidth={2.2}
+						/>
+					</NeoCard>
 					{isStaff && (
 						<NeoCard
 							variant="accent"
@@ -872,64 +947,6 @@ export default function ProfileScreen() {
 								{verificationStatus.toUpperCase()}
 							</NeoBadge>
 						)}
-					</View>
-
-					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
-						<Text className="font-mono text-xs text-muted-foreground">
-							Logged in as
-						</Text>
-						<Text className="mt-0.5 font-mono text-xs text-foreground">
-							{email}
-						</Text>
-						<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
-							Member since {memberSinceDate}
-						</Text>
-					</View>
-
-					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
-						<Text className="font-bold text-xs text-foreground uppercase">
-							Account
-						</Text>
-						<Text className="mt-1 font-mono text-xs text-muted-foreground">
-							Sign out of your session or permanently delete your
-							account.
-						</Text>
-						<View className="mt-3 flex-row gap-2.5">
-							<NeoButton
-								size="sm"
-								variant="outline"
-								className="flex-1"
-								startContent={
-									<LogOut
-										size={14}
-										color="#ff2a00"
-										strokeWidth={2.2}
-									/>
-								}
-								onPress={() => {
-									setIsAccountActionsOpen(false);
-									setIsSignOutDialogOpen(true);
-								}}>
-								Sign Out
-							</NeoButton>
-							<NeoButton
-								size="sm"
-								variant="destructive"
-								className="flex-1"
-								startContent={
-									<Trash2
-										size={14}
-										color="#ffffff"
-										strokeWidth={2.2}
-									/>
-								}
-								onPress={() => {
-									setIsAccountActionsOpen(false);
-									setIsDeleteAccountDialogOpen(true);
-								}}>
-								DELETE ACCOUNT
-							</NeoButton>
-						</View>
 					</View>
 
 					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
@@ -1014,6 +1031,34 @@ export default function ProfileScreen() {
 									router.push("/legal/privacy");
 								}}>
 								Privacy Policy
+							</NeoButton>
+						</View>
+					</View>
+
+					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
+						<Text className="font-bold text-xs text-foreground uppercase">
+							Sign Out
+						</Text>
+						<Text className="mt-1 font-mono text-xs text-muted-foreground">
+							Sign out of your current Impulse session.
+						</Text>
+						<View className="mt-3">
+							<NeoButton
+								size="sm"
+								variant="outline"
+								className="w-full"
+								startContent={
+									<LogOut
+										size={14}
+										color="#ff2a00"
+										strokeWidth={2.2}
+									/>
+								}
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									setIsSignOutDialogOpen(true);
+								}}>
+								Sign Out
 							</NeoButton>
 						</View>
 					</View>

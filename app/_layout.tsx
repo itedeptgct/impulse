@@ -2,43 +2,44 @@ import { useAuthStore } from "@auth/store";
 import { Anton_400Regular } from "@expo-google-fonts/anton";
 import {
 	CourierPrime_400Regular,
+	CourierPrime_400Regular_Italic,
 	CourierPrime_700Bold,
+	CourierPrime_700Bold_Italic,
 } from "@expo-google-fonts/courier-prime";
-import { JetBrainsMono_400Regular } from "@expo-google-fonts/jetbrains-mono";
+import {
+	JetBrainsMono_400Regular,
+	JetBrainsMono_400Regular_Italic,
+} from "@expo-google-fonts/jetbrains-mono";
 import {
 	isSupabaseConfigured,
 	supabase,
 	supabaseConfigError,
 } from "@lib/supabase";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
+import * as Notifications from "expo-notifications";
 import { router, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { AlertTriangle } from "lucide-react-native";
 import { PanelUIProvider } from "panelui-native";
-import { useEffect } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { ActivityIndicator, Platform, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Uniwind } from "uniwind";
 
 import { MobileAlertSheet, NeoCard } from "@/components/ui";
 import {
+	useNotificationRealtime,
+	resolveNotificationRoute,
 	registerForPushNotificationsAsync,
 	setupNotificationResponseListener,
-} from "@/features/notifications/push";
+} from "@/features/notifications";
 import { useGlobalPresence } from "@/features/presence";
 
 import "@theme/global.css";
 
-const queryClient = new QueryClient({
-	defaultOptions: {
-		queries: {
-			staleTime: 1000 * 60,
-			retry: 2,
-		},
-	},
-});
+import { queryClient } from "@/lib/queryClient";
 
 // oxlint-disable-next-line react/only-export-components
 export const unstable_settings = {
@@ -46,14 +47,21 @@ export const unstable_settings = {
 	initialRouteName: "(tabs)",
 };
 
+function NotificationRealtimeSync({ userId }: { userId?: string | null }) {
+	useNotificationRealtime(userId);
+	return null;
+}
+
 export default function RootLayout() {
-	const userId = useAuthStore((state) => state.user?.id);
+	const user = useAuthStore((state) => state.user);
+	const userId = user?.id;
 	const sessionExpiredMessage = useAuthStore(
 		(state) => state.sessionExpiredMessage,
 	);
 	const dismissSessionExpired = useAuthStore(
 		(state) => state.dismissSessionExpired,
 	);
+	const lastHandledResponseIdRef = useRef<string | null>(null);
 
 	useGlobalPresence();
 
@@ -63,7 +71,45 @@ export default function RootLayout() {
 	}, [userId]);
 
 	useEffect(() => {
-		return setupNotificationResponseListener((path) => {
+		if (!userId || Platform.OS === "web") return;
+
+		let isMounted = true;
+		void Notifications.getLastNotificationResponseAsync().then(
+			(response) => {
+				if (!isMounted || !response) return;
+				const responseId = response.notification.request.identifier;
+				if (
+					responseId &&
+					lastHandledResponseIdRef.current === responseId
+				) {
+					return;
+				}
+				if (responseId) {
+					lastHandledResponseIdRef.current = responseId;
+				}
+				const targetRoute = resolveNotificationRoute(
+					response.notification.request.content.data,
+				);
+				if (targetRoute) {
+					router.push(targetRoute as never);
+				}
+			},
+		);
+
+		return () => {
+			isMounted = false;
+		};
+	}, [userId]);
+
+	useEffect(() => {
+		return setupNotificationResponseListener((path, response) => {
+			const responseId = response?.notification?.request?.identifier;
+			if (responseId && lastHandledResponseIdRef.current === responseId) {
+				return;
+			}
+			if (responseId) {
+				lastHandledResponseIdRef.current = responseId;
+			}
 			router.push(path as never);
 		});
 	}, []);
@@ -77,8 +123,11 @@ export default function RootLayout() {
 	const [fontsLoaded] = useFonts({
 		Anton_400Regular,
 		CourierPrime_400Regular,
+		CourierPrime_400Regular_Italic,
 		CourierPrime_700Bold,
+		CourierPrime_700Bold_Italic,
 		JetBrainsMono_400Regular,
+		JetBrainsMono_400Regular_Italic,
 	});
 
 	useEffect(() => {
@@ -157,6 +206,7 @@ export default function RootLayout() {
 			<PanelUIProvider>
 				<SafeAreaProvider>
 					<QueryClientProvider client={queryClient}>
+						<NotificationRealtimeSync userId={user?.id} />
 						<Stack
 							screenOptions={{
 								headerShown: false,

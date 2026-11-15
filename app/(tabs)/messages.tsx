@@ -2,7 +2,7 @@ import { useAuthStore } from "@auth/store";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Pin, Plus, Search, Settings, Trash2, X } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	Alert,
@@ -88,6 +88,11 @@ export default function MessagesScreen() {
 		}
 	}, [userId, setConversations]);
 
+	const loadInboxRef = useRef(loadInbox);
+	useEffect(() => {
+		loadInboxRef.current = loadInbox;
+	}, [loadInbox]);
+
 	useFocusEffect(
 		useCallback(() => {
 			void loadInbox();
@@ -97,31 +102,57 @@ export default function MessagesScreen() {
 	useEffect(() => {
 		if (!isSupabaseConfigured || !userId) return;
 
-		const inboxChannel = supabase
-			.channel(`user:${userId}:inbox`)
-			.on("broadcast", { event: "new_message" }, () => {
-				void loadInbox();
-			})
-			.on(
-				"postgres_changes",
-				{ event: "INSERT", schema: "public", table: "messages" },
-				() => {
-					void loadInbox();
-				},
-			)
-			.on(
-				"postgres_changes",
-				{ event: "UPDATE", schema: "public", table: "messages" },
-				() => {
-					void loadInbox();
-				},
-			)
-			.subscribe();
+		let isCancelled = false;
+		let inboxChannel: ReturnType<typeof supabase.channel> | null = null;
+
+		const setupChannel = async () => {
+			const topic = `user:${userId}:inbox`;
+			const existing = supabase
+				.getChannels()
+				.find((c) => c.topic === `realtime:${topic}`);
+			if (existing) {
+				await supabase.removeChannel(existing);
+				if (
+					supabase
+						.getChannels()
+						.some((c) => c.topic === `realtime:${topic}`)
+				) {
+					existing.teardown();
+				}
+			}
+			if (isCancelled) return;
+
+			inboxChannel = supabase
+				.channel(topic)
+				.on("broadcast", { event: "new_message" }, () => {
+					void loadInboxRef.current();
+				})
+				.on(
+					"postgres_changes",
+					{ event: "INSERT", schema: "public", table: "messages" },
+					() => {
+						void loadInboxRef.current();
+					},
+				)
+				.on(
+					"postgres_changes",
+					{ event: "UPDATE", schema: "public", table: "messages" },
+					() => {
+						void loadInboxRef.current();
+					},
+				)
+				.subscribe();
+		};
+
+		void setupChannel();
 
 		return () => {
-			void supabase.removeChannel(inboxChannel);
+			isCancelled = true;
+			if (inboxChannel) {
+				void supabase.removeChannel(inboxChannel);
+			}
 		};
-	}, [userId, loadInbox]);
+	}, [userId]);
 
 	const handleRefresh = useCallback(() => {
 		setIsRefreshing(true);

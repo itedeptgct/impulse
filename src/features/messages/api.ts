@@ -1,4 +1,8 @@
 import type { Profile } from "@/features/auth/types";
+import {
+	validateBatchFileSizes,
+	validateUploadFileSize,
+} from "@/lib/media-validation";
 import { uploadToR2 } from "@/lib/r2-storage";
 import { supabase } from "@/lib/supabase";
 
@@ -6,6 +10,7 @@ import type {
 	ConversationParticipant,
 	DirectConversationSummary,
 	Message,
+	MessageAttachment,
 	SendMessagePayload,
 } from "./types";
 import { calculateUnreadCount, sortConversationsByLatest } from "./utils";
@@ -77,6 +82,7 @@ export async function fetchConversations(
 			sender_id,
 			content,
 			media_urls,
+			attachments,
 			shared_post_id,
 			message_type,
 			edited_at,
@@ -125,6 +131,9 @@ export async function fetchConversations(
 			sender_id: row.sender_id,
 			content: row.content,
 			media_urls: row.media_urls || [],
+			attachments: Array.isArray(row.attachments)
+				? row.attachments
+				: undefined,
 			shared_post_id: row.shared_post_id,
 			message_type: row.message_type ?? "text",
 			edited_at: row.edited_at ?? null,
@@ -161,6 +170,7 @@ export async function fetchConversations(
 			type: conv.type,
 			title: conv.title,
 			avatar_url: conv.avatar_url,
+			created_by: conv.created_by ?? null,
 			updated_at: conv.updated_at,
 			is_pinned: Boolean(part.is_pinned),
 			last_message: lastMessage,
@@ -214,6 +224,7 @@ export async function fetchMessages(
 			sender_id,
 			content,
 			media_urls,
+			attachments,
 			shared_post_id,
 			message_type,
 			edited_at,
@@ -272,6 +283,9 @@ export async function fetchMessages(
 			sender_id: row.sender_id,
 			content: row.content,
 			media_urls: row.media_urls || [],
+			attachments: Array.isArray(row.attachments)
+				? row.attachments
+				: undefined,
 			shared_post_id: row.shared_post_id,
 			message_type: row.message_type ?? "text",
 			edited_at: row.edited_at ?? null,
@@ -297,6 +311,7 @@ export async function sendMessage(
 			sender_id: senderId,
 			content: payload.content?.trim() || null,
 			media_urls: payload.mediaUrls || [],
+			attachments: payload.attachments || [],
 			shared_post_id: payload.sharedPostId || null,
 			message_type: payload.messageType || "text",
 		})
@@ -307,6 +322,7 @@ export async function sendMessage(
 			sender_id,
 			content,
 			media_urls,
+			attachments,
 			shared_post_id,
 			message_type,
 			edited_at,
@@ -344,27 +360,6 @@ export async function sendMessage(
 
 	if (error) throw error;
 
-	if ((data.message_type ?? "text") !== "system") {
-		void supabase.functions
-			.invoke("send-message-push", {
-				body: {
-					type: "INSERT",
-					table: "messages",
-					record: {
-						id: data.id,
-						conversation_id: data.conversation_id,
-						sender_id: data.sender_id,
-						content: data.content,
-						media_urls: data.media_urls || [],
-						shared_post_id: data.shared_post_id,
-					},
-				},
-			})
-			.catch((err) => {
-				console.warn("[push] Failed to invoke send-message-push:", err);
-			});
-	}
-
 	const rawSender = Array.isArray(data.sender) ? data.sender[0] : data.sender;
 	const rawPost = Array.isArray(data.shared_post)
 		? data.shared_post[0]
@@ -376,6 +371,9 @@ export async function sendMessage(
 		sender_id: data.sender_id,
 		content: data.content,
 		media_urls: data.media_urls || [],
+		attachments: Array.isArray(data.attachments)
+			? data.attachments
+			: undefined,
 		shared_post_id: data.shared_post_id,
 		message_type: data.message_type ?? "text",
 		created_at: data.created_at,
@@ -537,6 +535,7 @@ export async function unsendMessage(messageId: string): Promise<Message> {
 		.update({
 			content: null,
 			media_urls: [],
+			attachments: [],
 			shared_post_id: null,
 			is_pinned: false,
 			pinned_by: null,
@@ -550,6 +549,7 @@ export async function unsendMessage(messageId: string): Promise<Message> {
 	return {
 		...data,
 		media_urls: [],
+		attachments: [],
 	} as Message;
 }
 
@@ -622,4 +622,97 @@ export async function removeGroupMember(
 		.eq("user_id", targetUserId);
 
 	if (error) throw error;
+}
+
+export async function updateGroupAvatar(
+	conversationId: string,
+	actorId: string,
+	actorName: string,
+	uri: string,
+	fileSize?: number | null,
+): Promise<{ avatarUrl: string; systemMessage: Message | null }> {
+	const validation = validateUploadFileSize(fileSize);
+	if (!validation.valid) {
+		throw new Error(
+			validation.error || "File exceeds the 10 MB size limit.",
+		);
+	}
+
+	const avatarUrl = await uploadChatMediaFromUri(actorId, uri);
+
+	const { error } = await supabase
+		.from("conversations")
+		.update({ avatar_url: avatarUrl })
+		.eq("id", conversationId);
+
+	if (error) throw error;
+
+	let systemMessage: Message | null = null;
+	try {
+		systemMessage = await sendSystemMessage(
+			conversationId,
+			actorId,
+			`${actorName} updated the group photo.`,
+		);
+	} catch {
+		// System announcement failure should not block the avatar update
+	}
+
+	return { avatarUrl, systemMessage };
+}
+
+export async function deleteGroupConversation(
+	conversationId: string,
+): Promise<void> {
+	const { error } = await supabase.rpc("delete_empty_group_conversation", {
+		target_conversation_id: conversationId,
+	});
+
+	if (error) throw error;
+}
+
+export interface BatchImageAssetInput {
+	uri: string;
+	width?: number;
+	height?: number;
+	fileSize?: number | null;
+}
+
+export async function sendBatchImageMessage(
+	conversationId: string,
+	senderId: string,
+	assets: BatchImageAssetInput[],
+	caption?: string,
+): Promise<Message> {
+	const validation = validateBatchFileSizes(assets);
+	if (!validation.valid) {
+		throw new Error(
+			validation.error || "File exceeds the 10 MB size limit.",
+		);
+	}
+
+	const uploadedUrls = await Promise.all(
+		assets.map((asset) => uploadChatMediaFromUri(senderId, asset.uri)),
+	);
+
+	const attachments: MessageAttachment[] = assets.map((asset, index) => ({
+		url: uploadedUrls[index],
+		type: "image",
+		width: asset.width,
+		height: asset.height,
+		size: asset.fileSize ?? undefined,
+	}));
+
+	const message = await sendMessage(conversationId, senderId, {
+		content: caption,
+		mediaUrls: uploadedUrls,
+		attachments,
+	});
+
+	await supabase
+		.from("conversations")
+		.update({ updated_at: new Date().toISOString() })
+		.eq("id", conversationId);
+
+	return message;
 }

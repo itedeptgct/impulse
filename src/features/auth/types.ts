@@ -17,6 +17,7 @@ export interface Profile {
 	bio?: string | null;
 	avatar_url?: string | null;
 	major?: string | null;
+	karma?: number;
 	show_active_status?: boolean;
 	last_seen_at?: string | null;
 	expo_push_token?: string | null;

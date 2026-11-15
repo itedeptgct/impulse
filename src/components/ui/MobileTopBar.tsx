@@ -2,10 +2,12 @@ import { useAuthStore } from "@auth/store";
 import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
 import { router } from "expo-router";
-import { ArrowLeft, Search } from "lucide-react-native";
+import { ArrowLeft, Bell, Search } from "lucide-react-native";
 import React from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { useUnreadNotificationCount } from "@/features/notifications";
 
 export interface MobileTopBarProps {
 	sector: string;
@@ -39,8 +41,11 @@ export function MobileTopBar({
 
 	const upperSector = sector.toUpperCase();
 	const isSearchActive = upperSector === "SEARCH";
+	const isNotificationsActive = upperSector === "NOTIFICATIONS";
 	const isProfileActive =
 		upperSector === "PROFILE" || upperSector === "DOSSIER";
+
+	const { data: unreadCount = 0 } = useUnreadNotificationCount(user?.id);
 
 	const handleBack = () => {
 		triggerHaptic();
@@ -94,6 +99,39 @@ export function MobileTopBar({
 				</View>
 
 				<View className="flex-row items-center gap-2">
+					{user?.id && (
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Open notifications"
+							hitSlop={6}
+							onPress={() => {
+								triggerHaptic();
+								router.push("/notifications" as any);
+							}}
+							className={`relative size-9 items-center justify-center border-2 border-border shadow-neo-xs active:translate-x-px active:translate-y-px ${
+								isNotificationsActive
+									? "bg-primary"
+									: "bg-surface"
+							}`}>
+							<Bell
+								size={15}
+								color={
+									isNotificationsActive
+										? "#FAF9F5"
+										: "#000000"
+								}
+								strokeWidth={2.5}
+							/>
+							{unreadCount > 0 && (
+								<View className="absolute -top-1.5 -right-1.5 min-w-4 items-center justify-center border border-border bg-primary px-1 py-px">
+									<Text className="font-bold text-2xs leading-none text-primary-foreground">
+										{unreadCount > 99 ? "99+" : unreadCount}
+									</Text>
+								</View>
+							)}
+						</Pressable>
+					)}
+
 					<Pressable
 						accessibilityRole="button"
 						accessibilityLabel="Search network"

@@ -58,7 +58,19 @@ export const ConversationRow = memo(function ConversationRow({
 						isGroup ? "bg-neo-green" : "bg-secondary"
 					}`}>
 					{isGroup ? (
-						<Users size={20} color="#000000" strokeWidth={2.5} />
+						conversation.avatar_url?.startsWith("http") ? (
+							<ExpoImage
+								source={{ uri: conversation.avatar_url }}
+								style={{ width: "100%", height: "100%" }}
+								contentFit="cover"
+							/>
+						) : (
+							<Users
+								size={20}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						)
 					) : other?.avatar_url?.startsWith("http") ? (
 						<ExpoImage
 							source={{ uri: other.avatar_url }}

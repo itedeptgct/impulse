@@ -8,7 +8,7 @@ import {
 	X,
 	XCircle,
 } from "lucide-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	KeyboardAvoidingView,
@@ -60,6 +60,25 @@ export function DocumentInspectorModal({
 	const [fetchedUrl, setFetchedUrl] = useState<string | null>(null);
 	const [hasLoadedUrl, setHasLoadedUrl] = useState(false);
 
+	const prevOpenRef = useRef(open);
+	const prevItemIdRef = useRef<string | null>(null);
+
+	useEffect(() => {
+		if (
+			open &&
+			(!prevOpenRef.current || prevItemIdRef.current !== item?.id)
+		) {
+			setRotation(0);
+			setIsRejecting(false);
+			setRejectReason("");
+			setRejectError(null);
+			setFetchedUrl(null);
+			setHasLoadedUrl(false);
+		}
+		prevOpenRef.current = open;
+		prevItemIdRef.current = item?.id ?? null;
+	}, [open, item?.id]);
+
 	useEffect(() => {
 		let isMounted = true;
 		if (open && item?.document_url && !item.documentSignedUrl) {
@@ -73,7 +92,7 @@ export function DocumentInspectorModal({
 		return () => {
 			isMounted = false;
 		};
-	}, [open, item?.document_url, item?.documentSignedUrl]);
+	}, [open, item?.id, item?.document_url, item?.documentSignedUrl]);
 
 	if (!item) return null;
 

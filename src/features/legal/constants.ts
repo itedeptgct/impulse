@@ -123,7 +123,7 @@ export const PRIVACY_POLICY: LegalDocument = {
 				"You can ask us to:",
 				"- tell you what personal information we hold about you;\n- correct information that is wrong;\n- explain how your information is being used;\n- delete or block information where the law allows it; or\n- close your account and remove its associated content where reasonably possible.",
 				"Some records may remain in backups, moderation logs, security records, or legal files for a limited time. Public or shared content may also have been copied by other users before deletion.",
-				"Send requests to [PRIVACY CONTACT EMAIL]. We may ask for enough information to confirm that the request is really yours.",
+				"Send requests to impulse.app.psits@gmail.com. We may ask for enough information to confirm that the request is really yours.",
 				"If you are not satisfied with how a request is handled, you may contact the Philippine National Privacy Commission at https://privacy.gov.ph/.",
 			],
 		},

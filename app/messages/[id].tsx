@@ -32,12 +32,16 @@ import {
 	fetchConversations,
 	fetchMessages,
 	markConversationRead,
+	sendBatchImageMessage,
 	sendMessage,
 	togglePinMessage,
 	unsendMessage,
 	uploadChatMediaFromUri,
 } from "@/features/messages/api";
-import { ChatComposer } from "@/features/messages/components/ChatComposer";
+import {
+	ChatComposer,
+	type SelectedChatImage,
+} from "@/features/messages/components/ChatComposer";
 import { ConversationSettingsSheet } from "@/features/messages/components/ConversationSettingsSheet";
 import { MessageBubble } from "@/features/messages/components/MessageBubble";
 import { useMessagesStore } from "@/features/messages/store";
@@ -48,6 +52,10 @@ import {
 } from "@/features/messages/utils";
 import { PostMediaLightboxModal } from "@/features/posts/components/PostMediaLightboxModal";
 import { ActiveDot, usePresenceStore } from "@/features/presence";
+import {
+	validateBatchFileSizes,
+	validateUploadFileSize,
+} from "@/lib/media-validation";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const EMPTY_MESSAGES: OptimisticMessage[] = [];
@@ -375,8 +383,87 @@ export default function ChatThreadScreen() {
 	const handleSend = async (payload: {
 		content?: string;
 		localImageUri?: string;
+		localImageFileSize?: number | null;
+		localImages?: SelectedChatImage[];
 	}) => {
 		if (!conversationId || !userId) return;
+
+		if (payload.localImages && payload.localImages.length > 0) {
+			const validation = validateBatchFileSizes(payload.localImages);
+			if (!validation.valid) {
+				Alert.alert(
+					"File Too Large",
+					validation.error || "File exceeds the 10 MB size limit.",
+				);
+				return;
+			}
+
+			const tempId = generateOptimisticMessageId();
+			const optimistic: OptimisticMessage = {
+				id: tempId,
+				tempId,
+				conversation_id: conversationId,
+				sender_id: userId,
+				content: payload.content ?? null,
+				media_urls: payload.localImages.map((img) => img.uri),
+				attachments: payload.localImages.map((img) => ({
+					url: img.uri,
+					type: "image" as const,
+					width: img.width,
+					height: img.height,
+					size: img.fileSize ?? undefined,
+				})),
+				shared_post_id: null,
+				created_at: new Date().toISOString(),
+				sender: profile ?? undefined,
+				status: "sending",
+			};
+
+			addOptimisticMessage(conversationId, optimistic);
+
+			try {
+				const confirmed = await sendBatchImageMessage(
+					conversationId,
+					userId,
+					payload.localImages,
+					payload.content,
+				);
+				resolveOptimisticMessage(
+					conversationId,
+					tempId,
+					"sent",
+					confirmed,
+				);
+				void channelRef.current?.send({
+					type: "broadcast",
+					event: "new_message",
+					payload: { message: confirmed },
+				});
+			} catch (err: unknown) {
+				const e = err as Error;
+				resolveOptimisticMessage(
+					conversationId,
+					tempId,
+					"failed",
+					undefined,
+					e?.message || "Media upload failed",
+				);
+			}
+			return;
+		}
+
+		if (payload.localImageUri) {
+			const validation = validateUploadFileSize(
+				payload.localImageFileSize,
+			);
+			if (!validation.valid) {
+				Alert.alert(
+					"File Too Large",
+					validation.error || "File exceeds the 10 MB size limit.",
+				);
+				return;
+			}
+		}
 
 		const tempId = generateOptimisticMessageId();
 		const optimistic: OptimisticMessage = {
@@ -576,6 +663,7 @@ export default function ChatThreadScreen() {
 			...m,
 			content: null,
 			media_urls: [],
+			attachments: [],
 			shared_post_id: null,
 			shared_post: undefined,
 			is_pinned: false,
@@ -668,11 +756,24 @@ export default function ChatThreadScreen() {
 								isGroup ? "bg-neo-green" : "bg-secondary"
 							}`}>
 							{isGroup ? (
-								<Users
-									size={16}
-									color="#000000"
-									strokeWidth={2.5}
-								/>
+								conversation?.avatar_url?.startsWith("http") ? (
+									<ExpoImage
+										source={{
+											uri: conversation.avatar_url,
+										}}
+										style={{
+											width: "100%",
+											height: "100%",
+										}}
+										contentFit="cover"
+									/>
+								) : (
+									<Users
+										size={16}
+										color="#000000"
+										strokeWidth={2.5}
+									/>
+								)
 							) : other?.avatar_url?.startsWith("http") ? (
 								<ExpoImage
 									source={{ uri: other.avatar_url }}
@@ -832,7 +933,11 @@ export default function ChatThreadScreen() {
 				/>
 			)}
 
-			<ChatComposer onSend={handleSend} disabled={!userId} />
+			<ChatComposer
+				onSend={handleSend}
+				isGroup={isGroup}
+				disabled={!userId}
+			/>
 
 			<ConversationSettingsSheet
 				open={settingsOpen}

@@ -15,17 +15,32 @@
 		--font-sans: CourierPrime_400Regular;
 		--font-mono: CourierPrime_400Regular;
 		--font-code: JetBrainsMono_400Regular;
+		--font-sans-italic: CourierPrime_400Regular_Italic;
+		--font-mono-italic: CourierPrime_400Regular_Italic;
+		--font-code-italic: JetBrainsMono_400Regular_Italic;
+		--font-bold-italic: CourierPrime_700Bold_Italic;
+		--font-semibold-italic: CourierPrime_700Bold_Italic;
 	}
 	@variant android {
 		--font-display: Anton_400Regular;
 		--font-sans: CourierPrime_400Regular;
 		--font-mono: CourierPrime_400Regular;
 		--font-code: JetBrainsMono_400Regular;
+		--font-sans-italic: CourierPrime_400Regular_Italic;
+		--font-mono-italic: CourierPrime_400Regular_Italic;
+		--font-code-italic: JetBrainsMono_400Regular_Italic;
+		--font-bold-italic: CourierPrime_700Bold_Italic;
+		--font-semibold-italic: CourierPrime_700Bold_Italic;
 	}
 	--font-display: Anton_400Regular;
 	--font-sans: CourierPrime_400Regular;
 	--font-mono: CourierPrime_400Regular;
 	--font-code: JetBrainsMono_400Regular;
+	--font-sans-italic: CourierPrime_400Regular_Italic;
+	--font-mono-italic: CourierPrime_400Regular_Italic;
+	--font-code-italic: JetBrainsMono_400Regular_Italic;
+	--font-bold-italic: CourierPrime_700Bold_Italic;
+	--font-semibold-italic: CourierPrime_700Bold_Italic;
 	--font-normal: CourierPrime_400Regular;
 	--font-medium: CourierPrime_700Bold;
 	--font-semibold: CourierPrime_700Bold;
@@ -37,6 +52,11 @@
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);
 	--font-code: var(--font-code);
+	--font-sans-italic: var(--font-sans-italic);
+	--font-mono-italic: var(--font-mono-italic);
+	--font-code-italic: var(--font-code-italic);
+	--font-bold-italic: var(--font-bold-italic);
+	--font-semibold-italic: var(--font-semibold-italic);
 	--font-normal: var(--font-normal);
 	--font-medium: var(--font-medium);
 	--font-semibold: var(--font-semibold);
@@ -71,6 +91,41 @@
 	--shadow-neo-header: 0px 2px 0px #000000;
 	--shadow-neo-top: 0px -4px 0px #000000;
 	--shadow-neo-top-sm: 0px -3px 0px #000000;
+}
+
+@utility italic {
+	font-family: var(--font-sans-italic);
+	font-style: italic;
+}
+
+@utility font-italic {
+	font-family: var(--font-sans-italic);
+	font-style: italic;
+}
+
+@utility font-sans-italic {
+	font-family: var(--font-sans-italic);
+	font-style: italic;
+}
+
+@utility font-mono-italic {
+	font-family: var(--font-mono-italic);
+	font-style: italic;
+}
+
+@utility font-code-italic {
+	font-family: var(--font-code-italic);
+	font-style: italic;
+}
+
+@utility font-bold-italic {
+	font-family: var(--font-bold-italic);
+	font-style: italic;
+}
+
+@utility font-semibold-italic {
+	font-family: var(--font-semibold-italic);
+	font-style: italic;
 }
 
 @layer theme {

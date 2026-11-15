@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { deletePost } from "@/features/posts/api";
 
 import {
+	adminDeleteUser,
+	adminUpdateUserAccount,
 	approveVerification,
 	fetchAdminPosts,
 	fetchAdminStats,
@@ -12,7 +14,11 @@ import {
 	rejectVerification,
 	updateUserRole,
 } from "../api";
-import type { AdminPostVisibilityFilter, VerificationFilter } from "../types";
+import type {
+	AdminPostVisibilityFilter,
+	AdminUpdateUserPayload,
+	VerificationFilter,
+} from "../types";
 
 export function useAdminStats() {
 	return useQuery({
@@ -124,6 +130,37 @@ export function useDeleteAdminPost() {
 		onSuccess: () => {
 			void queryClient.invalidateQueries({
 				queryKey: ["admin", "posts"],
+			});
+			void queryClient.invalidateQueries({
+				queryKey: ["admin", "stats"],
+			});
+		},
+	});
+}
+
+export function useAdminDeleteUser() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (targetUserId: string) => adminDeleteUser(targetUserId),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["admin", "users"],
+			});
+			void queryClient.invalidateQueries({
+				queryKey: ["admin", "stats"],
+			});
+		},
+	});
+}
+
+export function useAdminUpdateUserAccount() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (payload: AdminUpdateUserPayload) =>
+			adminUpdateUserAccount(payload),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({
+				queryKey: ["admin", "users"],
 			});
 			void queryClient.invalidateQueries({
 				queryKey: ["admin", "stats"],

@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import {
 	ArrowLeft,
 	BookOpen,
+	Calendar,
 	CheckCircle2,
 	Flame,
 	PenSquare,
@@ -28,6 +29,7 @@ import { getGuildInfo } from "@/features/guilds/constants";
 import { fetchUserPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import type { Post } from "@/features/posts/types";
+import { ActiveDot } from "@/features/presence";
 
 export default function UserProfileScreen() {
 	const insets = useSafeAreaInsets();
@@ -210,6 +212,11 @@ export default function UserProfileScreen() {
 					downvotes_count: res.downvotes_count,
 					user_vote: res.user_vote,
 				});
+				if (username) {
+					void fetchProfileByUsername(username).then((updated) => {
+						if (updated) setTargetProfile(updated);
+					});
+				}
 			} catch {
 				patchPost(post.id, {
 					upvotes_count: post.upvotes_count,
@@ -218,7 +225,7 @@ export default function UserProfileScreen() {
 				});
 			}
 		},
-		[currentUser?.id, patchPost],
+		[currentUser?.id, patchPost, username],
 	);
 
 	const handleOpenComments = useCallback((post: Post) => {
@@ -263,7 +270,12 @@ export default function UserProfileScreen() {
 		"Student";
 
 	const initials = displayName.slice(0, 2).toUpperCase();
-	const totalUpvotes = posts.reduce((acc, p) => acc + p.upvotes_count, 0);
+	const memberSinceDate = targetProfile?.created_at
+		? new Date(targetProfile.created_at).toLocaleDateString("en-US", {
+				month: "short",
+				year: "numeric",
+			})
+		: "Recent";
 	const guildData = getGuildInfo(targetProfile?.guild);
 	const trunGuildName =
 		guildData?.name === "Octagram"
@@ -322,28 +334,39 @@ export default function UserProfileScreen() {
 									className="mb-4 p-4 shadow-neo">
 									<View className="flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 										<View className="flex-row items-start gap-3">
-											{targetProfile?.avatar_url?.startsWith(
-												"http",
-											) ? (
-												<Image
-													source={{
-														uri: targetProfile.avatar_url,
-													}}
-													style={{
-														width: 64,
-														height: 64,
-														borderWidth: 2,
-														borderColor: "#000000",
-													}}
-													contentFit="cover"
+											<View className="relative">
+												{targetProfile?.avatar_url?.startsWith(
+													"http",
+												) ? (
+													<Image
+														source={{
+															uri: targetProfile.avatar_url,
+														}}
+														style={{
+															width: 64,
+															height: 64,
+															borderWidth: 2,
+															borderColor:
+																"#000000",
+														}}
+														contentFit="cover"
+													/>
+												) : (
+													<View className="size-16 items-center justify-center rounded-none border-2 border-border bg-muted shadow-neo-sm">
+														<Text className="font-bold text-2xl text-foreground">
+															{initials}
+														</Text>
+													</View>
+												)}
+												<ActiveDot
+													userId={targetProfile?.id}
+													targetShowActiveStatus={
+														targetProfile?.show_active_status
+													}
+													size="md"
+													className="absolute -right-1 -bottom-1"
 												/>
-											) : (
-												<View className="size-16 items-center justify-center rounded-none border-2 border-border bg-muted shadow-neo-sm">
-													<Text className="font-bold text-2xl text-foreground">
-														{initials}
-													</Text>
-												</View>
-											)}
+											</View>
 
 											<View className="flex-1">
 												<View className="flex-row flex-wrap items-center gap-2">
@@ -414,6 +437,18 @@ export default function UserProfileScreen() {
 														yet.
 													</Text>
 												)}
+
+												<View className="mt-2 flex-row items-center gap-1.5">
+													<Calendar
+														size={12}
+														color="#71717a"
+														strokeWidth={2}
+													/>
+													<Text className="font-mono text-xs text-muted-foreground">
+														Member since{" "}
+														{memberSinceDate}
+													</Text>
+												</View>
 											</View>
 										</View>
 
@@ -472,7 +507,7 @@ export default function UserProfileScreen() {
 											</Text>
 										</View>
 										<Text className="mt-1 font-display text-2xl tracking-tight text-destructive">
-											{totalUpvotes}
+											{targetProfile?.karma ?? 0}
 										</Text>
 									</NeoCard>
 

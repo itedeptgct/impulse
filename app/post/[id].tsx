@@ -87,9 +87,17 @@ const triggerHaptic = () => {
 
 export default function PostDetailScreen() {
 	const insets = useSafeAreaInsets();
-	const params = useLocalSearchParams<{ id: string | string[] }>();
+	const params = useLocalSearchParams<{
+		id: string | string[];
+		commentId?: string | string[];
+	}>();
 	const id = Array.isArray(params.id) ? params.id[0] : params.id;
+	const targetCommentId = Array.isArray(params.commentId)
+		? params.commentId[0]
+		: params.commentId;
 	const scrollViewRef = useRef<ScrollView>(null);
+	const targetCommentRef = useRef<View>(null);
+	const hasScrolledToTargetRef = useRef<string | null>(null);
 
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
@@ -113,6 +121,12 @@ export default function PostDetailScreen() {
 	const [collapsedIds, setCollapsedIds] = useState<Record<string, boolean>>(
 		{},
 	);
+	const [expiredHighlightId, setExpiredHighlightId] = useState<string | null>(
+		null,
+	);
+	const [prevTargetCommentId, setPrevTargetCommentId] =
+		useState(targetCommentId);
+	const [reloadTick, setReloadTick] = useState(0);
 	const [error, setError] = useState<string | null>(null);
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const [isEditOpen, setIsEditOpen] = useState(false);
@@ -135,6 +149,32 @@ export default function PostDetailScreen() {
 	const [isDeletingComment, setIsDeletingComment] = useState(false);
 
 	const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
+
+	if (targetCommentId !== prevTargetCommentId) {
+		setPrevTargetCommentId(targetCommentId);
+		setExpiredHighlightId(null);
+		if (targetCommentId) {
+			setCollapsedIds({});
+		}
+	}
+
+	const hasTargetComment = Boolean(
+		targetCommentId && comments.some((c) => c.id === targetCommentId),
+	);
+	const highlightedCommentId =
+		hasTargetComment && expiredHighlightId !== targetCommentId
+			? targetCommentId
+			: null;
+
+	useEffect(() => {
+		if (!hasTargetComment || !targetCommentId) return;
+
+		const timer = setTimeout(() => {
+			setExpiredHighlightId(targetCommentId);
+		}, 2800);
+
+		return () => clearTimeout(timer);
+	}, [hasTargetComment, targetCommentId]);
 
 	useEffect(() => {
 		const showEvent =
@@ -187,36 +227,53 @@ export default function PostDetailScreen() {
 		}
 	};
 
-	const loadPostData = useCallback(async () => {
-		if (!id) return;
-		setIsLoading(true);
-		setError(null);
-		try {
-			const res = await fetchPostById(id, userId, userGuild, isAdmin);
-			setAccessStatus(res.accessStatus);
-			if (res.post) {
-				setPost(res.post);
-				const comms = await fetchPostComments(id);
-				setComments(comms);
-			} else {
-				setPost(null);
-			}
-		} catch (err: unknown) {
-			const e = err as Error;
-			setError(
-				e.message ||
-					"Unable to reach the server. Check your connection and try again.",
-			);
-		} finally {
-			setIsLoading(false);
-		}
-	}, [id, userId, userGuild, isAdmin]);
+	const handleRetry = () => {
+		setReloadTick((prev) => prev + 1);
+	};
 
 	useEffect(() => {
+		if (!id) return;
+		let cancelled = false;
+
+		const loadPostData = async () => {
+			setIsLoading(true);
+			setError(null);
+			try {
+				const res = await fetchPostById(id, userId, userGuild, isAdmin);
+				if (cancelled) return;
+				setAccessStatus(res.accessStatus);
+				if (res.post) {
+					setPost(res.post);
+					const comms = await fetchPostComments(id);
+					if (cancelled) return;
+					setComments(comms);
+				} else {
+					setPost(null);
+				}
+			} catch (err: unknown) {
+				if (cancelled) return;
+				const e = err as Error;
+				setError(
+					e.message ||
+						"Unable to reach the server. Check your connection and try again.",
+				);
+			} finally {
+				if (!cancelled) {
+					setIsLoading(false);
+				}
+			}
+		};
+
 		queueMicrotask(() => {
-			void loadPostData();
+			if (!cancelled) {
+				void loadPostData();
+			}
 		});
-	}, [loadPostData]);
+
+		return () => {
+			cancelled = true;
+		};
+	}, [id, userId, userGuild, isAdmin, reloadTick]);
 
 	const handleVote = async (targetVote: 1 | -1) => {
 		if (!post || !user?.id) return;
@@ -254,6 +311,9 @@ export default function PostDetailScreen() {
 						}
 					: null,
 			);
+			if (user.id === post.author_id) {
+				void useAuthStore.getState().refreshUserData();
+			}
 		} catch (err: unknown) {
 			setPost(previousPost);
 			const e = err as Error;
@@ -962,20 +1022,83 @@ export default function PostDetailScreen() {
 											.toUpperCase();
 										const canIndentChildren =
 											depth < MAX_VISUAL_DEPTH;
+										const isTargetComment =
+											targetCommentId === comment.id;
+										const isHighlighted =
+											highlightedCommentId === comment.id;
 
 										return (
 											<View
 												key={comment.id}
-												className={
+												ref={
+													isTargetComment
+														? targetCommentRef
+														: undefined
+												}
+												onLayout={
+													isTargetComment
+														? () => {
+																if (
+																	hasScrolledToTargetRef.current ===
+																	comment.id
+																) {
+																	return;
+																}
+																hasScrolledToTargetRef.current =
+																	comment.id;
+																requestAnimationFrame(
+																	() => {
+																		try {
+																			const targetNode =
+																				targetCommentRef.current;
+																			const scrollNode =
+																				scrollViewRef.current;
+																			if (
+																				targetNode &&
+																				scrollNode
+																			) {
+																				targetNode.measureLayout(
+																					scrollNode as unknown as number,
+																					(
+																						_x,
+																						y,
+																					) => {
+																						scrollViewRef.current?.scrollTo(
+																							{
+																								y: Math.max(
+																									0,
+																									y -
+																										96,
+																								),
+																								animated: true,
+																							},
+																						);
+																					},
+																					() => {},
+																				);
+																			}
+																		} catch {
+																			// Ignore layout measurement errors on unsupported platforms
+																		}
+																	},
+																);
+															}
+														: undefined
+												}
+												className={`${
 													depth === 0
 														? "px-4 py-3.5"
 														: "pt-3 pl-3"
-												}>
+												} ${
+													isHighlighted
+														? "border-l-4 border-neo-green-dark bg-neo-green/20"
+														: ""
+												}`}>
 												{/* Comment Header */}
 												<View className="flex-row items-center justify-between gap-2">
 													<View className="min-w-0 flex-1 flex-row items-center gap-2">
 														{isDeleted ? (
-															<Text className="font-semibold text-xs text-muted-foreground italic">
+															<Text className="italic font-semibold text-xs text-muted-foreground">
 																[deleted]
 															</Text>
 														) : (
@@ -1112,7 +1235,7 @@ export default function PostDetailScreen() {
 														</Text>
 													</Pressable>
 												) : isDeleted ? (
-													<Text className="mt-1.5 font-mono text-xs text-muted-foreground italic select-text">
+													<Text className="mt-1.5 italic font-mono text-xs text-muted-foreground select-text">
 														[deleted]
 													</Text>
 												) : (
@@ -1426,7 +1549,7 @@ export default function PostDetailScreen() {
 					className="flex-1 items-center justify-center p-6">
 					<NetworkErrorCard
 						message={error}
-						onRetry={loadPostData}
+						onRetry={handleRetry}
 						isRetrying={isLoading}
 						className="w-full max-w-md"
 					/>

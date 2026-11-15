@@ -21,6 +21,7 @@ export const signUpCredentialsSchema = z
 			.string()
 			.trim()
 			.min(2, "Username must be at least 2 characters.")
+			.max(20, "Username must be 20 characters or less.")
 			.regex(
 				/^[a-zA-Z0-9_]+$/,
 				"Username can only contain letters, numbers, and underscores.",
@@ -71,3 +72,55 @@ export const forgotPasswordSchema = z.object({
 });
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const usernameSchema = z
+	.string()
+	.trim()
+	.min(1, "Username is required.")
+	.max(20, "Username must be 20 characters or less.")
+	.regex(
+		/^[a-zA-Z0-9_]+$/,
+		"Username can only contain letters, numbers, and underscores.",
+	);
+
+export const changeUsernameSchema = z.object({
+	username: usernameSchema,
+});
+
+export type ChangeUsernameInput = z.infer<typeof changeUsernameSchema>;
+
+export const changeEmailSchema = z.object({
+	currentPassword: z.string().min(1, "Current password is required."),
+	newEmail: z
+		.string()
+		.trim()
+		.min(1, "Please enter your email address.")
+		.email("Please enter a valid email address."),
+});
+
+export type ChangeEmailInput = z.infer<typeof changeEmailSchema>;
+
+export const changePasswordSchema = z
+	.object({
+		currentPassword: z.string().min(1, "Current password is required."),
+		newPassword: z
+			.string()
+			.trim()
+			.min(8, "Password must be at least 8 characters long.")
+			.regex(/[a-zA-Z]/, "Password must contain at least one letter.")
+			.regex(/[0-9]/, "Password must contain at least one number.")
+			.regex(
+				/[^a-zA-Z0-9]/,
+				"Password must contain at least one special character.",
+			),
+		confirmPassword: z
+			.string()
+			.trim()
+			.min(1, "Please confirm your password."),
+	})
+	.refine((data) => data.newPassword === data.confirmPassword, {
+		message: "Passwords do not match.",
+		path: ["confirmPassword"],
+	});
+
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
