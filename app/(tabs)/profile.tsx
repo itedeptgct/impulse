@@ -17,6 +17,7 @@ import {
 	AlertCircle,
 	ArrowUpRight,
 	BookOpen,
+	Calendar,
 	CheckCircle2,
 	Clock,
 	FileText,
@@ -28,7 +29,6 @@ import {
 	Settings,
 	ShieldAlert,
 	ShieldCheck,
-	Trash2,
 	UploadCloud,
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
@@ -415,7 +415,7 @@ export default function ProfileScreen() {
 							variant="default"
 							className="mb-5 p-5 shadow-neo">
 							<View className="flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-								<View className="relative">
+								<View className="relative size-17 shrink-0 self-start">
 									{profile.avatar_url &&
 									profile.avatar_url.startsWith("http") ? (
 										<Image
@@ -453,27 +453,6 @@ export default function ProfileScreen() {
 											numberOfLines={1}>
 											{displayName}
 										</Text>
-
-										{(profile.show_active_status ??
-										true) ? (
-											<View
-												accessibilityLabel="Active now"
-												className="flex-row items-center gap-1.5 rounded-none border-2 border-border bg-card px-2 py-0.5 shadow-neo-sm">
-												<View className="size-2 rounded-full border border-border bg-neo-green" />
-												<Text className="font-bold text-[10px] text-foreground uppercase">
-													ACTIVE
-												</Text>
-											</View>
-										) : (
-											<View
-												accessibilityLabel="Status hidden"
-												className="flex-row items-center gap-1.5 rounded-none border-2 border-border bg-secondary px-2 py-0.5 shadow-neo-sm">
-												<View className="size-2 rounded-full border border-border bg-muted-foreground" />
-												<Text className="font-mono text-[10px] text-muted-foreground uppercase">
-													OFFLINE
-												</Text>
-											</View>
-										)}
 
 										{verificationStatus === "approved" && (
 											<NeoBadge
@@ -614,6 +593,17 @@ export default function ProfileScreen() {
 											about your interests!
 										</Text>
 									)}
+
+									<View className="mt-2.5 flex-row items-center gap-1.5">
+										<Calendar
+											size={12}
+											color="#71717a"
+											strokeWidth={2}
+										/>
+										<Text className="font-mono text-xs text-muted-foreground">
+											Member since {memberSinceDate}
+										</Text>
+									</View>
 								</View>
 							</View>
 
@@ -862,6 +852,10 @@ export default function ProfileScreen() {
 			<AccountSettingsModal
 				open={isAccountSettingsOpen}
 				onOpenChange={setIsAccountSettingsOpen}
+				onDeleteAccountPress={() => {
+					setIsAccountSettingsOpen(false);
+					setIsDeleteAccountDialogOpen(true);
+				}}
 			/>
 
 			<MobileSheet
@@ -956,64 +950,6 @@ export default function ProfileScreen() {
 					</View>
 
 					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
-						<Text className="font-mono text-xs text-muted-foreground">
-							Logged in as
-						</Text>
-						<Text className="mt-0.5 font-mono text-xs text-foreground">
-							{email}
-						</Text>
-						<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
-							Member since {memberSinceDate}
-						</Text>
-					</View>
-
-					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
-						<Text className="font-bold text-xs text-foreground uppercase">
-							Account
-						</Text>
-						<Text className="mt-1 font-mono text-xs text-muted-foreground">
-							Sign out of your session or permanently delete your
-							account.
-						</Text>
-						<View className="mt-3 flex-row gap-2.5">
-							<NeoButton
-								size="sm"
-								variant="outline"
-								className="flex-1"
-								startContent={
-									<LogOut
-										size={14}
-										color="#ff2a00"
-										strokeWidth={2.2}
-									/>
-								}
-								onPress={() => {
-									setIsAccountActionsOpen(false);
-									setIsSignOutDialogOpen(true);
-								}}>
-								Sign Out
-							</NeoButton>
-							<NeoButton
-								size="sm"
-								variant="destructive"
-								className="flex-1"
-								startContent={
-									<Trash2
-										size={14}
-										color="#ffffff"
-										strokeWidth={2.2}
-									/>
-								}
-								onPress={() => {
-									setIsAccountActionsOpen(false);
-									setIsDeleteAccountDialogOpen(true);
-								}}>
-								DELETE ACCOUNT
-							</NeoButton>
-						</View>
-					</View>
-
-					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
 						<View className="flex-row items-center justify-between gap-3">
 							<View className="flex-1">
 								<Text className="font-bold text-xs text-foreground uppercase">
@@ -1095,6 +1031,34 @@ export default function ProfileScreen() {
 									router.push("/legal/privacy");
 								}}>
 								Privacy Policy
+							</NeoButton>
+						</View>
+					</View>
+
+					<View className="rounded-none border-2 border-border bg-card p-3.5 shadow-neo-sm">
+						<Text className="font-bold text-xs text-foreground uppercase">
+							Sign Out
+						</Text>
+						<Text className="mt-1 font-mono text-xs text-muted-foreground">
+							Sign out of your current Impulse session.
+						</Text>
+						<View className="mt-3">
+							<NeoButton
+								size="sm"
+								variant="outline"
+								className="w-full"
+								startContent={
+									<LogOut
+										size={14}
+										color="#ff2a00"
+										strokeWidth={2.2}
+									/>
+								}
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									setIsSignOutDialogOpen(true);
+								}}>
+								Sign Out
 							</NeoButton>
 						</View>
 					</View>

@@ -8,6 +8,7 @@ import {
 	Lock,
 	Mail,
 	ShieldCheck,
+	Trash2,
 	X,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
@@ -30,6 +31,7 @@ export interface AccountSettingsModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onProfileUpdated?: (updatedProfile: Profile) => void;
+	onDeleteAccountPress?: () => void;
 }
 
 type SettingsTab = "username" | "email" | "password";
@@ -38,6 +40,7 @@ export function AccountSettingsModal({
 	open,
 	onOpenChange,
 	onProfileUpdated,
+	onDeleteAccountPress,
 }: AccountSettingsModalProps) {
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
@@ -705,6 +708,35 @@ export function AccountSettingsModal({
 												</NeoButton>
 											</View>
 										</View>
+									</View>
+								</View>
+							)}
+
+							{onDeleteAccountPress && (
+								<View className="mt-6 rounded-none border-2 border-destructive bg-card p-4 shadow-neo-sm">
+									<Text className="font-bold text-xs text-destructive uppercase">
+										DANGER ZONE
+									</Text>
+									<Text className="mt-1 font-mono text-xs text-muted-foreground">
+										Permanently delete your account and all
+										associated data. This action cannot be
+										undone.
+									</Text>
+									<View className="mt-3">
+										<NeoButton
+											size="md"
+											variant="destructive"
+											className="w-full"
+											startContent={
+												<Trash2
+													size={15}
+													color="#ffffff"
+													strokeWidth={2.2}
+												/>
+											}
+											onPress={onDeleteAccountPress}>
+											DELETE ACCOUNT
+										</NeoButton>
 									</View>
 								</View>
 							)}

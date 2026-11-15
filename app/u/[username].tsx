@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import {
 	ArrowLeft,
 	BookOpen,
+	Calendar,
 	CheckCircle2,
 	Flame,
 	PenSquare,
@@ -269,6 +270,12 @@ export default function UserProfileScreen() {
 		"Student";
 
 	const initials = displayName.slice(0, 2).toUpperCase();
+	const memberSinceDate = targetProfile?.created_at
+		? new Date(targetProfile.created_at).toLocaleDateString("en-US", {
+				month: "short",
+				year: "numeric",
+			})
+		: "Recent";
 	const guildData = getGuildInfo(targetProfile?.guild);
 	const trunGuildName =
 		guildData?.name === "Octagram"
@@ -430,6 +437,18 @@ export default function UserProfileScreen() {
 														yet.
 													</Text>
 												)}
+
+												<View className="mt-2 flex-row items-center gap-1.5">
+													<Calendar
+														size={12}
+														color="#71717a"
+														strokeWidth={2}
+													/>
+													<Text className="font-mono text-xs text-muted-foreground">
+														Member since{" "}
+														{memberSinceDate}
+													</Text>
+												</View>
 											</View>
 										</View>
 
