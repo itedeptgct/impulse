@@ -11,7 +11,7 @@
 		},
 		"allowImportingTsExtensions": true,
 		"noUncheckedSideEffectImports": false,
-		"types": ["@types/node", "@types/bun"]
+		"types": ["node", "bun"]
 	},
 	"include": [
 		"app/**/*.ts",
