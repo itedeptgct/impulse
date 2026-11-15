@@ -121,9 +121,12 @@ export default function PostDetailScreen() {
 	const [collapsedIds, setCollapsedIds] = useState<Record<string, boolean>>(
 		{},
 	);
-	const [highlightedCommentId, setHighlightedCommentId] = useState<
-		string | null
-	>(null);
+	const [expiredHighlightId, setExpiredHighlightId] = useState<string | null>(
+		null,
+	);
+	const [prevTargetCommentId, setPrevTargetCommentId] =
+		useState(targetCommentId);
+	const [reloadTick, setReloadTick] = useState(0);
 	const [error, setError] = useState<string | null>(null);
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const [isEditOpen, setIsEditOpen] = useState(false);
@@ -147,49 +150,31 @@ export default function PostDetailScreen() {
 
 	const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
 
+	if (targetCommentId !== prevTargetCommentId) {
+		setPrevTargetCommentId(targetCommentId);
+		setExpiredHighlightId(null);
+		if (targetCommentId) {
+			setCollapsedIds({});
+		}
+	}
+
+	const hasTargetComment = Boolean(
+		targetCommentId && comments.some((c) => c.id === targetCommentId),
+	);
+	const highlightedCommentId =
+		hasTargetComment && expiredHighlightId !== targetCommentId
+			? targetCommentId
+			: null;
+
 	useEffect(() => {
-		if (!targetCommentId || comments.length === 0) return;
+		if (!hasTargetComment || !targetCommentId) return;
 
-		const parentMap = new Map<string, string | null | undefined>();
-		let found = false;
-		for (const c of comments) {
-			parentMap.set(c.id, c.parent_id);
-			if (c.id === targetCommentId) found = true;
-		}
-		if (!found) return;
-
-		const ancestors: string[] = [];
-		const visited = new Set<string>([targetCommentId]);
-		let current = parentMap.get(targetCommentId);
-		while (current && !visited.has(current)) {
-			visited.add(current);
-			ancestors.push(current);
-			current = parentMap.get(current);
-		}
-
-		if (ancestors.length > 0) {
-			setCollapsedIds((prev) => {
-				let changed = false;
-				const next = { ...prev };
-				for (const ancestorId of ancestors) {
-					if (next[ancestorId]) {
-						next[ancestorId] = false;
-						changed = true;
-					}
-				}
-				return changed ? next : prev;
-			});
-		}
-
-		setHighlightedCommentId(targetCommentId);
 		const timer = setTimeout(() => {
-			setHighlightedCommentId((prev) =>
-				prev === targetCommentId ? null : prev,
-			);
+			setExpiredHighlightId(targetCommentId);
 		}, 2800);
 
 		return () => clearTimeout(timer);
-	}, [targetCommentId, comments]);
+	}, [hasTargetComment, targetCommentId]);
 
 	useEffect(() => {
 		const showEvent =
@@ -242,36 +227,53 @@ export default function PostDetailScreen() {
 		}
 	};
 
-	const loadPostData = useCallback(async () => {
-		if (!id) return;
-		setIsLoading(true);
-		setError(null);
-		try {
-			const res = await fetchPostById(id, userId, userGuild, isAdmin);
-			setAccessStatus(res.accessStatus);
-			if (res.post) {
-				setPost(res.post);
-				const comms = await fetchPostComments(id);
-				setComments(comms);
-			} else {
-				setPost(null);
-			}
-		} catch (err: unknown) {
-			const e = err as Error;
-			setError(
-				e.message ||
-					"Unable to reach the server. Check your connection and try again.",
-			);
-		} finally {
-			setIsLoading(false);
-		}
-	}, [id, userId, userGuild, isAdmin]);
+	const handleRetry = () => {
+		setReloadTick((prev) => prev + 1);
+	};
 
 	useEffect(() => {
+		if (!id) return;
+		let cancelled = false;
+
+		const loadPostData = async () => {
+			setIsLoading(true);
+			setError(null);
+			try {
+				const res = await fetchPostById(id, userId, userGuild, isAdmin);
+				if (cancelled) return;
+				setAccessStatus(res.accessStatus);
+				if (res.post) {
+					setPost(res.post);
+					const comms = await fetchPostComments(id);
+					if (cancelled) return;
+					setComments(comms);
+				} else {
+					setPost(null);
+				}
+			} catch (err: unknown) {
+				if (cancelled) return;
+				const e = err as Error;
+				setError(
+					e.message ||
+						"Unable to reach the server. Check your connection and try again.",
+				);
+			} finally {
+				if (!cancelled) {
+					setIsLoading(false);
+				}
+			}
+		};
+
 		queueMicrotask(() => {
-			void loadPostData();
+			if (!cancelled) {
+				void loadPostData();
+			}
 		});
-	}, [loadPostData]);
+
+		return () => {
+			cancelled = true;
+		};
+	}, [id, userId, userGuild, isAdmin, reloadTick]);
 
 	const handleVote = async (targetVote: 1 | -1) => {
 		if (!post || !user?.id) return;
@@ -1547,7 +1549,7 @@ export default function PostDetailScreen() {
 					className="flex-1 items-center justify-center p-6">
 					<NetworkErrorCard
 						message={error}
-						onRetry={loadPostData}
+						onRetry={handleRetry}
 						isRetrying={isLoading}
 						className="w-full max-w-md"
 					/>
