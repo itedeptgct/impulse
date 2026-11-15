@@ -89,11 +89,12 @@ jobs:
               run: bun install --frozen-lockfile
 
             - name: Write google-services.json from secret
-              if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
               env:
                   GOOGLE_SERVICES_JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
               run: |
-                  printf '%s' "$GOOGLE_SERVICES_JSON_CONTENT" > ./google-services.json
+                  if [ -n "$GOOGLE_SERVICES_JSON_CONTENT" ]; then
+                      printf '%s' "$GOOGLE_SERVICES_JSON_CONTENT" > ./google-services.json
+                  fi
 
             - name: Build Android APK with EAS Local
               env:
