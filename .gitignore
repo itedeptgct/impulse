@@ -79,6 +79,3 @@ tests/
 
 # git worktree
 .worktrees/
-
-# local dev
-artifacts/
