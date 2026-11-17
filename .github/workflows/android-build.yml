@@ -99,6 +99,14 @@ jobs:
                   printf '%s' "$GOOGLE_SERVICES_JSON_CONTENT" > /tmp/google-services.json
                   echo "GOOGLE_SERVICES_JSON=/tmp/google-services.json" >> "$GITHUB_ENV"
 
+            - name: Configure Gradle JVM memory
+              run: |
+                  mkdir -p ~/.gradle
+                  cat << 'EOF' >> ~/.gradle/gradle.properties
+                  org.gradle.jvmargs=-Xmx3072m -XX:MaxMetaspaceSize=1024m
+                  org.gradle.daemon=false
+                  EOF
+
             - name: Build Android APK with EAS Local
               env:
                   EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
