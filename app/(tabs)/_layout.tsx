@@ -1,8 +1,13 @@
+import { GitHubConnectModal } from "@auth/components/GitHubConnectModal";
 import { useAuthStore } from "@auth/store";
+import {
+	hasGitHubLinked,
+	hasGitHubPromptBeenDismissed,
+} from "@auth/utils/github";
 import * as Haptics from "expo-haptics";
 import { Redirect, Tabs, router, usePathname } from "expo-router";
 import { Building2, Radio, Rows2, Terminal } from "lucide-react-native";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Platform,
@@ -28,6 +33,8 @@ const TAB_ORDER = ["index", "guilds", "dispatch", "messages"] as const;
 
 export default function TabsLayout() {
 	const session = useAuthStore((state) => state.session);
+	const user = useAuthStore((state) => state.user);
+	const verification = useAuthStore((state) => state.verification);
 	const isLoading = useAuthStore((state) => state.isLoading);
 	const insets = useSafeAreaInsets();
 	const pathname = usePathname();
@@ -39,6 +46,30 @@ export default function TabsLayout() {
 	const totalUnreadCount = useMessagesStore((s) =>
 		s.conversations.reduce((acc, c) => acc + c.unread_count, 0),
 	);
+
+	// GitHub connect modal — shown once after first verified sign-in
+	const [showGitHubModal, setShowGitHubModal] = useState(false);
+
+	React.useEffect(() => {
+		let cancelled = false;
+		const checkGitHub = async () => {
+			if (
+				!user?.id ||
+				verification?.status !== "approved" ||
+				hasGitHubLinked(user)
+			) {
+				return;
+			}
+			const dismissed = await hasGitHubPromptBeenDismissed(user.id);
+			if (!cancelled && !dismissed) {
+				setShowGitHubModal(true);
+			}
+		};
+		void checkGitHub();
+		return () => {
+			cancelled = true;
+		};
+	}, [user, verification]);
 
 	React.useEffect(() => {
 		const uid = session?.user?.id;
@@ -289,6 +320,11 @@ export default function TabsLayout() {
 					closeComposer();
 					router.replace("/(tabs)");
 				}}
+			/>
+
+			<GitHubConnectModal
+				open={showGitHubModal}
+				onOpenChange={setShowGitHubModal}
 			/>
 		</>
 	);

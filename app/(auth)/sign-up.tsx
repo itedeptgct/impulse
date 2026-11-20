@@ -56,6 +56,7 @@ export default function SignUpScreen() {
 	const reduceMotion = useReducedMotion();
 	const [step, setStep] = useState<SignUpStep>("credentials");
 
+	// Email sign-up fields
 	const [displayName, setDisplayName] = useState("");
 	const [username, setUsername] = useState("");
 	const [email, setEmail] = useState("");
@@ -93,6 +94,8 @@ export default function SignUpScreen() {
 
 	const signUpMutation = useSignUp();
 
+	// ── Email sign-up ────────────────────────────────────────────────────────
+
 	const handleContinueToId = () => {
 		setErrorMessage(null);
 		setFieldErrors({});
@@ -129,6 +132,8 @@ export default function SignUpScreen() {
 
 		setStep("id_upload");
 	};
+
+	// ── ID upload ────────────────────────────────────────────────────────────
 
 	const handleTakePhoto = async () => {
 		try {
@@ -213,6 +218,33 @@ export default function SignUpScreen() {
 			return;
 		}
 
+		// User already registered (no email yet); just upload ID
+		if (step === "id_upload" && registeredUserId && !registeredEmail) {
+			setIsSubmitting(true);
+			try {
+				const documentPath = await uploadIdDocument(
+					registeredUserId,
+					idAsset.uri,
+					idAsset.fileName,
+				);
+				await createIdVerification(registeredUserId, documentPath);
+				await signOut();
+				useAuthStore.getState().clearSession();
+				setStep("pending_approval");
+			} catch (err: unknown) {
+				const error = err as Error;
+				showDialog(
+					"Upload Error",
+					error?.message ||
+						"Failed to upload document. Please try again.",
+				);
+			} finally {
+				setIsSubmitting(false);
+			}
+			return;
+		}
+
+		// Email flow
 		const trimmedDisplayName = displayName.trim();
 		const trimmedUsername = username.trim().toLowerCase().replace(/^@/, "");
 		const trimmedEmail = email.trim();
@@ -338,6 +370,8 @@ export default function SignUpScreen() {
 		}
 	};
 
+	// ── Render ───────────────────────────────────────────────────────────────
+
 	return (
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
@@ -383,6 +417,7 @@ export default function SignUpScreen() {
 						<View className="w-10" />
 					</View>
 
+					{/* ── STEP: credentials ── */}
 					{step === "credentials" && (
 						<Animated.View
 							key="credentials"
@@ -709,7 +744,7 @@ export default function SignUpScreen() {
 							</View>
 						</Animated.View>
 					)}
-
+					{/* ── STEP: id_upload ── */}
 					{step === "id_upload" && (
 						<Animated.View
 							key="id_upload"
@@ -925,6 +960,7 @@ export default function SignUpScreen() {
 						</Animated.View>
 					)}
 
+					{/* ── STEP: pending_approval ── */}
 					{step === "pending_approval" && (
 						<Animated.View
 							key="pending_approval"
@@ -963,7 +999,7 @@ export default function SignUpScreen() {
 										ACCOUNT
 									</Text>
 									<Text className="font-mono text-xs text-foreground">
-										{email || "Registered account"}
+										{email || "your account"}
 									</Text>
 								</View>
 								<View className="flex-row items-center justify-between border-b-2 border-border pb-3">

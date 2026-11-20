@@ -1,14 +1,24 @@
-import { changePassword, changeUsername, requestEmailChange } from "@auth/api";
+import {
+	changePassword,
+	changeUsername,
+	requestEmailChange,
+	signInWithGitHub,
+} from "@auth/api";
 import { useAuthStore } from "@auth/store";
 import type { Profile } from "@auth/types";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import {
 	AlertCircle,
 	AtSign,
 	CheckCircle2,
+	Link2,
+	LinkIcon,
 	Lock,
 	Mail,
 	ShieldCheck,
 	Trash2,
+	Unlink,
 	X,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
@@ -24,6 +34,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { NeoButton, NeoInput } from "@/components/ui";
+import { GitHubIcon } from "@/components/ui/GitHubIcon";
 
 import { PasswordRequirementsList } from "./PasswordRequirementsList";
 
@@ -34,7 +45,7 @@ export interface AccountSettingsModalProps {
 	onDeleteAccountPress?: () => void;
 }
 
-type SettingsTab = "username" | "email" | "password";
+type SettingsTab = "username" | "email" | "password" | "github";
 
 export function AccountSettingsModal({
 	open,
@@ -69,6 +80,17 @@ export function AccountSettingsModal({
 	const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
 	const [passwordError, setPasswordError] = useState<string | null>(null);
 
+	// GitHub state
+	const [isConnectingGitHub, setIsConnectingGitHub] = useState(false);
+	const [githubSuccess, setGithubSuccess] = useState<string | null>(null);
+	const [githubError, setGithubError] = useState<string | null>(null);
+
+	const hasGitHub = Array.isArray(user?.identities)
+		? user.identities.some(
+				(i: { provider: string }) => i.provider === "github",
+			)
+		: false;
+
 	const currentEmail = profile?.email || user?.email || "";
 	const prevOpenRef = useRef(open);
 
@@ -88,6 +110,9 @@ export function AccountSettingsModal({
 			setConfirmPassword("");
 			setPasswordSuccess(null);
 			setPasswordError(null);
+
+			setGithubSuccess(null);
+			setGithubError(null);
 		}
 		prevOpenRef.current = open;
 	}, [open, profile?.username]);
@@ -238,6 +263,34 @@ export function AccountSettingsModal({
 		}
 	};
 
+	const handleConnectGitHub = async () => {
+		setIsConnectingGitHub(true);
+		setGithubError(null);
+		setGithubSuccess(null);
+		try {
+			const { url } = await signInWithGitHub();
+			if (!url) throw new Error("Could not get GitHub sign-in URL.");
+
+			const result = await WebBrowser.openAuthSessionAsync(url);
+			if (result.type === "success" && result.url) {
+				const parsed = Linking.parse(result.url);
+				const errorDesc =
+					(parsed.queryParams?.error_description as string) ||
+					(parsed.queryParams?.error as string);
+				if (errorDesc) throw new Error(errorDesc);
+				setGithubSuccess("GitHub account connected successfully!");
+			}
+			// if cancel/dismiss — do nothing
+		} catch (err: unknown) {
+			const e = err as Error;
+			setGithubError(
+				e?.message || "Failed to connect GitHub. Please try again.",
+			);
+		} finally {
+			setIsConnectingGitHub(false);
+		}
+	};
+
 	return (
 		<Modal
 			visible={open}
@@ -273,6 +326,7 @@ export function AccountSettingsModal({
 								{ id: "username", label: "USERNAME" },
 								{ id: "email", label: "EMAIL" },
 								{ id: "password", label: "PASSWORD" },
+								{ id: "github", label: "GITHUB" },
 							] as const
 						).map((tab) => {
 							const isSelected = activeTab === tab.id;
@@ -708,6 +762,131 @@ export function AccountSettingsModal({
 												</NeoButton>
 											</View>
 										</View>
+									</View>
+								</View>
+							)}
+
+							{/* GITHUB TAB */}
+							{activeTab === "github" && (
+								<View className="gap-4">
+									{/* Status card */}
+									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
+										<View className="mb-2 flex-row items-center gap-2">
+											<GitHubIcon
+												size={16}
+												color="#000000"
+											/>
+											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+												GITHUB CONNECTION
+											</Text>
+										</View>
+										<View className="flex-row items-center gap-2">
+											<View
+												className={`rounded-none border-2 border-border px-2 py-0.5 ${hasGitHub ? "bg-[#00ff66]/30" : "bg-muted"}`}>
+												<Text className="font-bold text-xs uppercase">
+													{hasGitHub
+														? "CONNECTED"
+														: "NOT CONNECTED"}
+												</Text>
+											</View>
+										</View>
+									</View>
+
+									{/* Error message */}
+									{githubError && (
+										<View className="flex-row items-center gap-2 rounded-none border-2 border-destructive bg-destructive/10 p-3">
+											<AlertCircle
+												size={16}
+												color="#ff2a00"
+											/>
+											<Text className="flex-1 font-mono text-xs text-destructive">
+												{githubError}
+											</Text>
+											<Pressable
+												onPress={() =>
+													setGithubError(null)
+												}
+												hitSlop={8}>
+												<X size={14} color="#ff2a00" />
+											</Pressable>
+										</View>
+									)}
+
+									{/* Success message */}
+									{githubSuccess && (
+										<View className="flex-row items-center gap-2 rounded-none border-2 border-border bg-[#00ff66]/20 p-3 shadow-neo-sm">
+											<CheckCircle2
+												size={16}
+												color="#000000"
+												strokeWidth={2.5}
+											/>
+											<Text className="flex-1 font-bold text-xs text-foreground">
+												{githubSuccess}
+											</Text>
+											<Pressable
+												onPress={() =>
+													setGithubSuccess(null)
+												}
+												hitSlop={8}>
+												<X size={14} color="#000000" />
+											</Pressable>
+										</View>
+									)}
+
+									{/* Connect / Disconnect */}
+									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
+										{hasGitHub ? (
+											<>
+												<View className="mb-3 flex-row items-center gap-2">
+													<LinkIcon
+														size={14}
+														color="#000000"
+														strokeWidth={2.2}
+													/>
+													<Text className="font-mono text-xs text-muted-foreground">
+														Your GitHub account is
+														linked.
+													</Text>
+												</View>
+												<Text className="font-mono text-[10px] text-muted-foreground">
+													You can sign in using
+													GitHub. To disconnect,
+													revoke access from your
+													GitHub account settings.
+												</Text>
+											</>
+										) : (
+											<>
+												<View className="mb-3 flex-row items-center gap-2">
+													<Unlink
+														size={14}
+														color="#000000"
+														strokeWidth={2.2}
+													/>
+													<Text className="font-mono text-xs text-muted-foreground">
+														Link your GitHub account
+														for one-tap sign-in.
+													</Text>
+												</View>
+												<NeoButton
+													variant="primary"
+													size="md"
+													loading={isConnectingGitHub}
+													startContent={
+														<Link2
+															size={15}
+															color="#faf9f5"
+															strokeWidth={2.2}
+														/>
+													}
+													onPress={
+														handleConnectGitHub
+													}
+													className="w-full">
+													CONNECT GITHUB
+												</NeoButton>
+											</>
+										)}
 									</View>
 								</View>
 							)}

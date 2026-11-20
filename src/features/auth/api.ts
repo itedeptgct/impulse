@@ -1,6 +1,7 @@
 import { deleteOwnR2Objects, uploadToR2 } from "@lib/r2-storage";
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { Session } from "@supabase/supabase-js";
 
 import { unregisterPushTokenAsync } from "@/features/notifications/push";
 
@@ -12,6 +13,28 @@ import {
 } from "./utils/upload-utils";
 
 export { getContentTypeFromExtension, readUriAsBinary };
+
+export async function signInWithGitHub(): Promise<{
+	url: string | null;
+	provider: string;
+}> {
+	let redirectTo = "impulse://auth/callback";
+	try {
+		const Linking = require("expo-linking");
+		redirectTo = Linking.createURL("auth/callback");
+	} catch {}
+
+	const { data, error } = await supabase.auth.signInWithOAuth({
+		provider: "github",
+		options: {
+			redirectTo,
+			skipBrowserRedirect: true,
+		},
+	});
+
+	if (error) throw error;
+	return data;
+}
 
 export async function signIn(email: string, password: string) {
 	const { data, error } = await supabase.auth.signInWithPassword({
@@ -93,10 +116,32 @@ export async function handleAuthCallbackUrl(url: string) {
 
 	const code = parsed.queryParams?.code as string | undefined;
 	if (code) {
-		const { data, error } =
-			await supabase.auth.exchangeCodeForSession(code);
-		if (error) throw error;
-		return data;
+		const cachedExchange = authCodeExchangeCache.get(code);
+		let exchange =
+			cachedExchange && cachedExchange.expiresAt > Date.now()
+				? cachedExchange.promise
+				: undefined;
+		if (!exchange) {
+			authCodeExchangeCache.delete(code);
+			exchange = supabase.auth
+				.exchangeCodeForSession(code)
+				.then(({ data, error }) => {
+					if (error) {
+						authCodeExchangeCache.delete(code);
+						throw error;
+					}
+					return { session: data.session };
+				});
+			authCodeExchangeCache.set(code, {
+				promise: exchange,
+				expiresAt: Date.now() + 10_000,
+			});
+			if (authCodeExchangeCache.size > 5) {
+				const oldestCode = authCodeExchangeCache.keys().next().value;
+				if (oldestCode) authCodeExchangeCache.delete(oldestCode);
+			}
+		}
+		return exchange;
 	}
 
 	const accessToken = parsed.queryParams?.access_token as string | undefined;
@@ -109,7 +154,7 @@ export async function handleAuthCallbackUrl(url: string) {
 			refresh_token: refreshToken,
 		});
 		if (error) throw error;
-		return data;
+		return { session: data.session };
 	}
 
 	if (url.includes("#")) {
@@ -127,7 +172,7 @@ export async function handleAuthCallbackUrl(url: string) {
 					refresh_token: hashRefreshToken,
 				});
 				if (error) throw error;
-				return data;
+				return { session: data.session };
 			}
 		}
 	}
@@ -135,7 +180,84 @@ export async function handleAuthCallbackUrl(url: string) {
 	const { data: sessionData, error: sessionError } =
 		await supabase.auth.getSession();
 	if (sessionError) throw sessionError;
-	return sessionData;
+	return { session: sessionData.session };
+}
+
+const authCodeExchangeCache = new Map<
+	string,
+	{ promise: Promise<{ session: Session | null }>; expiresAt: number }
+>();
+
+export async function completeGitHubSignIn(url?: string) {
+	const code = getAuthCallbackCode(url);
+	if (!code) return finishGitHubSignIn(url);
+
+	const cachedCompletion = completedGitHubSignIns.get(code);
+	if (cachedCompletion) {
+		const session = await cachedCompletion;
+		const { data, error } = await supabase.auth.getSession();
+		if (error) throw error;
+		if (data.session?.user.id === session.user.id) return session;
+		completedGitHubSignIns.delete(code);
+	}
+
+	const completion = finishGitHubSignIn(url);
+	completedGitHubSignIns.set(code, completion);
+	if (completedGitHubSignIns.size > 5) {
+		const oldestCode = completedGitHubSignIns.keys().next().value;
+		if (oldestCode) completedGitHubSignIns.delete(oldestCode);
+	}
+	try {
+		return await completion;
+	} catch (error) {
+		completedGitHubSignIns.delete(code);
+		throw error;
+	}
+}
+
+const completedGitHubSignIns = new Map<string, Promise<Session>>();
+
+function getAuthCallbackCode(url?: string) {
+	if (!url) return undefined;
+	try {
+		const Linking = require("expo-linking");
+		return Linking.parse(url).queryParams?.code as string | undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+async function finishGitHubSignIn(url?: string) {
+	let session = null;
+	if (url) {
+		const callbackData = await handleAuthCallbackUrl(url);
+		session = callbackData?.session ?? null;
+	} else {
+		const { data, error } = await supabase.auth.getSession();
+		if (error) throw error;
+		session = data.session;
+	}
+
+	if (!session) {
+		throw new Error("GitHub sign-in did not return an active session.");
+	}
+
+	const { data: profile, error } = await supabase
+		.from("profiles")
+		.select("id")
+		.eq("id", session.user.id)
+		.maybeSingle();
+	if (error) throw error;
+
+	if (!profile) {
+		await supabase.auth.signOut();
+		useAuthStore.getState().clearSession();
+		throw new Error(
+			"No Impulse account is linked to this GitHub account. Please sign in with your email and password first, then connect GitHub in Account Settings.",
+		);
+	}
+
+	return session;
 }
 
 export async function uploadIdDocument(

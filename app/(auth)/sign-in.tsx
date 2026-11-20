@@ -1,7 +1,9 @@
+import { completeGitHubSignIn } from "@auth/api";
 import { useResetPassword } from "@auth/hooks/useResetPassword";
-import { useSignIn } from "@auth/hooks/useSignIn";
+import { useGitHubAuth, useSignIn } from "@auth/hooks/useSignIn";
 import { forgotPasswordSchema, signInSchema } from "@auth/schemas";
 import { useAuthStore } from "@auth/store";
+import * as Linking from "expo-linking";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -26,6 +28,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MobileSheet, NeoButton, NeoInput } from "@/components/ui";
+import { GitHubIcon } from "@/components/ui/GitHubIcon";
 
 export default function SignInScreen() {
 	const insets = useSafeAreaInsets();
@@ -46,6 +49,7 @@ export default function SignInScreen() {
 	const [forgotMessage, setForgotMessage] = useState<string | null>(null);
 
 	const signInMutation = useSignIn();
+	const gitHubAuthMutation = useGitHubAuth();
 	const resetPasswordMutation = useResetPassword();
 	const setSession = useAuthStore((state) => state.setSession);
 
@@ -85,6 +89,32 @@ export default function SignInScreen() {
 			setErrorMessage(
 				error?.message ||
 					"Invalid email or password. Please try again.",
+			);
+		}
+	};
+
+	const handleSignInWithGitHub = async () => {
+		setErrorMessage(null);
+		try {
+			const result = await gitHubAuthMutation.mutateAsync();
+			if (result.type === "success" && result.url) {
+				const parsed = Linking.parse(result.url);
+				const errorDesc =
+					(parsed.queryParams?.error_description as string) ||
+					(parsed.queryParams?.error as string);
+				if (errorDesc) {
+					setErrorMessage(errorDesc);
+					return;
+				}
+				const session = await completeGitHubSignIn(result.url);
+				setSession(session);
+				router.replace("/(tabs)");
+			}
+			// if cancel/dismiss — do nothing
+		} catch (err: unknown) {
+			const error = err as Error;
+			setErrorMessage(
+				error?.message || "GitHub sign-in failed. Please try again.",
 			);
 		}
 	};
@@ -171,6 +201,28 @@ export default function SignInScreen() {
 					)}
 
 					<View className="gap-5">
+						{/* ── GitHub OAuth ── */}
+						<NeoButton
+							variant="outline"
+							size="lg"
+							className="w-full"
+							loading={gitHubAuthMutation.isPending}
+							onPress={handleSignInWithGitHub}
+							startContent={
+								<GitHubIcon size={18} color="#000000" />
+							}>
+							CONTINUE WITH GITHUB
+						</NeoButton>
+
+						<View className="flex-row items-center gap-3">
+							<View className="h-0.5 flex-1 bg-border" />
+							<Text className="font-mono text-[10px] tracking-widest text-muted-foreground uppercase">
+								OR
+							</Text>
+							<View className="h-0.5 flex-1 bg-border" />
+						</View>
+
+						{/* ── Email / Password ── */}
 						<NeoInput
 							label="EMAIL"
 							placeholder="student@example.com"

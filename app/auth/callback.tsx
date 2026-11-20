@@ -1,44 +1,74 @@
-import { handleAuthCallbackUrl } from "@auth/api";
+import { completeGitHubSignIn } from "@auth/api";
 import { useAuthStore } from "@auth/store";
 import * as Linking from "expo-linking";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { AlertCircle } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 
 import { NeoButton } from "@/components/ui";
 
+// Dismiss the in-app browser if it's still open (e.g. the deep link
+// fired before WebBrowser.openAuthSessionAsync could intercept it).
+WebBrowser.maybeCompleteAuthSession();
+
 export default function AuthCallbackScreen() {
-	const url = Linking.useURL();
+	const deepLinkUrl = Linking.useURL();
+	const params = useLocalSearchParams<{ url?: string }>();
 	const setSession = useAuthStore((state) => state.setSession);
-	const [error, setError] = useState<string | null>(null);
+	const [errorState, setErrorState] = useState<{
+		url: string | null;
+		message: string;
+	} | null>(null);
+
+	// Use whichever URL is available: route param (from sign-in.tsx
+	// navigation) or deep link URL (from OS-level deep link).
+	const url = params.url || deepLinkUrl;
+	const error = errorState?.url === (url ?? null) ? errorState.message : null;
 
 	useEffect(() => {
-		if (!url) return;
-
 		let isMounted = true;
+		let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
 		async function processCallback() {
 			try {
-				const data = await handleAuthCallbackUrl(url!);
-				if (isMounted) {
-					if (data?.session) {
-						setSession(data.session);
-					}
-					router.replace("/(tabs)");
-				}
+				const session = await completeGitHubSignIn(url || undefined);
+				if (!isMounted) return;
+				setSession(session);
+				router.replace("/(tabs)");
 			} catch (err: unknown) {
-				if (isMounted) {
-					const e = err as Error;
-					setError(e?.message || "Authentication callback failed.");
+				if (!isMounted) return;
+
+				try {
+					const session = await completeGitHubSignIn();
+					if (!isMounted) return;
+					setSession(session);
+					router.replace("/(tabs)");
+				} catch {
+					if (isMounted) {
+						const e = err as Error;
+						setErrorState({
+							url: url ?? null,
+							message:
+								e?.message || "Authentication callback failed.",
+						});
+					}
 				}
 			}
 		}
 
-		void processCallback();
+		if (url) {
+			void processCallback();
+		} else {
+			retryTimer = setTimeout(() => {
+				void processCallback();
+			}, 800);
+		}
 
 		return () => {
 			isMounted = false;
+			if (retryTimer) clearTimeout(retryTimer);
 		};
 	}, [url, setSession]);
 
@@ -51,7 +81,7 @@ export default function AuthCallbackScreen() {
 				<Text className="text-center font-display text-2xl text-foreground uppercase">
 					Authentication Failed
 				</Text>
-				<Text className="mt-2 text-center font-mono text-xs text-muted-foreground">
+				<Text className="mt-3 text-center font-mono text-xs leading-relaxed text-muted-foreground">
 					{error}
 				</Text>
 				<View className="mt-8 w-full max-w-xs">
