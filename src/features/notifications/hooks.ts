@@ -10,6 +10,7 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 import {
 	DEFAULT_NOTIFICATION_PREFERENCES,
+	deleteNotification,
 	fetchNotificationPreferences,
 	fetchNotifications,
 	fetchUnreadNotificationCount,
@@ -207,6 +208,114 @@ export function useMarkAllNotificationsRead(userId?: string | null) {
 						}
 						return old;
 					},
+				);
+			}
+		},
+		onSettled: () => {
+			if (userId) {
+				void queryClient.invalidateQueries({
+					queryKey: notificationKeys.unreadCount(userId),
+				});
+				void queryClient.invalidateQueries({
+					queryKey: notificationKeys.list(userId),
+				});
+			} else {
+				void queryClient.invalidateQueries({
+					queryKey: notificationKeys.all,
+				});
+			}
+		},
+	});
+}
+
+export function useDeleteNotification(userId?: string | null) {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (notificationId: string) =>
+			deleteNotification(notificationId),
+		onMutate: async (notificationId: string) => {
+			if (!userId) return undefined;
+
+			await queryClient.cancelQueries({
+				queryKey: notificationKeys.list(userId),
+			});
+			await queryClient.cancelQueries({
+				queryKey: notificationKeys.unreadCount(userId),
+			});
+
+			const previousList = queryClient.getQueryData(
+				notificationKeys.list(userId),
+			);
+			const previousUnreadCount = queryClient.getQueryData<number>(
+				notificationKeys.unreadCount(userId),
+			);
+
+			let wasUnread = false;
+
+			queryClient.setQueriesData(
+				{ queryKey: notificationKeys.list(userId) },
+				(old: unknown) => {
+					if (!old || typeof old !== "object") return old;
+					const record = old as Record<string, unknown>;
+					if (Array.isArray(record.pages)) {
+						return {
+							...record,
+							pages: record.pages.map((page: unknown) => {
+								if (!Array.isArray(page)) return page;
+								return (page as NotificationItem[]).filter(
+									(item) => {
+										if (item.id === notificationId) {
+											if (!item.read_at) {
+												wasUnread = true;
+											}
+											return false;
+										}
+										return true;
+									},
+								);
+							}),
+						};
+					}
+					if (Array.isArray(old)) {
+						return (old as NotificationItem[]).filter((item) => {
+							if (item.id === notificationId) {
+								if (!item.read_at) {
+									wasUnread = true;
+								}
+								return false;
+							}
+							return true;
+						});
+					}
+					return old;
+				},
+			);
+
+			if (wasUnread) {
+				queryClient.setQueryData(
+					notificationKeys.unreadCount(userId),
+					(oldCount: number | undefined) => {
+						if (typeof oldCount !== "number") return oldCount;
+						return Math.max(0, oldCount - 1);
+					},
+				);
+			}
+
+			return { previousList, previousUnreadCount };
+		},
+		onError: (_err, _notificationId, context) => {
+			if (!userId || !context) return;
+			if (context.previousList !== undefined) {
+				queryClient.setQueryData(
+					notificationKeys.list(userId),
+					context.previousList,
+				);
+			}
+			if (context.previousUnreadCount !== undefined) {
+				queryClient.setQueryData(
+					notificationKeys.unreadCount(userId),
+					context.previousUnreadCount,
 				);
 			}
 		},

@@ -1,3 +1,4 @@
+export * from "./LinkifiedText";
 export * from "./NeoBadge";
 export * from "./NeoButton";
 export * from "./NeoCard";

@@ -1,7 +1,15 @@
 import { useAuthStore } from "@auth/store";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Pin, Plus, Search, Settings, Trash2, X } from "lucide-react-native";
+import {
+	CheckCheck,
+	Pin,
+	Plus,
+	Search,
+	Settings,
+	Trash2,
+	X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
@@ -24,6 +32,7 @@ import {
 import {
 	deleteOrLeaveConversation,
 	fetchConversations,
+	markConversationRead,
 	togglePinConversation,
 } from "@/features/messages/api";
 import { ConversationRow } from "@/features/messages/components/ConversationRow";
@@ -43,6 +52,7 @@ export default function MessagesScreen() {
 	const togglePinConversationLocally = useMessagesStore(
 		(s) => s.togglePinConversationLocally,
 	);
+	const markReadLocally = useMessagesStore((s) => s.markReadLocally);
 	const removeConversationLocally = useMessagesStore(
 		(s) => s.removeConversationLocally,
 	);
@@ -201,6 +211,27 @@ export default function MessagesScreen() {
 		[],
 	);
 
+	const handleMarkAsRead = useCallback(async () => {
+		if (!selectedConversation || !userId) return;
+		if (selectedConversation.unread_count <= 0) {
+			setActionsOpen(false);
+			return;
+		}
+		const targetId = selectedConversation.id;
+		setActionsOpen(false);
+		markReadLocally(targetId);
+		try {
+			await markConversationRead(targetId, userId);
+		} catch (err: unknown) {
+			void loadInbox();
+			const e = err as Error;
+			Alert.alert(
+				"Error",
+				e?.message || "Failed to mark conversation as read.",
+			);
+		}
+	}, [selectedConversation, userId, markReadLocally, loadInbox]);
+
 	const handleTogglePin = useCallback(async () => {
 		if (!selectedConversation || !userId) return;
 		const nextPinned = !selectedConversation.is_pinned;
@@ -355,6 +386,23 @@ export default function MessagesScreen() {
 						: "Direct conversation"
 				}>
 				<View className="gap-2.5 pb-4">
+					{selectedConversation &&
+					selectedConversation.unread_count > 0 ? (
+						<Pressable
+							accessibilityRole="button"
+							onPress={() => void handleMarkAsRead()}
+							className="flex-row items-center gap-3 border-2 border-border bg-card px-4 py-3 shadow-neo-sm active:bg-secondary">
+							<CheckCheck
+								size={18}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+							<Text className="font-display text-sm text-foreground uppercase">
+								Mark as Read
+							</Text>
+						</Pressable>
+					) : null}
+
 					<Pressable
 						accessibilityRole="button"
 						onPress={() => void handleTogglePin()}

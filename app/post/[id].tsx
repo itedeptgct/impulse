@@ -38,6 +38,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
+	LinkifiedText,
 	MobileAlertSheet,
 	MobileSheet,
 	NeoButton,
@@ -854,9 +855,9 @@ export default function PostDetailScreen() {
 								{post.title}
 							</Text>
 
-							<Text className="mt-3.5 font-mono text-sm leading-relaxed text-foreground select-text sm:text-base">
+							<LinkifiedText className="mt-3.5 font-mono text-sm leading-relaxed text-foreground select-text sm:text-base">
 								{post.content}
-							</Text>
+							</LinkifiedText>
 
 							{/* Neo-brutalist Terminal Code Viewport */}
 							{post.code_snippet && (

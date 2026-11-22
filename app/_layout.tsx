@@ -233,6 +233,10 @@ export default function RootLayout() {
 								options={{ headerShown: false }}
 							/>
 							<Stack.Screen
+								name="developers"
+								options={{ headerShown: false }}
+							/>
+							<Stack.Screen
 								name="messages/[id]"
 								options={{ headerShown: false }}
 							/>

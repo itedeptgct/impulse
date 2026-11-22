@@ -151,6 +151,33 @@ export async function fetchAdminVerifications(
 	return items;
 }
 
+async function notifyVerificationDecisionByEmail(
+	verificationId: string,
+	status: "approved" | "rejected",
+	rejectionReason?: string,
+): Promise<void> {
+	try {
+		const { error } = await supabase.functions.invoke(
+			"send-verification-email",
+			{
+				body: {
+					verificationId,
+					status,
+					...(rejectionReason ? { rejectionReason } : {}),
+				},
+			},
+		);
+		if (error) {
+			console.warn(
+				`Failed to send verification ${status} email:`,
+				error.message,
+			);
+		}
+	} catch (err) {
+		console.warn(`Failed to send verification ${status} email:`, err);
+	}
+}
+
 export async function approveVerification(
 	verificationId: string,
 	adminId: string,
@@ -168,6 +195,7 @@ export async function approveVerification(
 		.eq("id", verificationId);
 
 	if (error) throw error;
+	await notifyVerificationDecisionByEmail(verificationId, "approved");
 }
 
 export async function rejectVerification(
@@ -176,18 +204,24 @@ export async function rejectVerification(
 	reason: string,
 ): Promise<void> {
 	const now = new Date().toISOString();
+	const trimmedReason = reason.trim();
 	const { error } = await supabase
 		.from("id_verifications")
 		.update({
 			status: "rejected",
 			reviewed_by: adminId,
 			reviewed_at: now,
-			rejection_reason: reason.trim(),
+			rejection_reason: trimmedReason,
 			updated_at: now,
 		})
 		.eq("id", verificationId);
 
 	if (error) throw error;
+	await notifyVerificationDecisionByEmail(
+		verificationId,
+		"rejected",
+		trimmedReason,
+	);
 }
 
 export async function fetchAdminUsers(

@@ -20,6 +20,7 @@ import {
 	Calendar,
 	CheckCircle2,
 	Clock,
+	Code2,
 	FileText,
 	Flame,
 	LogOut,
@@ -821,6 +822,17 @@ export default function ProfileScreen() {
 									Privacy Policy
 								</Text>
 							</Pressable>
+							<Text className="font-mono text-[11px] text-muted-foreground">
+								•
+							</Text>
+							<Pressable
+								onPress={() => router.push("/developers")}
+								hitSlop={6}
+								className="active:opacity-70">
+								<Text className="font-mono text-[11px] text-muted-foreground uppercase underline">
+									Developers
+								</Text>
+							</Pressable>
 						</View>
 					</View>
 				}
@@ -1031,6 +1043,25 @@ export default function ProfileScreen() {
 									router.push("/legal/privacy");
 								}}>
 								Privacy Policy
+							</NeoButton>
+						</View>
+						<View className="mt-2.5">
+							<NeoButton
+								size="sm"
+								variant="outline"
+								className="w-full"
+								startContent={
+									<Code2
+										size={14}
+										color="#000000"
+										strokeWidth={2.2}
+									/>
+								}
+								onPress={() => {
+									setIsAccountActionsOpen(false);
+									router.push("/developers");
+								}}>
+								Developers
 							</NeoButton>
 						</View>
 					</View>

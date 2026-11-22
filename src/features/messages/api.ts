@@ -454,7 +454,7 @@ export async function deleteOrLeaveConversation(
 	conversationId: string,
 ): Promise<void> {
 	const { error } = await supabase.rpc("delete_or_leave_conversation", {
-		target_conversation_id: conversationId,
+		p_conversation_id: conversationId,
 	});
 
 	if (error) throw error;

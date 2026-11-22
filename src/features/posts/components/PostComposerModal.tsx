@@ -82,7 +82,7 @@ export function PostComposerModal({
 	const [visibility, setVisibility] = useState<PostVisibility>("public");
 	const [activeTray, setActiveTray] = useState<"code" | "media" | null>(null);
 	const [codeSnippet, setCodeSnippet] = useState("");
-	const [codeLanguage, setCodeLanguage] = useState("RUST");
+	const [codeLanguage, setCodeLanguage] = useState("TS");
 	const [selectedTags, setSelectedTags] = useState<string[]>([]);
 	const [tagInput, setTagInput] = useState("");
 	const [isAddingTag, setIsAddingTag] = useState(false);
@@ -131,7 +131,7 @@ export function PostComposerModal({
 				setVisibility("public");
 				setActiveTray(initialTray);
 				setCodeSnippet("");
-				setCodeLanguage("");
+				setCodeLanguage("TS");
 				setSelectedTags([]);
 				setMediaUrls([]);
 			}
@@ -266,7 +266,7 @@ export function PostComposerModal({
 		{
 			key: "code" as const,
 			title: "CODE SNIPPET",
-			sub: `${codeLanguage.toUpperCase()} // ${codeSnippet.length} CHAR`,
+			sub: `${(codeLanguage || "TS").toUpperCase()} // ${codeSnippet.length} CHAR`,
 			icon: Code2,
 			active: activeTray === "code",
 			iconColor: activeTray === "code" ? "#00FF66" : "#000000",
@@ -276,13 +276,15 @@ export function PostComposerModal({
 		{
 			key: "media" as const,
 			title: "MEDIA",
-			sub: "PNG, JPG, WEBP",
+			sub:
+				mediaUrls.length > 0
+					? `${mediaUrls.length} SELECTED`
+					: "PNG, JPG, WEBP",
 			icon: ImageIcon,
 			active: mediaActive,
-			iconColor: mediaUrls.length > 0 ? "#FF007A" : "#000000",
+			iconColor: mediaActive ? "#FF007A" : "#000000",
 			subClass: "text-neo-magenta",
 			onPress: () => {
-				setActiveTray("media");
 				void pickMedia();
 			},
 		},
@@ -642,7 +644,7 @@ export function PostComposerModal({
 											onChangeText={setCodeSnippet}
 											multiline
 											placeholder="hola mundo!"
-											placeholderTextColor="#444444"
+											placeholderTextColor="#888888"
 											className="min-h-24 border border-white/20 p-2 font-code text-xs text-neo-green"
 										/>
 									</View>
@@ -663,14 +665,21 @@ export function PostComposerModal({
 													contentFit="cover"
 												/>
 												<Pressable
-													onPress={() =>
-														setMediaUrls(
+													onPress={() => {
+														const next =
 															mediaUrls.filter(
 																(_, i) =>
 																	i !== idx,
-															),
-														)
-													}
+															);
+														setMediaUrls(next);
+														if (
+															next.length === 0 &&
+															activeTray ===
+																"media"
+														) {
+															setActiveTray(null);
+														}
+													}}
 													className="absolute -top-1 -right-1 bg-primary p-0.5">
 													<X
 														size={10}

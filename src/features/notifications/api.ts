@@ -141,6 +141,19 @@ export async function markAllNotificationsRead(userId: string): Promise<void> {
 	if (error) throw error;
 }
 
+export async function deleteNotification(
+	notificationId: string,
+): Promise<void> {
+	if (!isSupabaseConfigured || !notificationId) return;
+
+	const { error } = await supabase
+		.from("notifications")
+		.delete()
+		.eq("id", notificationId);
+
+	if (error) throw error;
+}
+
 export async function fetchNotificationPreferences(
 	userId: string,
 ): Promise<NotificationPreferences> {

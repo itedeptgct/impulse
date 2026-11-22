@@ -16,6 +16,7 @@ import { memo, useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 
 import {
+	LinkifiedText,
 	MobileAlertSheet,
 	MobileSheet,
 	NeoButton,
@@ -279,9 +280,9 @@ function DispatchCardComponent({
 						</View>
 					)}
 
-					<Text className="mb-3.5 font-mono text-sm leading-relaxed text-foreground">
+					<LinkifiedText className="mb-3.5 font-mono text-sm leading-relaxed text-foreground">
 						{post.content}
-					</Text>
+					</LinkifiedText>
 
 					{post.code_snippet && (
 						<TerminalCodeViewport

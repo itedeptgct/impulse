@@ -8,6 +8,12 @@ export const GUILD_BADGES: Record<GuildId, string> = {
 	blue_jays: "BJ",
 };
 
+const GUILD_LOGOS = {
+	octagram: require("../../../assets/guilds/octagram.svg"),
+	chameleon: require("../../../assets/guilds/chameleon.svg"),
+	blue_jays: require("../../../assets/guilds/bluejays.svg"),
+};
+
 const GUILDS: Record<GuildId, GuildInfo> = {
 	octagram: {
 		id: "octagram",
@@ -15,10 +21,10 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		tagline: "Developers & Coders",
 		manifesto:
 			"Building ideas through code, creating solutions through technology, and connecting people through innovation.",
-		accentColor: "#00FF66",
-		badgeBgColor: "bg-[#00FF66]",
+		accentColor: "#be0203",
+		badgeBgColor: "bg-[#be0203]",
 		badgeTextColor: "text-foreground",
-		logo: undefined,
+		logo: GUILD_LOGOS.octagram,
 		houseNumber: "01",
 		houseSymbol: "0x",
 		sector: "HARDWARE, SOFTWARE & NETWORKING",
@@ -31,10 +37,10 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		tagline: "GFX & Artists",
 		manifesto:
 			"Bringing ideas to life through creative designs, colorful visuals, and engaging media.",
-		accentColor: "#FF007A",
-		badgeBgColor: "bg-[#FF007A]",
-		badgeTextColor: "text-primary-foreground",
-		logo: undefined,
+		accentColor: "#0c7c28",
+		badgeBgColor: "bg-[#0c7c28]",
+		badgeTextColor: "text-primary-background",
+		logo: GUILD_LOGOS.chameleon,
 		houseNumber: "02",
 		houseSymbol: "★",
 		sector: "3D, GFX & TYPOGRAPHY",
@@ -50,7 +56,7 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		accentColor: "#00E5FF",
 		badgeBgColor: "bg-[#00E5FF]",
 		badgeTextColor: "text-foreground",
-		logo: undefined,
+		logo: GUILD_LOGOS.blue_jays,
 		houseNumber: "03",
 		houseSymbol: "BJ",
 		sector: "JOURNALISM & MEDIA",

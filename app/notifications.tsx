@@ -11,10 +11,12 @@ import {
 	MessageCircle,
 	MessageSquare,
 	Settings,
+	Trash2,
 } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
+	Alert,
 	FlatList,
 	Platform,
 	Pressable,
@@ -26,6 +28,7 @@ import {
 import { MobileTopBar, NeoButton } from "@/components/ui";
 import { NotificationPreferencesModal } from "@/features/notifications/components/NotificationPreferencesModal";
 import {
+	useDeleteNotification,
 	useMarkAllNotificationsRead,
 	useMarkNotificationRead,
 	useNotifications,
@@ -114,6 +117,7 @@ export default function NotificationsScreen() {
 
 	const markRead = useMarkNotificationRead(userId);
 	const markAllRead = useMarkAllNotificationsRead(userId);
+	const deleteNotif = useDeleteNotification(userId);
 
 	const notifications = useMemo(
 		() => data?.pages.flatMap((page) => page) ?? [],
@@ -164,6 +168,22 @@ export default function NotificationsScreen() {
 		triggerHaptic();
 		markAllRead.mutate();
 	}, [hasUnread, markAllRead]);
+
+	const handleDeleteNotification = useCallback(
+		(notificationId: string) => {
+			triggerHaptic();
+			deleteNotif.mutate(notificationId, {
+				onError: (err: unknown) => {
+					const e = err as Error;
+					Alert.alert(
+						"Error",
+						e?.message || "Failed to delete notification.",
+					);
+				},
+			});
+		},
+		[deleteNotif],
+	);
 
 	const handleEndReached = useCallback(() => {
 		if (hasNextPage && !isFetchingNextPage) {
@@ -227,9 +247,26 @@ export default function NotificationsScreen() {
 					<View className="min-w-0 flex-1">
 						<View className="flex-row items-center justify-between gap-2">
 							<NotificationTypeBadge type={item.type} />
-							<Text className="font-mono text-[10px] text-muted-foreground">
-								{formatRelativeTime(item.created_at)}
-							</Text>
+							<View className="flex-row items-center gap-2">
+								<Text className="font-mono text-[10px] text-muted-foreground">
+									{formatRelativeTime(item.created_at)}
+								</Text>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Delete notification"
+									hitSlop={8}
+									onPress={(e) => {
+										e.stopPropagation();
+										handleDeleteNotification(item.id);
+									}}
+									className="border border-border bg-background p-1 active:bg-destructive-soft">
+									<Trash2
+										size={12}
+										color="#ff2a00"
+										strokeWidth={2.5}
+									/>
+								</Pressable>
+							</View>
 						</View>
 
 						<Text
@@ -249,7 +286,7 @@ export default function NotificationsScreen() {
 				</Pressable>
 			);
 		},
-		[handlePressActor, handlePressNotification],
+		[handleDeleteNotification, handlePressActor, handlePressNotification],
 	);
 
 	return (

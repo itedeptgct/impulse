@@ -31,6 +31,8 @@ export const NeoInput = React.forwardRef(function NeoInput(
 		onFocus,
 		onBlur,
 		editable = true,
+		multiline = false,
+		numberOfLines,
 		...rest
 	}: NeoInputProps,
 	ref: React.ForwardedRef<TextInput>,
@@ -63,6 +65,7 @@ export const NeoInput = React.forwardRef(function NeoInput(
 
 	const wrapperClasses = [
 		"flex-row items-center bg-card border-2 rounded-none px-3",
+		!multiline ? "h-11" : "",
 		getBorderAndShadowClass(),
 		!editable ? "opacity-50" : "",
 		inputWrapperClassName,
@@ -71,7 +74,8 @@ export const NeoInput = React.forwardRef(function NeoInput(
 		.join(" ");
 
 	const textInputClasses = [
-		"flex-1 py-2 font-mono text-sm text-foreground",
+		"min-w-0 flex-1 font-mono text-sm text-foreground",
+		multiline ? "py-2" : "h-full py-0",
 		className,
 	]
 		.filter(Boolean)
@@ -96,6 +100,8 @@ export const NeoInput = React.forwardRef(function NeoInput(
 				<TextInput
 					ref={ref}
 					editable={editable}
+					multiline={multiline}
+					numberOfLines={multiline ? numberOfLines : 1}
 					onFocus={handleFocus}
 					onBlur={handleBlur}
 					placeholderTextColor={placeholderTextColor}

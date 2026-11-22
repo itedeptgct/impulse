@@ -2,7 +2,7 @@ import { useAuthStore } from "@auth/store";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Flame, Plus } from "lucide-react-native";
+import { AlertCircle, Clock, Flame, Plus, X } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
@@ -43,8 +43,13 @@ export default function FeedScreen() {
 	const params = useLocalSearchParams<{ guild?: string }>();
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
+	const verification = useAuthStore((state) => state.verification);
+	const loadedUserId = useAuthStore((state) => state.loadedUserId);
 	const refreshUserData = useAuthStore((state) => state.refreshUserData);
 	const openComposer = useComposerStore((state) => state.openComposer);
+
+	const [isVerificationNoticeDismissed, setIsVerificationNoticeDismissed] =
+		useState(false);
 
 	const [posts, setPosts] = useState<Post[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +81,18 @@ export default function FeedScreen() {
 	const userId = user?.id;
 	const profileGuild = profile?.guild;
 	const profileRole = profile?.role;
+	const isStaff =
+		profileRole === "admin" ||
+		profileRole === "mod" ||
+		profileRole === "house_mod";
+	const showVerificationNotice = Boolean(
+		!isVerificationNoticeDismissed &&
+		userId &&
+		loadedUserId === userId &&
+		!isStaff &&
+		verification?.status !== "approved",
+	);
+	const isVerificationRejected = verification?.status === "rejected";
 
 	const loadData = useCallback(async () => {
 		if (!userId) return;
@@ -293,6 +310,68 @@ export default function FeedScreen() {
 
 		return (
 			<View className="mb-3 border-b border-border/25 pt-1 pb-3">
+				{showVerificationNotice && (
+					<View
+						className={`mb-3 flex-row items-start gap-2.5 border-2 p-3 shadow-neo-sm ${
+							isVerificationRejected
+								? "border-destructive bg-destructive-subtle"
+								: "border-border bg-card"
+						}`}>
+						<View className="mt-0.5 shrink-0">
+							{isVerificationRejected ? (
+								<AlertCircle
+									size={16}
+									color="#ff2a00"
+									strokeWidth={2.5}
+								/>
+							) : (
+								<Clock
+									size={16}
+									color="#000000"
+									strokeWidth={2.5}
+								/>
+							)}
+						</View>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="View verification status in profile"
+							onPress={() => {
+								triggerHaptic();
+								router.push("/(tabs)/profile");
+							}}
+							className="min-w-0 flex-1">
+							<Text
+								className={`font-bold text-xs tracking-wider uppercase ${
+									isVerificationRejected
+										? "text-destructive"
+										: "text-foreground"
+								}`}>
+								{isVerificationRejected
+									? "VERIFICATION REJECTED"
+									: "VERIFICATION PENDING"}
+							</Text>
+							<Text className="mt-0.5 font-mono text-[11px] leading-relaxed text-muted-foreground">
+								{isVerificationRejected
+									? verification?.rejection_reason?.trim()
+										? `${verification.rejection_reason.trim()} Tap to resubmit your student ID.`
+										: "Your student ID was rejected. Tap to resubmit in Profile."
+									: "Your student ID is under review. House features will unlock once approved — we'll email you when it's ready."}
+							</Text>
+						</Pressable>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Dismiss verification notice"
+							hitSlop={8}
+							onPress={() => {
+								triggerHaptic();
+								setIsVerificationNoticeDismissed(true);
+							}}
+							className="border border-border bg-surface p-1 active:bg-secondary">
+							<X size={12} color="#000000" strokeWidth={2.5} />
+						</Pressable>
+					</View>
+				)}
+
 				<View className="mb-2.5 flex-row gap-2">
 					<Pressable
 						accessibilityRole="tab"

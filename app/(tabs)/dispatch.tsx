@@ -29,6 +29,28 @@ import type { Post } from "@/features/posts/types";
 
 const STORAGE_POSTS_KEY = "impulse_posts_cache_v2";
 
+const HOUSE_FILTERS: {
+	id: "octagram" | "chameleon" | "blue_jays";
+	label: string;
+	accessibilityLabel: string;
+}[] = [
+	{
+		id: "octagram",
+		label: "OCTOGRAM",
+		accessibilityLabel: "Filter Octagram dispatches",
+	},
+	{
+		id: "chameleon",
+		label: "CHAMELEON",
+		accessibilityLabel: "Filter Chameleon dispatches",
+	},
+	{
+		id: "blue_jays",
+		label: "BLUE JAYS",
+		accessibilityLabel: "Filter Blue Jays dispatches",
+	},
+];
+
 const triggerHaptic = () => {
 	if (Platform.OS !== "web") {
 		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -212,6 +234,9 @@ export default function DispatchScreen() {
 		setPosts((prev) => [newDispatch, ...prev]);
 	}, []);
 
+	const effectiveFilter: DispatchFilterType =
+		userGuild && selectedFilter === userGuild ? "my_house" : selectedFilter;
+
 	// Map selected filter to standard filter options
 	const mappedFilter:
 		| "all"
@@ -219,7 +244,7 @@ export default function DispatchScreen() {
 		| "octagram"
 		| "chameleon"
 		| "blue_jays" =
-		selectedFilter === "my_house" ? (userGuild ?? "all") : selectedFilter;
+		effectiveFilter === "my_house" ? (userGuild ?? "all") : effectiveFilter;
 
 	const filteredPosts = filterDispatches(posts, mappedFilter, eventsOnly);
 
@@ -233,7 +258,7 @@ export default function DispatchScreen() {
 			};
 		}
 
-		switch (selectedFilter) {
+		switch (effectiveFilter) {
 			case "global":
 				return {
 					title: "NO CAMPUS-WIDE ANNOUNCEMENTS ACTIVE",
@@ -365,13 +390,13 @@ export default function DispatchScreen() {
 							setSelectedFilter("all");
 						}}
 						className={`border-2 border-border px-3 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-							selectedFilter === "all"
+							effectiveFilter === "all"
 								? "bg-primary"
 								: "bg-surface"
 						}`}>
 						<Text
 							className={`font-bold text-xs tracking-wider uppercase ${
-								selectedFilter === "all"
+								effectiveFilter === "all"
 									? "text-primary-foreground"
 									: "text-foreground"
 							}`}>
@@ -388,13 +413,13 @@ export default function DispatchScreen() {
 							setSelectedFilter("global");
 						}}
 						className={`border-2 border-border px-3 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-							selectedFilter === "global"
+							effectiveFilter === "global"
 								? "bg-primary"
 								: "bg-surface"
 						}`}>
 						<Text
 							className={`font-bold text-xs tracking-wider uppercase ${
-								selectedFilter === "global"
+								effectiveFilter === "global"
 									? "text-primary-foreground"
 									: "text-foreground"
 							}`}>
@@ -412,13 +437,13 @@ export default function DispatchScreen() {
 								setSelectedFilter("my_house");
 							}}
 							className={`border-2 border-border px-3 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-								selectedFilter === "my_house"
+								effectiveFilter === "my_house"
 									? "bg-primary"
 									: "bg-surface"
 							}`}>
 							<Text
 								className={`font-bold text-xs tracking-wider uppercase ${
-									selectedFilter === "my_house"
+									effectiveFilter === "my_house"
 										? "text-primary-foreground"
 										: "text-foreground"
 								}`}>
@@ -427,74 +452,33 @@ export default function DispatchScreen() {
 						</Pressable>
 					)}
 
-					{/* OCTOGRAM */}
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Filter Octagram dispatches"
-						onPress={() => {
-							triggerHaptic();
-							setSelectedFilter("octagram");
-						}}
-						className={`border-2 border-border px-3 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-							selectedFilter === "octagram"
-								? "bg-primary"
-								: "bg-surface"
-						}`}>
-						<Text
-							className={`font-bold text-xs tracking-wider uppercase ${
-								selectedFilter === "octagram"
-									? "text-primary-foreground"
-									: "text-foreground"
+					{/* OTHER HOUSES (exclude user's own house when aligned) */}
+					{HOUSE_FILTERS.filter(
+						(house) => house.id !== userGuild,
+					).map((house) => (
+						<Pressable
+							key={house.id}
+							accessibilityRole="button"
+							accessibilityLabel={house.accessibilityLabel}
+							onPress={() => {
+								triggerHaptic();
+								setSelectedFilter(house.id);
+							}}
+							className={`border-2 border-border px-3 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
+								effectiveFilter === house.id
+									? "bg-primary"
+									: "bg-surface"
 							}`}>
-							OCTOGRAM
-						</Text>
-					</Pressable>
-
-					{/* CHAMELEON */}
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Filter Chameleon dispatches"
-						onPress={() => {
-							triggerHaptic();
-							setSelectedFilter("chameleon");
-						}}
-						className={`border-2 border-border px-3 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-							selectedFilter === "chameleon"
-								? "bg-primary"
-								: "bg-surface"
-						}`}>
-						<Text
-							className={`font-bold text-xs tracking-wider uppercase ${
-								selectedFilter === "chameleon"
-									? "text-primary-foreground"
-									: "text-foreground"
-							}`}>
-							CHAMELEON
-						</Text>
-					</Pressable>
-
-					{/* BLUE JAYS */}
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Filter Blue Jays dispatches"
-						onPress={() => {
-							triggerHaptic();
-							setSelectedFilter("blue_jays");
-						}}
-						className={`border-2 border-border px-3 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-							selectedFilter === "blue_jays"
-								? "bg-primary"
-								: "bg-surface"
-						}`}>
-						<Text
-							className={`font-bold text-xs tracking-wider uppercase ${
-								selectedFilter === "blue_jays"
-									? "text-primary-foreground"
-									: "text-foreground"
-							}`}>
-							BLUE JAYS
-						</Text>
-					</Pressable>
+							<Text
+								className={`font-bold text-xs tracking-wider uppercase ${
+									effectiveFilter === house.id
+										? "text-primary-foreground"
+										: "text-foreground"
+								}`}>
+								{house.label}
+							</Text>
+						</Pressable>
+					))}
 
 					{/* EVENTS ONLY Toggle Chip */}
 					<Pressable
