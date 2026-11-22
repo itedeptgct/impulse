@@ -2,7 +2,16 @@ import { useAuthStore } from "@auth/store";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { AlertCircle, Clock, Flame, Plus, X } from "lucide-react-native";
+import {
+	AlertCircle,
+	Clock,
+	Flame,
+	Globe,
+	Plus,
+	Star,
+	X,
+	Zap,
+} from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
 	ActivityIndicator,
@@ -10,6 +19,7 @@ import {
 	Platform,
 	Pressable,
 	RefreshControl,
+	ScrollView,
 	Text,
 	View,
 } from "react-native";
@@ -21,16 +31,16 @@ import { PostCard } from "@/features/posts/components/PostCard";
 import { useComposerStore } from "@/features/posts/store";
 import type { FeedGuildFilter, FeedSort, Post } from "@/features/posts/types";
 
-const SORT_TABS: { key: FeedSort; label: string }[] = [
-	{ key: "hot", label: "HOT (🔥)" },
-	{ key: "new", label: "NEW (⚡)" },
-	{ key: "top", label: "TOP (★)" },
+const SORT_TABS: { key: FeedSort; label: string; icon: typeof Flame }[] = [
+	{ key: "hot", label: "HOT", icon: Flame },
+	{ key: "new", label: "NEW ", icon: Zap }, // for some reason, the W is not showing, hence the space
+	{ key: "top", label: "TOP", icon: Star },
 ];
 
 const HOUSE_META: Record<GuildId, { label: string; dotClass: string }> = {
-	octagram: { label: "OCTOGRAM", dotClass: "bg-neo-green" },
-	chameleon: { label: "CHAMELEON", dotClass: "bg-neo-magenta" },
-	blue_jays: { label: "BLUE JAYS", dotClass: "bg-neo-cyan" },
+	octagram: { label: "OCTOGRAM", dotClass: "bg-[#be0203]" },
+	chameleon: { label: "CHAMELEON", dotClass: "bg-[#0c7c28]" },
+	blue_jays: { label: "BLUE JAYS", dotClass: "bg-[#00E5FF]" },
 };
 
 const triggerHaptic = () => {
@@ -309,10 +319,10 @@ export default function FeedScreen() {
 		);
 
 		return (
-			<View className="mb-3 border-b border-border/25 pt-1 pb-3">
+			<View className="mb-2.5 border-b border-border/25 pb-2.5">
 				{showVerificationNotice && (
 					<View
-						className={`mb-3 flex-row items-start gap-2.5 border-2 p-3 shadow-neo-sm ${
+						className={`mb-2.5 flex-row items-start gap-2.5 border-2 p-3 shadow-neo-sm ${
 							isVerificationRejected
 								? "border-destructive bg-destructive-subtle"
 								: "border-border bg-card"
@@ -372,24 +382,30 @@ export default function FeedScreen() {
 					</View>
 				)}
 
-				<View className="mb-2.5 flex-row gap-2">
+				<View className="w-full flex-row items-center border-2 border-border bg-surface p-0.5 shadow-neo-xs">
 					<Pressable
 						accessibilityRole="tab"
 						accessibilityState={{ selected: isPublicSelected }}
+						accessibilityLabel="Public feed"
 						onPress={() => {
 							triggerHaptic();
 							setSelectedGuild("all");
 						}}
-						className={`min-h-9 flex-1 items-center justify-center border-2 border-border px-3 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
-							isPublicSelected ? "bg-primary" : "bg-surface"
+						className={`flex-1 flex-row items-center justify-center gap-1.5 px-3 py-1.5 active:opacity-85 ${
+							isPublicSelected ? "bg-primary" : "bg-transparent"
 						}`}>
+						<Globe
+							size={12}
+							color={isPublicSelected ? "#FAF9F5" : "#000000"}
+							strokeWidth={2.5}
+						/>
 						<Text
-							className={`font-bold text-xs uppercase ${
+							className={`font-bold text-xs tracking-wider uppercase ${
 								isPublicSelected
 									? "text-primary-foreground"
 									: "text-foreground"
 							}`}>
-							[PUBLIC]
+							PUBLIC
 						</Text>
 					</Pressable>
 
@@ -397,50 +413,67 @@ export default function FeedScreen() {
 						<Pressable
 							accessibilityRole="tab"
 							accessibilityState={{ selected: isHouseSelected }}
+							accessibilityLabel={`${houseMeta?.label ?? "House"} feed`}
 							onPress={() => {
 								triggerHaptic();
-								if (!currentHouse) {
-									router.push("/(tabs)/guilds");
-									return;
-								}
 								setSelectedGuild(currentHouse);
 							}}
-							className={`min-h-9 flex-1 flex-row items-center justify-center gap-1.5 border-2 border-border px-3 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
+							className={`flex-1 flex-row items-center justify-center gap-1.5 px-3 py-1 active:opacity-85 ${
 								isHouseSelected
-									? `${HOUSE_META[currentHouse]?.dotClass}`
-									: "bg-surface"
+									? "bg-primary"
+									: "bg-transparent"
 							}`}>
-							<Text
-								className={`font-bold text-xs uppercase ${
+							<View
+								className={`size-2 border ${
 									isHouseSelected
-										? "text-primary"
+										? "border-primary-foreground/60"
+										: "border-border"
+								} ${HOUSE_META[currentHouse]?.dotClass ?? "bg-neo-green"}`}
+							/>
+							<Text
+								className={`font-bold text-xs tracking-wider uppercase ${
+									isHouseSelected
+										? "text-primary-foreground"
 										: "text-foreground"
 								}`}>
-								{houseMeta ? `[HOUSE FEED]` : "[NO HOUSE]"}
+								{houseMeta ? "HOUSE FEED" : "NO HOUSE"}
 							</Text>
 						</Pressable>
 					)}
 				</View>
 
-				<View className="flex-row border-2 border-border bg-surface shadow-neo-sm">
-					{SORT_TABS.map((tab, idx) => {
+				<ScrollView
+					horizontal
+					showsHorizontalScrollIndicator={false}
+					contentContainerStyle={{
+						flexGrow: 1,
+						gap: 6,
+						paddingVertical: 1,
+					}}
+					className="mt-1.5 w-full">
+					{SORT_TABS.map((tab) => {
 						const active = selectedSort === tab.key;
+						const Icon = tab.icon;
 						return (
 							<Pressable
 								key={tab.key}
 								accessibilityRole="tab"
 								accessibilityState={{ selected: active }}
+								accessibilityLabel={`Sort by ${tab.label.toLowerCase()}`}
 								onPress={() => {
 									triggerHaptic();
 									setSelectedSort(tab.key);
 								}}
-								className={`min-h-9 flex-1 items-center justify-center py-2 ${
-									idx < SORT_TABS.length - 1
-										? "border-r-2 border-border"
-										: ""
-								} ${active ? "bg-primary" : "bg-surface"}`}>
+								className={`min-w-20 flex-1 flex-row items-center justify-center gap-1.5 border-2 border-border px-2.5 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
+									active ? "bg-primary" : "bg-surface"
+								}`}>
+								<Icon
+									size={12}
+									color={active ? "#00FF66" : "#000000"}
+									strokeWidth={2.5}
+								/>
 								<Text
-									className={`font-bold text-xs uppercase ${
+									className={`font-bold text-xs tracking-wider uppercase ${
 										active
 											? "text-primary-foreground"
 											: "text-foreground"
@@ -450,7 +483,7 @@ export default function FeedScreen() {
 							</Pressable>
 						);
 					})}
-				</View>
+				</ScrollView>
 
 				{error && posts.length > 0 && (
 					<View className="mt-3">
@@ -514,7 +547,8 @@ export default function FeedScreen() {
 					NO POSTS YET
 				</Text>
 				<Text className="mt-1.5 text-center font-mono text-xs leading-relaxed text-foreground/70">
-					yo, its ur chance to say "first" like a yt comment HAHAHAHA
+					yo, its ur chance to say &quot;first&quot; like a yt comment
+					HAHAHAHA
 				</Text>
 				<Pressable
 					accessibilityRole="button"
@@ -554,7 +588,7 @@ export default function FeedScreen() {
 				onEndReached={loadMore}
 				onEndReachedThreshold={0.5}
 				contentContainerStyle={{
-					paddingTop: 12,
+					paddingTop: 8,
 					paddingBottom: 92,
 					paddingHorizontal: 16,
 					maxWidth: 672,

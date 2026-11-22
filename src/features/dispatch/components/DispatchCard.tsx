@@ -17,6 +17,7 @@ import { Platform, Pressable, Text, View } from "react-native";
 
 import {
 	LinkifiedText,
+	LinkPreviewList,
 	MobileAlertSheet,
 	MobileSheet,
 	NeoButton,
@@ -280,9 +281,18 @@ function DispatchCardComponent({
 						</View>
 					)}
 
-					<LinkifiedText className="mb-3.5 font-mono text-sm leading-relaxed text-foreground">
+					<LinkifiedText
+						hideStandaloneUrls
+						compactInlineLinks
+						className="mb-3.5 font-mono text-sm leading-relaxed text-foreground">
 						{post.content}
 					</LinkifiedText>
+
+					<LinkPreviewList
+						text={post.content}
+						maxLinks={3}
+						className="mb-3.5"
+					/>
 
 					{post.code_snippet && (
 						<TerminalCodeViewport

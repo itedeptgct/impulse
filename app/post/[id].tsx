@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
 	LinkifiedText,
+	LinkPreviewList,
 	MobileAlertSheet,
 	MobileSheet,
 	NeoButton,
@@ -855,9 +856,18 @@ export default function PostDetailScreen() {
 								{post.title}
 							</Text>
 
-							<LinkifiedText className="mt-3.5 font-mono text-sm leading-relaxed text-foreground select-text sm:text-base">
+							<LinkifiedText
+								hideStandaloneUrls
+								compactInlineLinks
+								className="mt-3.5 font-mono text-sm leading-relaxed text-foreground select-text sm:text-base">
 								{post.content}
 							</LinkifiedText>
+
+							<LinkPreviewList
+								text={post.content}
+								maxLinks={4}
+								className="mt-3.5"
+							/>
 
 							{/* Neo-brutalist Terminal Code Viewport */}
 							{post.code_snippet && (

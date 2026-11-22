@@ -1,4 +1,5 @@
 export * from "./LinkifiedText";
+export * from "./LinkPreviewCard";
 export * from "./NeoBadge";
 export * from "./NeoButton";
 export * from "./NeoCard";

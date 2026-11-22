@@ -1,62 +1,27 @@
+import * as WebBrowser from "expo-web-browser";
 import React, { useMemo } from "react";
 import { Linking, Text, type TextProps } from "react-native";
+
+import {
+	formatCompactInlineLink,
+	normalizeHref,
+	splitUrlTrailingPunctuation,
+	stripStandaloneLinkLines,
+} from "@/lib/link-preview";
 
 export interface LinkifiedTextProps extends Omit<TextProps, "children"> {
 	children: string;
 	linkClassName?: string;
+	hideStandaloneUrls?: boolean;
+	compactInlineLinks?: boolean;
 }
 
 const URL_REGEX = /((?:https?:\/\/|www\.)[^\s<>"']+)/gi;
-const TRAILING_PUNCTUATION = /[.,!?;:'"\]]+$/;
 
 interface TextSegment {
 	type: "text" | "link";
 	value: string;
 	href?: string;
-}
-
-function normalizeHref(rawUrl: string): string | null {
-	const candidate = /^https?:\/\//i.test(rawUrl)
-		? rawUrl
-		: `https://${rawUrl}`;
-	try {
-		const parsed = new URL(candidate);
-		if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-			return null;
-		}
-		return parsed.toString();
-	} catch {
-		return null;
-	}
-}
-
-function splitUrlTrailingPunctuation(raw: string): {
-	url: string;
-	trailing: string;
-} {
-	let url = raw;
-	let trailing = "";
-
-	while (url.length > 0) {
-		const punctMatch = url.match(TRAILING_PUNCTUATION);
-		if (punctMatch) {
-			trailing = punctMatch[0] + trailing;
-			url = url.slice(0, -punctMatch[0].length);
-			continue;
-		}
-		if (url.endsWith(")")) {
-			const openCount = (url.match(/\(/g) || []).length;
-			const closeCount = (url.match(/\)/g) || []).length;
-			if (closeCount > openCount) {
-				trailing = ")" + trailing;
-				url = url.slice(0, -1);
-				continue;
-			}
-		}
-		break;
-	}
-
-	return { url, trailing };
 }
 
 function parseSegments(text: string): TextSegment[] {
@@ -113,26 +78,56 @@ function parseSegments(text: string): TextSegment[] {
 
 export function LinkifiedText({
 	children,
-	linkClassName = "text-accent underline",
+	linkClassName,
+	hideStandaloneUrls = false,
+	compactInlineLinks = false,
 	...textProps
 }: LinkifiedTextProps) {
-	const segments = useMemo(() => parseSegments(children), [children]);
+	const processedText = useMemo(
+		() =>
+			hideStandaloneUrls ? stripStandaloneLinkLines(children) : children,
+		[children, hideStandaloneUrls],
+	);
+
+	const segments = useMemo(
+		() => parseSegments(processedText),
+		[processedText],
+	);
+
+	if (!processedText) {
+		return null;
+	}
+
+	const resolvedLinkClass =
+		linkClassName ??
+		(compactInlineLinks
+			? "font-bold text-foreground underline"
+			: "text-accent underline");
 
 	return (
 		<Text {...textProps}>
 			{segments.map((segment, index) => {
 				if (segment.type === "link" && segment.href) {
 					const href = segment.href;
+					const label = compactInlineLinks
+						? formatCompactInlineLink(href)
+						: segment.value;
 					return (
 						<Text
 							key={`${index}-${href}`}
 							accessibilityRole="link"
 							onPress={(e) => {
 								e.stopPropagation();
-								void Linking.openURL(href).catch(() => {});
+								void WebBrowser.openBrowserAsync(href).catch(
+									() => {
+										void Linking.openURL(href).catch(
+											() => {},
+										);
+									},
+								);
 							}}
-							className={linkClassName}>
-							{segment.value}
+							className={resolvedLinkClass}>
+							{label}
 						</Text>
 					);
 				}
