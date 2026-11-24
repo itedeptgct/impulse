@@ -8,4 +8,5 @@ export * from "./NetworkErrorCard";
 export * from "./MobileAlertSheet";
 export * from "./MobileSheet";
 export * from "./MobileTopBar";
+export * from "./OnboardingBackground";
 export * from "./TerminalCodeViewport";

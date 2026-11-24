@@ -23,9 +23,10 @@ import {
 	RefreshControl,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 
-import { MobileTopBar, NeoButton } from "@/components/ui";
+import { MobileTopBar, NeoButton, OnboardingBackground } from "@/components/ui";
 import { NotificationPreferencesModal } from "@/features/notifications/components/NotificationPreferencesModal";
 import {
 	useDeleteNotification,
@@ -100,6 +101,8 @@ function NotificationTypeBadge({ type }: { type: NotificationType }) {
 
 export default function NotificationsScreen() {
 	const user = useAuthStore((state) => state.user);
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const userId = user?.id;
 
 	const [isPrefsOpen, setIsPrefsOpen] = useState(false);
@@ -291,49 +294,70 @@ export default function NotificationsScreen() {
 
 	return (
 		<View className="flex-1 bg-background">
-			<MobileTopBar sector="NOTIFICATIONS" showBackButton />
+			{isDesktop && <OnboardingBackground />}
+			<MobileTopBar
+				sector="NOTIFICATIONS"
+				showBackButton
+				desktopCompact
+			/>
 
 			{/* Action Header Bar */}
-			<View className="flex-row items-center justify-between border-b-2 border-border bg-surface px-4 py-2.5">
-				<View className="flex-row items-center gap-2">
-					<Bell size={15} color="#000000" strokeWidth={2.5} />
-					<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-						Activity Feed
-					</Text>
-				</View>
-
-				<View className="flex-row items-center gap-2">
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Mark all notifications as read"
-						disabled={!hasUnread || markAllRead.isPending}
-						onPress={handleMarkAllRead}
-						className={`flex-row items-center gap-1.5 border-2 border-border px-2.5 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-							hasUnread
-								? "bg-neo-green"
-								: "bg-background opacity-50"
-						}`}>
-						<CheckCheck
-							size={13}
-							color="#000000"
-							strokeWidth={2.5}
-						/>
-						<Text className="font-bold text-[11px] text-foreground uppercase">
-							Mark all as read
+			<View className="border-b-2 border-border bg-surface">
+				<View
+					className="flex-row items-center justify-between px-4 py-2.5"
+					style={
+						isDesktop
+							? {
+									width: "100%",
+									maxWidth: 960,
+									alignSelf: "center",
+								}
+							: undefined
+					}>
+					<View className="flex-row items-center gap-2">
+						<Bell size={15} color="#000000" strokeWidth={2.5} />
+						<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
+							Activity Feed
 						</Text>
-					</Pressable>
+					</View>
 
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Notification preferences"
-						hitSlop={6}
-						onPress={() => {
-							triggerHaptic();
-							setIsPrefsOpen(true);
-						}}
-						className="size-8 items-center justify-center border-2 border-border bg-background shadow-neo-xs active:translate-x-px active:translate-y-px">
-						<Settings size={15} color="#000000" strokeWidth={2.5} />
-					</Pressable>
+					<View className="flex-row items-center gap-2">
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Mark all notifications as read"
+							disabled={!hasUnread || markAllRead.isPending}
+							onPress={handleMarkAllRead}
+							className={`flex-row items-center gap-1.5 border-2 border-border px-2.5 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
+								hasUnread
+									? "bg-neo-green"
+									: "bg-background opacity-50"
+							}`}>
+							<CheckCheck
+								size={13}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+							<Text className="font-bold text-[11px] text-foreground uppercase">
+								Mark all as read
+							</Text>
+						</Pressable>
+
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Notification preferences"
+							hitSlop={6}
+							onPress={() => {
+								triggerHaptic();
+								setIsPrefsOpen(true);
+							}}
+							className="size-8 items-center justify-center border-2 border-border bg-background shadow-neo-xs active:translate-x-px active:translate-y-px">
+							<Settings
+								size={15}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						</Pressable>
+					</View>
 				</View>
 			</View>
 
@@ -381,6 +405,15 @@ export default function NotificationsScreen() {
 					data={notifications}
 					keyExtractor={(item) => item.id}
 					renderItem={renderItem}
+					style={
+						isDesktop
+							? {
+									width: "100%",
+									maxWidth: 960,
+									alignSelf: "center",
+								}
+							: undefined
+					}
 					contentContainerStyle={
 						notifications.length === 0
 							? { flexGrow: 1, justifyContent: "center" }

@@ -14,9 +14,14 @@ import {
 	ScrollView,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 
-import { MobileTopBar, NetworkErrorCard } from "@/components/ui";
+import {
+	MobileTopBar,
+	NetworkErrorCard,
+	OnboardingBackground,
+} from "@/components/ui";
 import { canCreateDispatch } from "@/features/auth/permissions";
 import { DispatchCard } from "@/features/dispatch/components/DispatchCard";
 import { DispatchComposerModal } from "@/features/dispatch/components/DispatchComposerModal";
@@ -58,6 +63,8 @@ const triggerHaptic = () => {
 };
 
 export default function DispatchScreen() {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 	const refreshUserData = useAuthStore((state) => state.refreshUserData);
@@ -516,7 +523,8 @@ export default function DispatchScreen() {
 	return (
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
-			<MobileTopBar sector="DISPATCH" dotColor="#FFE600" />
+			{isDesktop && <OnboardingBackground />}
+			<MobileTopBar sector="DISPATCH" dotColor="#FFE600" desktopCompact />
 
 			{isLoading ? (
 				<View className="flex-1 items-center justify-center">
@@ -539,9 +547,9 @@ export default function DispatchScreen() {
 					ListEmptyComponent={renderEmpty}
 					contentContainerStyle={{
 						paddingTop: 12,
-						paddingBottom: 96,
-						paddingHorizontal: 16,
-						maxWidth: 672,
+						paddingBottom: isDesktop ? 32 : 96,
+						paddingHorizontal: isDesktop ? 24 : 16,
+						maxWidth: isDesktop ? 960 : 672,
 						width: "100%",
 						alignSelf: "center",
 					}}
@@ -574,7 +582,12 @@ export default function DispatchScreen() {
 						triggerHaptic();
 						setIsComposerOpen(true);
 					}}
-					className="bg-neo-yellow absolute right-4 bottom-6 z-20 flex-row items-center gap-1.5 border-2 border-border px-4 py-3 shadow-neo active:translate-x-0.5 active:translate-y-0.5">
+					className="bg-neo-yellow absolute right-4 bottom-6 z-20 flex-row items-center gap-1.5 border-2 border-border px-4 py-3 shadow-neo active:translate-x-0.5 active:translate-y-0.5"
+					style={
+						isDesktop
+							? { right: Math.max(24, (width - 960) / 2) }
+							: undefined
+					}>
 					<Plus size={16} color="#000000" strokeWidth={3} />
 					<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 						[DISPATCH]

@@ -17,7 +17,14 @@ import {
 	XCircle,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+	useWindowDimensions,
+} from "react-native";
 
 import {
 	MobileAlertSheet,
@@ -67,6 +74,8 @@ const ROLE_OPTIONS: { role: UserRole; label: string; desc: string }[] = [
 ];
 
 export function AdminUserDirectory() {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const currentUserId = useAuthStore((state) => state.user?.id);
 	const [search, setSearch] = useState("");
 	const [roleFilter, setRoleFilter] = useState("all");
@@ -296,7 +305,10 @@ export function AdminUserDirectory() {
 					</Text>
 				</NeoCard>
 			) : (
-				<View className="gap-3">
+				<View
+					className={
+						isDesktop ? "flex-row flex-wrap gap-3" : "gap-3"
+					}>
 					{users.map((u) => {
 						const verifStatus = u.verification?.status || "none";
 						const isCallingAdmin = Boolean(
@@ -307,6 +319,11 @@ export function AdminUserDirectory() {
 						return (
 							<NeoCard
 								key={u.id}
+								style={
+									isDesktop
+										? { width: "48%", minWidth: 380 }
+										: undefined
+								}
 								className="gap-3 border-border bg-card p-4">
 								<View className="flex-row items-center gap-3">
 									<View className="size-11 items-center justify-center overflow-hidden rounded-none border-2 border-border bg-muted">

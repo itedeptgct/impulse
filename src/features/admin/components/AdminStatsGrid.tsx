@@ -5,7 +5,7 @@ import {
 	Users,
 	XCircle,
 } from "lucide-react-native";
-import { Text, View } from "react-native";
+import { Platform, Text, View, useWindowDimensions } from "react-native";
 
 import { NeoCard } from "@/components/ui";
 
@@ -16,6 +16,8 @@ interface AdminStatsGridProps {
 }
 
 export function AdminStatsGrid({ stats }: AdminStatsGridProps) {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const totalUsers = stats?.totalUsers ?? 0;
 	const totalPosts = stats?.totalPosts ?? 0;
 	const pending = stats?.pendingVerifications ?? 0;
@@ -25,7 +27,10 @@ export function AdminStatsGrid({ stats }: AdminStatsGridProps) {
 	return (
 		<View className="flex-row flex-wrap gap-3">
 			<NeoCard
-				className={`min-w-[45%] flex-1 p-4 ${
+				style={
+					isDesktop ? { flexBasis: "18%", minWidth: 150 } : undefined
+				}
+				className={`${isDesktop ? "flex-1" : "min-w-[45%] flex-1"} p-4 ${
 					pending > 0
 						? "border-2 border-border bg-card shadow-neo-sm"
 						: "border-border bg-card"
@@ -49,7 +54,11 @@ export function AdminStatsGrid({ stats }: AdminStatsGridProps) {
 				</Text>
 			</NeoCard>
 
-			<NeoCard className="min-w-[45%] flex-1 border-border bg-card p-4">
+			<NeoCard
+				style={
+					isDesktop ? { flexBasis: "18%", minWidth: 150 } : undefined
+				}
+				className={`${isDesktop ? "flex-1" : "min-w-[45%] flex-1"} border-border bg-card p-4`}>
 				<View className="flex-row items-center justify-between">
 					<Text className="font-bold text-xs tracking-wider text-muted-foreground uppercase">
 						Total Users
@@ -66,7 +75,11 @@ export function AdminStatsGrid({ stats }: AdminStatsGridProps) {
 				</Text>
 			</NeoCard>
 
-			<NeoCard className="min-w-[45%] flex-1 border-border bg-card p-4">
+			<NeoCard
+				style={
+					isDesktop ? { flexBasis: "18%", minWidth: 150 } : undefined
+				}
+				className={`${isDesktop ? "flex-1" : "min-w-[45%] flex-1"} border-border bg-card p-4`}>
 				<View className="flex-row items-center justify-between">
 					<Text className="font-bold text-xs tracking-wider text-muted-foreground uppercase">
 						Approved
@@ -87,7 +100,11 @@ export function AdminStatsGrid({ stats }: AdminStatsGridProps) {
 				</Text>
 			</NeoCard>
 
-			<NeoCard className="min-w-[45%] flex-1 border-border bg-card p-4">
+			<NeoCard
+				style={
+					isDesktop ? { flexBasis: "18%", minWidth: 150 } : undefined
+				}
+				className={`${isDesktop ? "flex-1" : "min-w-[45%] flex-1"} border-border bg-card p-4`}>
 				<View className="flex-row items-center justify-between">
 					<Text className="font-bold text-xs tracking-wider text-muted-foreground uppercase">
 						Rejected
@@ -104,7 +121,11 @@ export function AdminStatsGrid({ stats }: AdminStatsGridProps) {
 				</Text>
 			</NeoCard>
 
-			<NeoCard className="min-w-[45%] flex-1 border-border bg-card p-4">
+			<NeoCard
+				style={
+					isDesktop ? { flexBasis: "18%", minWidth: 150 } : undefined
+				}
+				className={`${isDesktop ? "flex-1" : "min-w-[45%] flex-1"} border-border bg-card p-4`}>
 				<View className="flex-row items-center justify-between">
 					<Text className="font-bold text-xs tracking-wider text-muted-foreground uppercase">
 						Transmissions

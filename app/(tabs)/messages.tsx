@@ -16,10 +16,12 @@ import {
 	Alert,
 	FlatList,
 	Pressable,
+	Platform,
 	RefreshControl,
 	Text,
 	TextInput,
 	View,
+	useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -28,6 +30,7 @@ import {
 	MobileSheet,
 	MobileTopBar,
 	NetworkErrorCard,
+	OnboardingBackground,
 } from "@/components/ui";
 import {
 	deleteOrLeaveConversation,
@@ -45,6 +48,8 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 export default function MessagesScreen() {
 	const insets = useSafeAreaInsets();
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const userId = useAuthStore((s) => s.user?.id);
 
 	const conversations = useMessagesStore((s) => s.conversations);
@@ -294,40 +299,57 @@ export default function MessagesScreen() {
 	return (
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
-			<MobileTopBar sector="MESSAGES" dotColor="#00FF66" />
+			{isDesktop && <OnboardingBackground />}
+			<MobileTopBar sector="MESSAGES" dotColor="#00FF66" desktopCompact />
 
-			<View className="border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
-				<View className="flex-row items-center gap-2.5">
-					<View className="flex-1 flex-row items-center border-2 border-border bg-surface px-3 py-2 shadow-neo-sm">
-						<Search size={15} color="#000000" strokeWidth={2.5} />
-						<TextInput
-							value={searchQuery}
-							onChangeText={setSearchQuery}
-							placeholder="Search chats or users..."
-							placeholderTextColor="rgba(0, 0, 0, 0.4)"
-							autoCapitalize="none"
-							autoCorrect={false}
-							className="flex-1 px-2 font-mono text-xs text-foreground"
-						/>
-						{searchQuery ? (
-							<Pressable
-								accessibilityRole="button"
-								accessibilityLabel="Clear search"
-								onPress={() => setSearchQuery("")}
-								hitSlop={8}
-								className="border border-border bg-card p-1">
-								<X size={12} color="#000000" />
-							</Pressable>
-						) : null}
+			<View className="border-b-2 border-border bg-card shadow-neo-sm">
+				<View
+					className="px-4 py-3"
+					style={
+						isDesktop
+							? {
+									width: "100%",
+									maxWidth: 1100,
+									alignSelf: "center",
+								}
+							: undefined
+					}>
+					<View className="flex-row items-center gap-2.5">
+						<View className="flex-1 flex-row items-center border-2 border-border bg-surface px-3 py-2 shadow-neo-sm">
+							<Search
+								size={15}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+							<TextInput
+								value={searchQuery}
+								onChangeText={setSearchQuery}
+								placeholder="Search chats or users..."
+								placeholderTextColor="rgba(0, 0, 0, 0.4)"
+								autoCapitalize="none"
+								autoCorrect={false}
+								className="flex-1 px-2 font-mono text-xs text-foreground"
+							/>
+							{searchQuery ? (
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Clear search"
+									onPress={() => setSearchQuery("")}
+									hitSlop={8}
+									className="border border-border bg-card p-1">
+									<X size={12} color="#000000" />
+								</Pressable>
+							) : null}
+						</View>
+
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="New conversation"
+							onPress={handleOpenNewMessage}
+							className="size-10 items-center justify-center border-2 border-border bg-neo-green shadow-neo-sm active:translate-x-px active:translate-y-px">
+							<Plus size={18} color="#000000" strokeWidth={2.5} />
+						</Pressable>
 					</View>
-
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="New conversation"
-						onPress={handleOpenNewMessage}
-						className="size-10 items-center justify-center border-2 border-border bg-neo-green shadow-neo-sm active:translate-x-px active:translate-y-px">
-						<Plus size={18} color="#000000" strokeWidth={2.5} />
-					</Pressable>
 				</View>
 			</View>
 
@@ -352,6 +374,15 @@ export default function MessagesScreen() {
 					data={filteredConversations}
 					keyExtractor={(item) => item.id}
 					renderItem={renderItem}
+					style={
+						isDesktop
+							? {
+									width: "100%",
+									maxWidth: 1100,
+									alignSelf: "center",
+								}
+							: undefined
+					}
 					refreshControl={
 						<RefreshControl
 							refreshing={isRefreshing}
@@ -361,6 +392,7 @@ export default function MessagesScreen() {
 					}
 					contentContainerStyle={{
 						flexGrow: 1,
+						paddingHorizontal: isDesktop ? 16 : 0,
 						paddingBottom: insets.bottom + 24,
 					}}
 					ListEmptyComponent={

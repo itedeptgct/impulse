@@ -22,9 +22,14 @@ import {
 	ScrollView,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 
-import { MobileTopBar, NetworkErrorCard } from "@/components/ui";
+import {
+	MobileTopBar,
+	NetworkErrorCard,
+	OnboardingBackground,
+} from "@/components/ui";
 import type { GuildId } from "@/features/guilds/types";
 import { fetchFeedPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
@@ -50,6 +55,8 @@ const triggerHaptic = () => {
 };
 
 export default function FeedScreen() {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const params = useLocalSearchParams<{ guild?: string }>();
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
@@ -570,7 +577,8 @@ export default function FeedScreen() {
 	return (
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
-			<MobileTopBar sector="FEED" dotColor="#00FF66" />
+			{isDesktop && <OnboardingBackground />}
+			<MobileTopBar sector="FEED" dotColor="#00FF66" desktopCompact />
 
 			<FlatList
 				data={posts}
@@ -588,10 +596,10 @@ export default function FeedScreen() {
 				onEndReached={loadMore}
 				onEndReachedThreshold={0.5}
 				contentContainerStyle={{
-					paddingTop: 8,
-					paddingBottom: 92,
-					paddingHorizontal: 16,
-					maxWidth: 672,
+					paddingTop: 12,
+					paddingBottom: isDesktop ? 32 : 92,
+					paddingHorizontal: isDesktop ? 24 : 16,
+					maxWidth: isDesktop ? 840 : 672,
 					width: "100%",
 					alignSelf: "center",
 				}}
@@ -615,7 +623,13 @@ export default function FeedScreen() {
 				showsVerticalScrollIndicator={false}
 			/>
 
-			<View className="absolute right-4 bottom-4 z-20">
+			<View
+				className="absolute right-4 bottom-4 z-20"
+				style={
+					isDesktop
+						? { right: Math.max(24, (width - 840) / 2) }
+						: undefined
+				}>
 				<Pressable
 					accessibilityRole="button"
 					accessibilityLabel="Create new post"

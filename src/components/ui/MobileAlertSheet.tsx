@@ -6,7 +6,13 @@ import {
 } from "lucide-react-native";
 import { BottomSheet, Text } from "panelui-native";
 import React from "react";
-import { View } from "react-native";
+import {
+	Modal,
+	Platform,
+	Pressable,
+	View,
+	useWindowDimensions,
+} from "react-native";
 
 import { NeoButton } from "./NeoButton";
 
@@ -38,6 +44,9 @@ export function MobileAlertSheet({
 	actions,
 	children,
 }: MobileAlertSheetProps) {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
+
 	const defaultIcon = () => {
 		if (icon) return icon;
 		switch (type) {
@@ -77,6 +86,73 @@ export function MobileAlertSheet({
 						variant: "outline",
 					},
 				];
+
+	if (isDesktop) {
+		return (
+			<Modal
+				visible={open}
+				transparent
+				animationType="fade"
+				presentationStyle="overFullScreen"
+				onRequestClose={() => onOpenChange(false)}>
+				<View className="flex-1 items-center justify-center bg-black/45 p-6">
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Close confirmation"
+						className="absolute inset-0"
+						onPress={() => onOpenChange(false)}
+					/>
+					<View
+						accessibilityViewIsModal
+						className="w-full max-w-lg border-2 border-border bg-background p-6 shadow-neo-lg">
+						<View className="mb-4 flex-row items-start gap-3">
+							<View
+								className={`size-10 shrink-0 items-center justify-center border-2 ${iconBgClass()} shadow-neo-sm`}>
+								{defaultIcon()}
+							</View>
+							<View className="min-w-0 flex-1 pr-1">
+								<Text
+									weight="bold"
+									className="font-mono text-base tracking-tight text-foreground uppercase">
+									{title}
+								</Text>
+								{description && (
+									<Text className="mt-1 font-mono text-xs leading-relaxed text-muted-foreground">
+										{description}
+									</Text>
+								)}
+							</View>
+						</View>
+
+						{children && <View className="mb-4">{children}</View>}
+
+						<View
+							className={`mt-2 ${
+								defaultActions.length === 2
+									? "flex-row gap-3"
+									: "gap-2.5"
+							}`}>
+							{defaultActions.map((action, index) => (
+								<NeoButton
+									key={`${action.label}-${index}`}
+									size="md"
+									variant={action.variant || "outline"}
+									loading={action.loading}
+									onPress={action.onPress}
+									className={
+										defaultActions.length === 2
+											? "flex-1"
+											: "w-full"
+									}>
+									{action.label}
+								</NeoButton>
+							))}
+						</View>
+					</View>
+				</View>
+			</Modal>
+		);
+	}
 
 	return (
 		<BottomSheet open={open} onOpenChange={onOpenChange}>

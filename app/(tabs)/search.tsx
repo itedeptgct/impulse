@@ -9,15 +9,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	FlatList,
+	Platform,
 	Pressable,
 	ScrollView,
 	Text,
 	TextInput,
 	View,
+	useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { MobileTopBar, NetworkErrorCard } from "@/components/ui";
+import {
+	MobileTopBar,
+	NetworkErrorCard,
+	OnboardingBackground,
+} from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import { searchPosts, votePost } from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
@@ -47,6 +53,8 @@ type SearchRow =
 
 export default function SearchScreen() {
 	const insets = useSafeAreaInsets();
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 
@@ -265,7 +273,17 @@ export default function SearchScreen() {
 		({ item }: { item: SearchRow }) => {
 			if (item.type === "header") {
 				return (
-					<View className="mt-2 mb-3 flex-row items-center gap-2">
+					<View
+						className="mt-2 mb-3 flex-row items-center gap-2"
+						style={
+							isDesktop
+								? {
+										width: "100%",
+										maxWidth: 820,
+										alignSelf: "center",
+									}
+								: undefined
+						}>
 						{item.icon === "users" ? (
 							<Users
 								size={14}
@@ -291,7 +309,17 @@ export default function SearchScreen() {
 				const uInitials = (uName || "S").slice(0, 2).toUpperCase();
 
 				return (
-					<View className="mb-2.5">
+					<View
+						className="mb-2.5"
+						style={
+							isDesktop
+								? {
+										width: "100%",
+										maxWidth: 760,
+										alignSelf: "center",
+									}
+								: undefined
+						}>
 						<Pressable
 							onPress={() => {
 								if (usr.username) {
@@ -372,7 +400,17 @@ export default function SearchScreen() {
 			}
 
 			return (
-				<View className="mb-4">
+				<View
+					className="mb-4"
+					style={
+						isDesktop
+							? {
+									width: "100%",
+									maxWidth: 820,
+									alignSelf: "center",
+								}
+							: undefined
+					}>
 					<PostCard
 						post={item.post}
 						onVote={handleVote}
@@ -383,7 +421,13 @@ export default function SearchScreen() {
 				</View>
 			);
 		},
-		[handleVote, handleOpenComments, handlePostUpdated, handlePostDeleted],
+		[
+			handleVote,
+			handleOpenComments,
+			handlePostUpdated,
+			handlePostDeleted,
+			isDesktop,
+		],
 	);
 
 	const keyExtractor = useCallback((item: SearchRow) => item.id, []);
@@ -435,69 +479,92 @@ export default function SearchScreen() {
 			style={{ flex: 1, backgroundColor: "#faf9f5" }}
 			className="flex-1 bg-background text-foreground">
 			<StatusBar style="dark" />
+			{isDesktop && <OnboardingBackground />}
 
 			<MobileTopBar
 				sector="SEARCH"
 				dotColor="#FF2A00"
 				showBackButton={true}
+				desktopCompact
 			/>
 
-			<View className="border-b-2 border-border bg-card px-4 pt-3 pb-3.5 shadow-neo-sm">
-				<View className="mt-2 flex-row items-center rounded-none border-2 border-border bg-surface px-3 py-2 shadow-neo-sm focus-within:border-border">
-					<Search size={16} color="#000000" strokeWidth={2.5} />
-					<TextInput
-						value={query}
-						onChangeText={handleQueryChange}
-						placeholder="Search by keywords, #tag, or @handle..."
-						placeholderTextColor="rgba(0, 0, 0, 0.4)"
-						autoCapitalize="none"
-						autoCorrect={false}
-						returnKeyType="search"
-						onSubmitEditing={() => executeSearch(query)}
-						className="flex-1 px-2.5 font-mono text-xs text-foreground"
-					/>
-					{query ? (
-						<Pressable
-							onPress={handleClear}
-							hitSlop={8}
-							className="rounded-none border border-border bg-card p-1">
-							<X size={13} color="#000000" />
-						</Pressable>
-					) : null}
-				</View>
+			<View className="border-b-2 border-border bg-card shadow-neo-sm">
+				<View
+					className="w-full px-4 pt-3 pb-3.5"
+					style={
+						isDesktop
+							? {
+									maxWidth: 960,
+									alignSelf: "center",
+								}
+							: undefined
+					}>
+					<View className="mt-2 flex-row items-center rounded-none border-2 border-border bg-surface px-3 py-2 shadow-neo-sm focus-within:border-border">
+						<Search size={16} color="#000000" strokeWidth={2.5} />
+						<TextInput
+							value={query}
+							onChangeText={handleQueryChange}
+							placeholder="Search by keywords, #tag, or @handle..."
+							placeholderTextColor="rgba(0, 0, 0, 0.4)"
+							autoCapitalize="none"
+							autoCorrect={false}
+							returnKeyType="search"
+							onSubmitEditing={() => executeSearch(query)}
+							className="flex-1 px-2.5 font-mono text-xs text-foreground"
+						/>
+						{query ? (
+							<Pressable
+								onPress={handleClear}
+								hitSlop={8}
+								className="rounded-none border border-border bg-card p-1">
+								<X size={13} color="#000000" />
+							</Pressable>
+						) : null}
+					</View>
 
-				<View className="mt-3 flex-row gap-2">
-					{(["all", "posts", "users"] as SearchFilterTab[]).map(
-						(tab) => {
-							const isSelected = activeTab === tab;
-							const label =
-								tab === "all"
-									? "ALL RESULTS"
-									: tab === "posts"
-										? `POSTS (${postResults.length})`
-										: `USERS (${userResults.length})`;
+					<View
+						className="mt-3 flex-row gap-2"
+						style={
+							isDesktop
+								? {
+										width: "100%",
+										maxWidth: 640,
+										alignSelf: "center",
+									}
+								: undefined
+						}>
+						{(["all", "posts", "users"] as SearchFilterTab[]).map(
+							(tab) => {
+								const isSelected = activeTab === tab;
+								const label =
+									tab === "all"
+										? "ALL RESULTS"
+										: tab === "posts"
+											? `POSTS (${postResults.length})`
+											: `USERS (${userResults.length})`;
 
-							return (
-								<Pressable
-									key={tab}
-									onPress={() => handleTabChange(tab)}
-									className={`min-h-9 flex-1 items-center justify-center rounded-none border-2 border-border py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
-										isSelected
-											? "bg-primary"
-											: "bg-secondary"
-									}`}>
-									<Text
-										className={`font-bold text-[10px] uppercase ${
+								return (
+									<Pressable
+										key={tab}
+										onPress={() => handleTabChange(tab)}
+										className={`min-h-9 flex-1 items-center justify-center rounded-none border-2 border-border py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
 											isSelected
-												? "text-primary-foreground"
-												: "text-foreground"
+												? "bg-primary"
+												: "bg-secondary"
 										}`}>
-										{label}
-									</Text>
-								</Pressable>
-							);
-						},
-					)}
+										<Text
+											className={`font-bold text-[10px] uppercase ${
+												isSelected
+													? "text-primary-foreground"
+													: "text-foreground"
+											}`}>
+											{label}
+										</Text>
+									</Pressable>
+								);
+							},
+						)}
+					</View>
 				</View>
 			</View>
 
@@ -526,11 +593,15 @@ export default function SearchScreen() {
 					style={{ flex: 1 }}
 					contentContainerStyle={{
 						flexGrow: 1,
-						padding: 16,
+						paddingTop: isDesktop ? 24 : 16,
+						paddingHorizontal: isDesktop ? 32 : 16,
 						paddingBottom: insets.bottom + 32,
+						alignItems: isDesktop ? "center" : undefined,
 					}}
 					keyboardShouldPersistTaps="handled">
-					<View className="mt-2 rounded-none border-2 border-border bg-surface p-4 shadow-neo-sm">
+					<View
+						className="mt-2 w-full rounded-none border-2 border-border bg-surface p-4 shadow-neo-sm"
+						style={isDesktop ? { maxWidth: 760 } : undefined}>
 						<Text className="mb-1.5 font-bold text-[10px] tracking-wider text-foreground uppercase">
 							// QUICK_FREQUENCY_TAGS
 						</Text>
@@ -554,7 +625,16 @@ export default function SearchScreen() {
 				</ScrollView>
 			) : !hasTabResults ? (
 				<View
-					style={{ flex: 1 }}
+					style={
+						isDesktop
+							? {
+									flex: 1,
+									width: "100%",
+									maxWidth: 820,
+									alignSelf: "center",
+								}
+							: { flex: 1 }
+					}
 					className="flex-1 items-center justify-center p-6">
 					<View className="size-14 items-center justify-center rounded-none border-2 border-border bg-card shadow-neo-sm">
 						<Search size={24} color="#000000" />
@@ -576,14 +656,23 @@ export default function SearchScreen() {
 				</View>
 			) : (
 				<FlatList
-					style={{ flex: 1 }}
+					style={
+						isDesktop
+							? {
+									flex: 1,
+									width: "100%",
+									maxWidth: 1100,
+									alignSelf: "center",
+								}
+							: { flex: 1 }
+					}
 					className="flex-1"
 					data={searchRows}
 					keyExtractor={keyExtractor}
 					renderItem={renderItem}
 					contentContainerStyle={{
 						flexGrow: 1,
-						padding: 16,
+						padding: isDesktop ? 24 : 16,
 						paddingBottom: insets.bottom + 32,
 					}}
 					showsVerticalScrollIndicator={false}

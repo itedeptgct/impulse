@@ -20,6 +20,7 @@ import {
 	ScrollView,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -42,6 +43,8 @@ export function AccountSettingsModal({
 	onProfileUpdated,
 	onDeleteAccountPress,
 }: AccountSettingsModalProps) {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 	const setProfile = useAuthStore((state) => state.setProfile);
@@ -241,19 +244,50 @@ export function AccountSettingsModal({
 	return (
 		<Modal
 			visible={open}
-			animationType="slide"
-			presentationStyle="fullScreen"
+			animationType={isDesktop ? "fade" : "slide"}
+			transparent={isDesktop}
+			presentationStyle={isDesktop ? "overFullScreen" : "fullScreen"}
 			statusBarTranslucent={true}
 			onRequestClose={() => onOpenChange(false)}>
 			<View
-				style={{ backgroundColor: "#faf9f5", flex: 1 }}
-				className="flex-1 bg-background">
+				style={
+					isDesktop
+						? {
+								flex: 1,
+								alignItems: "center",
+								justifyContent: "center",
+								padding: 24,
+								backgroundColor: "rgba(0, 0, 0, 0.45)",
+							}
+						: { backgroundColor: "#faf9f5", flex: 1 }
+				}
+				className="flex-1">
 				<SafeAreaView
-					style={{ backgroundColor: "#faf9f5", flex: 1 }}
-					className="flex-1 bg-background"
+					style={{
+						backgroundColor: "#faf9f5",
+						flex: isDesktop ? undefined : 1,
+						...(isDesktop
+							? {
+									width: "100%",
+									maxWidth: 760,
+									height: "90%",
+									maxHeight: 820,
+									borderWidth: 2,
+									borderColor: "#000000",
+								}
+							: {}),
+					}}
+					className={
+						isDesktop
+							? "w-full bg-background"
+							: "flex-1 bg-background"
+					}
 					edges={["top", "bottom"]}>
 					{/* Modal Header */}
-					<View className="relative flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
+					<View
+						className={`relative flex-row items-center justify-between border-b-2 border-border bg-card px-4 shadow-neo-sm ${
+							isDesktop ? "py-2.5" : "py-3"
+						}`}>
 						<NeoButton
 							variant="secondary"
 							size="sm"
@@ -261,7 +295,9 @@ export function AccountSettingsModal({
 							CLOSE
 						</NeoButton>
 
-						<Text className="absolute inset-x-0 text-center font-display text-base tracking-tight text-foreground uppercase">
+						<Text
+							pointerEvents="none"
+							className="absolute inset-x-0 text-center font-display text-base tracking-tight text-foreground uppercase">
 							ACCOUNT SETTINGS
 						</Text>
 					</View>
@@ -304,14 +340,16 @@ export function AccountSettingsModal({
 						<ScrollView
 							contentContainerStyle={{
 								flexGrow: 1,
-								paddingBottom: 32,
+								paddingBottom: isDesktop ? 20 : 32,
 							}}
 							showsVerticalScrollIndicator={false}
 							keyboardShouldPersistTaps="handled"
-							className="flex-1 px-4 pt-4">
+							className={`flex-1 px-4 ${
+								isDesktop ? "pt-3" : "pt-4"
+							}`}>
 							{/* USERNAME TAB */}
 							{activeTab === "username" && (
-								<View className="gap-4">
+								<View className={isDesktop ? "gap-3" : "gap-4"}>
 									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
 										<View className="mb-2 flex-row items-center gap-2">
 											<AtSign
@@ -429,7 +467,7 @@ export function AccountSettingsModal({
 
 							{/* EMAIL TAB */}
 							{activeTab === "email" && (
-								<View className="gap-4">
+								<View className={isDesktop ? "gap-3" : "gap-4"}>
 									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
 										<View className="mb-2 flex-row items-center gap-2">
 											<Mail
@@ -570,7 +608,7 @@ export function AccountSettingsModal({
 
 							{/* PASSWORD TAB */}
 							{activeTab === "password" && (
-								<View className="gap-4">
+								<View className={isDesktop ? "gap-3" : "gap-4"}>
 									{passwordError && (
 										<View className="flex-row items-center gap-2 rounded-none border-2 border-destructive bg-destructive/10 p-3">
 											<AlertCircle

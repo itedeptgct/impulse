@@ -22,13 +22,21 @@ import {
 	ScrollView,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { MobileSheet, NeoButton, NeoInput } from "@/components/ui";
+import {
+	MobileSheet,
+	NeoButton,
+	NeoInput,
+	OnboardingBackground,
+} from "@/components/ui";
 
 export default function SignInScreen() {
 	const insets = useSafeAreaInsets();
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
@@ -122,182 +130,236 @@ export default function SignInScreen() {
 	return (
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
+			<OnboardingBackground />
 			<KeyboardAvoidingView
 				behavior={Platform.OS === "ios" ? "padding" : "height"}
 				className="flex-1">
 				<ScrollView
 					contentContainerStyle={{
 						flexGrow: 1,
-						paddingTop: insets.top + 16,
+						paddingTop: isDesktop ? 32 : insets.top + 16,
 						paddingBottom: Math.max(insets.bottom, 16) + 24,
-						paddingHorizontal: 24,
+						paddingHorizontal: isDesktop ? 48 : 24,
+						alignItems: isDesktop ? "center" : undefined,
+						justifyContent: isDesktop ? "center" : undefined,
 					}}
 					keyboardShouldPersistTaps="handled"
 					showsVerticalScrollIndicator={false}>
-					<View className="flex-row items-center justify-between pb-8">
-						<Pressable
-							onPress={() => router.back()}
-							hitSlop={8}
-							className="size-10 items-center justify-center rounded-none border-2 border-border bg-card shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
-							<ArrowLeft
-								size={18}
-								color="#000000"
-								strokeWidth={2.5}
-								className="-translate-x-0.5"
-							/>
-						</Pressable>
-					</View>
+					<View
+						style={
+							isDesktop
+								? {
+										width: "100%",
+										maxWidth: 1120,
+										flexDirection: "row",
+										alignItems: "center",
+										gap: 48,
+									}
+								: { flex: 1 }
+						}>
+						{isDesktop && (
+							<View className="flex-1 border-2 border-border bg-card p-10 shadow-neo">
+								<Text className="font-mono text-xs tracking-widest text-primary uppercase">
+									IMPULSE / STUDENT NETWORK
+								</Text>
+								<Text className="mt-8 font-display text-6xl tracking-tight text-foreground uppercase">
+									CAMPUS{"\n"}IN MOTION.
+								</Text>
+								<Text className="mt-5 max-w-md font-mono text-sm leading-6 text-muted-foreground">
+									Connect with your campus community, follow
+									the conversations that matter, and find your
+									people.
+								</Text>
+								<View className="mt-10 border-t-2 border-border pt-5">
+									<Text className="font-mono text-xs tracking-wider text-foreground uppercase">
+										YOUR PEOPLE. YOUR COMMUNITIES. YOUR
+										CAMPUS.
+									</Text>
+								</View>
+							</View>
+						)}
 
-					<View className="pb-8">
-						<Text className="font-display text-3xl tracking-tight text-foreground uppercase">
-							SIGN IN
-						</Text>
-						<Text className="mt-1.5 font-mono text-xs text-muted-foreground uppercase">
-							ENTER ACCESS CREDENTIALS
-						</Text>
-					</View>
-
-					{errorMessage && (
-						<View className="mb-6 flex-row items-center gap-3 rounded-none border-2 border-destructive bg-destructive/10 p-4 shadow-neo-sm">
-							<AlertCircle
-								size={18}
-								color="#ff2a00"
-								className="shrink-0"
-							/>
-							<Text className="flex-1 font-mono text-xs text-destructive">
-								{errorMessage}
-							</Text>
-						</View>
-					)}
-
-					<View className="gap-5">
-						<NeoInput
-							label="EMAIL"
-							placeholder="student@example.com"
-							value={email}
-							onChangeText={(text) => {
-								setEmail(text);
-								if (fieldErrors.email) {
-									setFieldErrors((prev) => ({
-										...prev,
-										email: undefined,
-									}));
-								}
-							}}
-							autoCapitalize="none"
-							autoCorrect={false}
-							keyboardType="email-address"
-							returnKeyType="next"
-							error={fieldErrors.email}
-							startContent={
-								<Mail
-									size={16}
-									color="#000000"
-									strokeWidth={2.2}
-								/>
+						<View
+							className={
+								isDesktop
+									? "w-full border-2 border-border bg-card p-8 shadow-neo"
+									: "flex-1"
 							}
-						/>
+							style={
+								isDesktop
+									? { maxWidth: 460, flexShrink: 0 }
+									: undefined
+							}>
+							<View className="flex-row items-center justify-between pb-8">
+								<Pressable
+									onPress={() => router.back()}
+									hitSlop={8}
+									className="size-10 items-center justify-center rounded-none border-2 border-border bg-card shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 active:shadow-none">
+									<ArrowLeft
+										size={18}
+										color="#000000"
+										strokeWidth={2.5}
+										className="-translate-x-0.5"
+									/>
+								</Pressable>
+							</View>
 
-						<View className="gap-1">
-							<View className="flex-row items-center justify-between pb-1">
-								<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-									PASSWORD
+							<View className="pb-8">
+								<Text className="font-display text-3xl tracking-tight text-foreground uppercase">
+									SIGN IN
+								</Text>
+								<Text className="mt-1.5 font-mono text-xs text-muted-foreground uppercase">
+									ENTER ACCESS CREDENTIALS
+								</Text>
+							</View>
+
+							{errorMessage && (
+								<View className="mb-6 flex-row items-center gap-3 rounded-none border-2 border-destructive bg-destructive/10 p-4 shadow-neo-sm">
+									<AlertCircle
+										size={18}
+										color="#ff2a00"
+										className="shrink-0"
+									/>
+									<Text className="flex-1 font-mono text-xs text-destructive">
+										{errorMessage}
+									</Text>
+								</View>
+							)}
+
+							<View className="gap-5">
+								<NeoInput
+									label="EMAIL"
+									placeholder="student@example.com"
+									value={email}
+									onChangeText={(text) => {
+										setEmail(text);
+										if (fieldErrors.email) {
+											setFieldErrors((prev) => ({
+												...prev,
+												email: undefined,
+											}));
+										}
+									}}
+									autoCapitalize="none"
+									autoCorrect={false}
+									keyboardType="email-address"
+									returnKeyType="next"
+									error={fieldErrors.email}
+									startContent={
+										<Mail
+											size={16}
+											color="#000000"
+											strokeWidth={2.2}
+										/>
+									}
+								/>
+
+								<View className="gap-1">
+									<View className="flex-row items-center justify-between pb-1">
+										<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+											PASSWORD
+										</Text>
+										<Pressable
+											onPress={() => {
+												setForgotEmail(email);
+												setForgotStatus("idle");
+												setForgotMessage(null);
+												setIsForgotPasswordOpen(true);
+											}}
+											hitSlop={8}
+											className="active:opacity-70">
+											<Text className="font-mono text-xs text-primary">
+												FORGOT PASSWORD?
+											</Text>
+										</Pressable>
+									</View>
+									<NeoInput
+										placeholder="Enter your password"
+										value={password}
+										onChangeText={(text) => {
+											setPassword(text);
+											if (fieldErrors.password) {
+												setFieldErrors((prev) => ({
+													...prev,
+													password: undefined,
+												}));
+											}
+										}}
+										secureTextEntry={!showPassword}
+										autoCapitalize="none"
+										autoCorrect={false}
+										returnKeyType="done"
+										onSubmitEditing={handleSignIn}
+										error={fieldErrors.password}
+										startContent={
+											<Lock
+												size={16}
+												color="#000000"
+												strokeWidth={2.2}
+											/>
+										}
+										endContent={
+											<Pressable
+												onPress={() =>
+													setShowPassword(
+														!showPassword,
+													)
+												}
+												hitSlop={12}
+												className="size-7 items-center justify-center active:opacity-70">
+												{showPassword ? (
+													<EyeOff
+														size={16}
+														strokeWidth={2}
+														color="#9aa1b2"
+													/>
+												) : (
+													<Eye
+														size={16}
+														strokeWidth={2}
+														color="#9aa1b2"
+													/>
+												)}
+											</Pressable>
+										}
+									/>
+								</View>
+
+								<View className="pt-3">
+									<NeoButton
+										variant="primary"
+										size="lg"
+										className="w-full"
+										loading={signInMutation.isPending}
+										onPress={handleSignIn}
+										endContent={
+											<ChevronRight
+												size={18}
+												color="#faf9f5"
+												strokeWidth={2.5}
+											/>
+										}>
+										SIGN IN
+									</NeoButton>
+								</View>
+							</View>
+
+							<View className="mt-auto flex-row items-center justify-center pt-8">
+								<Text className="font-mono text-xs text-muted-foreground uppercase">
+									NEW STUDENT?{" "}
 								</Text>
 								<Pressable
-									onPress={() => {
-										setForgotEmail(email);
-										setForgotStatus("idle");
-										setForgotMessage(null);
-										setIsForgotPasswordOpen(true);
-									}}
+									onPress={() =>
+										router.push("/(auth)/sign-up")
+									}
 									hitSlop={8}
 									className="active:opacity-70">
 									<Text className="font-mono text-xs text-primary">
-										FORGOT PASSWORD?
+										REGISTER ACCOUNT →
 									</Text>
 								</Pressable>
 							</View>
-							<NeoInput
-								placeholder="Enter your password"
-								value={password}
-								onChangeText={(text) => {
-									setPassword(text);
-									if (fieldErrors.password) {
-										setFieldErrors((prev) => ({
-											...prev,
-											password: undefined,
-										}));
-									}
-								}}
-								secureTextEntry={!showPassword}
-								autoCapitalize="none"
-								autoCorrect={false}
-								returnKeyType="done"
-								onSubmitEditing={handleSignIn}
-								error={fieldErrors.password}
-								startContent={
-									<Lock
-										size={16}
-										color="#000000"
-										strokeWidth={2.2}
-									/>
-								}
-								endContent={
-									<Pressable
-										onPress={() =>
-											setShowPassword(!showPassword)
-										}
-										hitSlop={12}
-										className="size-7 items-center justify-center active:opacity-70">
-										{showPassword ? (
-											<EyeOff
-												size={16}
-												strokeWidth={2}
-												color="#9aa1b2"
-											/>
-										) : (
-											<Eye
-												size={16}
-												strokeWidth={2}
-												color="#9aa1b2"
-											/>
-										)}
-									</Pressable>
-								}
-							/>
 						</View>
-
-						<View className="pt-3">
-							<NeoButton
-								variant="primary"
-								size="lg"
-								className="w-full"
-								loading={signInMutation.isPending}
-								onPress={handleSignIn}
-								endContent={
-									<ChevronRight
-										size={18}
-										color="#faf9f5"
-										strokeWidth={2.5}
-									/>
-								}>
-								SIGN IN
-							</NeoButton>
-						</View>
-					</View>
-
-					<View className="mt-auto flex-row items-center justify-center pt-8">
-						<Text className="font-mono text-xs text-muted-foreground uppercase">
-							NEW STUDENT?{" "}
-						</Text>
-						<Pressable
-							onPress={() => router.push("/(auth)/sign-up")}
-							hitSlop={8}
-							className="active:opacity-70">
-							<Text className="font-mono text-xs text-primary">
-								REGISTER ACCOUNT →
-							</Text>
-						</Pressable>
 					</View>
 				</ScrollView>
 			</KeyboardAvoidingView>

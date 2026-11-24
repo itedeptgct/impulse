@@ -9,6 +9,7 @@ import {
 	Pressable,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,6 +28,8 @@ const triggerTabHaptic = () => {
 const TAB_ORDER = ["index", "guilds", "dispatch", "messages"] as const;
 
 export default function TabsLayout() {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const session = useAuthStore((state) => state.session);
 	const isLoading = useAuthStore((state) => state.isLoading);
 	const insets = useSafeAreaInsets();
@@ -116,170 +119,189 @@ export default function TabsLayout() {
 
 	return (
 		<>
-			<GestureDetector gesture={panGesture}>
-				<View className="flex-1">
-					<Tabs
-						backBehavior="history"
-						tabBar={({ state, navigation }) => {
-							const activeTabRoute =
-								state.routes[state.index]?.name;
-							const items = [
-								{
-									key: "index",
-									label: "FEED",
-									a11yLabel: "Feed tab",
-									role: "tab" as const,
-									icon: Rows2,
-									active:
-										activeTabRoute === "index" &&
-										!isComposerOpen,
-									barClass: "bg-neo-green",
-									pressClass: "active:bg-secondary",
-									onPress: () => navigation.navigate("index"),
-								},
-								{
-									key: "guilds",
-									label: "Houses",
-									a11yLabel: "Guilds tab",
-									role: "tab" as const,
-									icon: Building2,
-									active:
-										activeTabRoute === "guilds" &&
-										!isComposerOpen,
-									barClass: "bg-neo-green",
-									pressClass: "active:bg-secondary",
-									onPress: () =>
-										navigation.navigate("guilds"),
-								},
-								{
-									key: "dispatch",
-									label: "DISPATCH",
-									a11yLabel: "Dispatch announcements tab",
-									role: "tab" as const,
-									icon: Radio,
-									active:
-										activeTabRoute === "dispatch" &&
-										!isComposerOpen,
-									barClass: "bg-neo-yellow",
-									pressClass: "active:bg-secondary",
-									onPress: () =>
-										navigation.navigate("dispatch"),
-								},
-								{
-									key: "messages",
-									label: "MESSAGES",
-									a11yLabel: "Dispatch messages tab",
-									role: "tab" as const,
-									icon: Terminal,
-									active:
-										activeTabRoute === "messages" &&
-										!isComposerOpen,
-									barClass: "bg-neo-cyan",
-									pressClass: "active:bg-secondary",
-									onPress: () =>
-										navigation.navigate("messages"),
-								},
-							];
+			<View className="flex-1">
+				<GestureDetector gesture={panGesture}>
+					<View className="flex-1">
+						<Tabs
+							backBehavior="history"
+							tabBar={({ state, navigation }) => {
+								if (isDesktop) return null;
 
-							return (
-								<View
-									style={{
-										paddingBottom:
-											insets.bottom > 0
-												? insets.bottom
-												: 6,
-										backgroundColor: "#FAF9F5",
-									}}
-									className="border-t-2 border-border bg-background shadow-neo-top-sm">
-									<View className="flex-row">
-										{items.map((item, idx) => {
-											const Icon = item.icon;
-											return (
-												<Pressable
-													key={item.key}
-													accessibilityRole={
-														item.role
-													}
-													accessibilityState={
-														item.role === "tab"
-															? {
-																	selected:
-																		item.active,
-																}
-															: undefined
-													}
-													accessibilityLabel={
-														item.a11yLabel
-													}
-													onPress={() => {
-														triggerTabHaptic();
-														item.onPress();
-													}}
-													className={`relative min-h-14 flex-1 items-center justify-center py-2.5 ${
-														idx < items.length - 1
-															? "border-r-2 border-border"
-															: ""
-													} ${
-														item.active
-															? "bg-primary"
-															: `bg-background ${item.pressClass}`
-													}`}>
-													{item.active && (
-														<View
-															className={`absolute inset-x-0 top-0 h-1 ${item.barClass}`}
-														/>
-													)}
-													<View className="relative">
-														<Icon
-															size={18}
-															color={
-																item.active
-																	? "#FAF9F5"
-																	: "#000000"
-															}
-															strokeWidth={2.5}
-														/>
-														{item.key ===
-															"messages" &&
-														totalUnreadCount > 0 ? (
-															<View className="absolute -top-1.5 -right-2.5 min-w-4 items-center justify-center rounded-full border border-border bg-destructive px-1">
-																<Text className="font-mono text-2xs text-primary-foreground">
-																	{totalUnreadCount >
-																	99
-																		? "99+"
-																		: totalUnreadCount}
-																</Text>
-															</View>
-														) : null}
-													</View>
-													<Text
-														className={`mt-1 font-bold text-[10px] tracking-wider uppercase ${
+								const activeTabRoute =
+									state.routes[state.index]?.name;
+								const items = [
+									{
+										key: "index",
+										label: "FEED",
+										a11yLabel: "Feed tab",
+										role: "tab" as const,
+										icon: Rows2,
+										active:
+											activeTabRoute === "index" &&
+											!isComposerOpen,
+										barClass: "bg-neo-green",
+										pressClass: "active:bg-secondary",
+										onPress: () =>
+											navigation.navigate("index"),
+									},
+									{
+										key: "guilds",
+										label: "Houses",
+										a11yLabel: "Guilds tab",
+										role: "tab" as const,
+										icon: Building2,
+										active:
+											activeTabRoute === "guilds" &&
+											!isComposerOpen,
+										barClass: "bg-neo-green",
+										pressClass: "active:bg-secondary",
+										onPress: () =>
+											navigation.navigate("guilds"),
+									},
+									{
+										key: "dispatch",
+										label: "DISPATCH",
+										a11yLabel: "Dispatch announcements tab",
+										role: "tab" as const,
+										icon: Radio,
+										active:
+											activeTabRoute === "dispatch" &&
+											!isComposerOpen,
+										barClass: "bg-neo-yellow",
+										pressClass: "active:bg-secondary",
+										onPress: () =>
+											navigation.navigate("dispatch"),
+									},
+									{
+										key: "messages",
+										label: "MESSAGES",
+										a11yLabel: "Dispatch messages tab",
+										role: "tab" as const,
+										icon: Terminal,
+										active:
+											activeTabRoute === "messages" &&
+											!isComposerOpen,
+										barClass: "bg-neo-cyan",
+										pressClass: "active:bg-secondary",
+										onPress: () =>
+											navigation.navigate("messages"),
+									},
+								];
+
+								return (
+									<View
+										style={{
+											paddingBottom:
+												insets.bottom > 0
+													? insets.bottom
+													: 6,
+											backgroundColor: "#FAF9F5",
+										}}
+										className="border-t-2 border-border bg-background shadow-neo-top-sm">
+										<View className="flex-row">
+											{items.map((item, idx) => {
+												const Icon = item.icon;
+												return (
+													<Pressable
+														key={item.key}
+														accessibilityRole={
+															item.role
+														}
+														accessibilityState={
+															item.role === "tab"
+																? {
+																		selected:
+																			item.active,
+																	}
+																: undefined
+														}
+														accessibilityLabel={
+															item.a11yLabel
+														}
+														onPress={() => {
+															triggerTabHaptic();
+															item.onPress();
+														}}
+														className={`relative min-h-14 flex-1 items-center justify-center py-2.5 ${
+															idx <
+															items.length - 1
+																? "border-r-2 border-border"
+																: ""
+														} ${
 															item.active
-																? "text-primary-foreground"
-																: "text-foreground"
+																? "bg-primary"
+																: `bg-background ${item.pressClass}`
 														}`}>
-														{item.label}
-													</Text>
-												</Pressable>
-											);
-										})}
+														{item.active && (
+															<View
+																className={`absolute inset-x-0 top-0 h-1 ${item.barClass}`}
+															/>
+														)}
+														<View className="relative">
+															<Icon
+																size={18}
+																color={
+																	item.active
+																		? "#FAF9F5"
+																		: "#000000"
+																}
+																strokeWidth={
+																	2.5
+																}
+															/>
+															{item.key ===
+																"messages" &&
+															totalUnreadCount >
+																0 ? (
+																<View className="absolute -top-1.5 -right-2.5 min-w-4 items-center justify-center rounded-full border border-border bg-destructive px-1">
+																	<Text className="font-mono text-2xs text-primary-foreground">
+																		{totalUnreadCount >
+																		99
+																			? "99+"
+																			: totalUnreadCount}
+																	</Text>
+																</View>
+															) : null}
+														</View>
+														<Text
+															className={`mt-1 font-bold text-[10px] tracking-wider uppercase ${
+																item.active
+																	? "text-primary-foreground"
+																	: "text-foreground"
+															}`}>
+															{item.label}
+														</Text>
+													</Pressable>
+												);
+											})}
+										</View>
 									</View>
-								</View>
-							);
-						}}
-						screenOptions={{
-							headerShown: false,
-							animation: "shift",
-						}}>
-						<Tabs.Screen name="index" />
-						<Tabs.Screen name="guilds" />
-						<Tabs.Screen name="dispatch" />
-						<Tabs.Screen name="messages" />
-						<Tabs.Screen name="search" options={{ href: null }} />
-						<Tabs.Screen name="profile" options={{ href: null }} />
-					</Tabs>
-				</View>
-			</GestureDetector>
+								);
+							}}
+							screenOptions={{
+								headerShown: false,
+								animation: "fade",
+								transitionSpec: {
+									animation: "timing",
+									config: { duration: 220 },
+								},
+							}}>
+							<Tabs.Screen name="index" />
+							<Tabs.Screen name="guilds" />
+							<Tabs.Screen name="dispatch" />
+							<Tabs.Screen name="messages" />
+							<Tabs.Screen
+								name="search"
+								options={{ href: null }}
+							/>
+							<Tabs.Screen
+								name="profile"
+								options={{ href: null }}
+							/>
+						</Tabs>
+					</View>
+				</GestureDetector>
+			</View>
 
 			<PostComposerModal
 				visible={isComposerOpen}

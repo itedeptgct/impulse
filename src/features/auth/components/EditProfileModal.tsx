@@ -24,6 +24,7 @@ import {
 	ScrollView,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -40,6 +41,8 @@ export function EditProfileModal({
 	onOpenChange,
 	onProfileUpdated,
 }: EditProfileModalProps) {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 	const setProfile = useAuthStore((state) => state.setProfile);
@@ -205,16 +208,44 @@ export function EditProfileModal({
 	return (
 		<Modal
 			visible={open}
-			animationType="slide"
-			presentationStyle="fullScreen"
+			animationType={isDesktop ? "fade" : "slide"}
+			transparent={isDesktop}
+			presentationStyle={isDesktop ? "overFullScreen" : "fullScreen"}
 			statusBarTranslucent={true}
 			onRequestClose={() => onOpenChange(false)}>
 			<View
-				style={{ backgroundColor: "#faf9f5", flex: 1 }}
-				className="flex-1 bg-background">
+				style={
+					isDesktop
+						? {
+								flex: 1,
+								alignItems: "center",
+								justifyContent: "center",
+								padding: 24,
+								backgroundColor: "rgba(0, 0, 0, 0.45)",
+							}
+						: { backgroundColor: "#faf9f5", flex: 1 }
+				}
+				className="flex-1">
 				<SafeAreaView
-					style={{ backgroundColor: "#faf9f5", flex: 1 }}
-					className="flex-1 bg-background"
+					style={{
+						backgroundColor: "#faf9f5",
+						flex: isDesktop ? undefined : 1,
+						...(isDesktop
+							? {
+									width: "100%",
+									maxWidth: 760,
+									height: "90%",
+									maxHeight: 820,
+									borderWidth: 2,
+									borderColor: "#000000",
+								}
+							: {}),
+					}}
+					className={
+						isDesktop
+							? "w-full bg-background"
+							: "flex-1 bg-background"
+					}
 					edges={["top", "bottom"]}>
 					<View className="relative flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
 						<NeoButton
@@ -224,7 +255,9 @@ export function EditProfileModal({
 							CANCEL
 						</NeoButton>
 
-						<Text className="absolute inset-x-0 text-center font-display text-base tracking-tight text-foreground uppercase">
+						<Text
+							pointerEvents="none"
+							className="absolute inset-x-0 text-center font-display text-base tracking-tight text-foreground uppercase">
 							EDIT PROFILE
 						</Text>
 					</View>
@@ -249,12 +282,14 @@ export function EditProfileModal({
 						<ScrollView
 							contentContainerStyle={{
 								flexGrow: 1,
-								paddingBottom: 32,
+								paddingBottom: isDesktop ? 20 : 32,
 							}}
 							showsVerticalScrollIndicator={false}
 							keyboardShouldPersistTaps="handled"
-							className="flex-1 px-4 pt-4">
-							<View className="gap-5">
+							className={`flex-1 px-4 ${
+								isDesktop ? "pt-3" : "pt-4"
+							}`}>
+							<View className={isDesktop ? "gap-3" : "gap-5"}>
 								<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
 									<View className="mb-3 flex-row items-center gap-2">
 										<Camera
@@ -320,152 +355,169 @@ export function EditProfileModal({
 									</View>
 								</View>
 
-								<NeoInput
-									label="USERNAME (HANDLE)"
-									value={username}
-									onChangeText={(text) => {
-										const clean = text
-											.toLowerCase()
-											.replace(/[^a-z0-9_]/g, "");
-										setUsername(clean);
-									}}
-									placeholder="janedoe"
-									maxLength={20}
-									autoCapitalize="none"
-									autoCorrect={false}
-									startContent={
-										<AtSign
-											size={15}
-											color="#000000"
-											strokeWidth={2.2}
+								<View
+									className={
+										isDesktop ? "flex-row gap-3" : "gap-5"
+									}>
+									<View className={isDesktop ? "flex-1" : ""}>
+										<NeoInput
+											label="USERNAME (HANDLE)"
+											value={username}
+											onChangeText={(text) => {
+												const clean = text
+													.toLowerCase()
+													.replace(/[^a-z0-9_]/g, "");
+												setUsername(clean);
+											}}
+											placeholder="janedoe"
+											maxLength={20}
+											autoCapitalize="none"
+											autoCorrect={false}
+											startContent={
+												<AtSign
+													size={15}
+													color="#000000"
+													strokeWidth={2.2}
+												/>
+											}
+											helperText={`${username.length}/20 characters • Letters, numbers, underscores`}
 										/>
-									}
-									helperText={`${username.length}/20 characters • Letters, numbers, underscores`}
-								/>
-
-								<NeoInput
-									label="DISPLAY NAME"
-									value={displayName}
-									onChangeText={setDisplayName}
-									placeholder="e.g. Alex Rivera"
-									maxLength={50}
-									startContent={
-										<User
-											size={15}
-											color="#000000"
-											strokeWidth={2.2}
-										/>
-									}
-								/>
-
-								<View className="rounded-none border-2 border-border bg-card p-3 shadow-neo-sm">
-									<View className="mb-2 flex-row items-center justify-between">
-										<View className="flex-row items-center gap-2">
-											<GraduationCap
-												size={15}
-												color="#000000"
-												strokeWidth={2.2}
-											/>
-											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-												DEGREE COURSE
-											</Text>
-										</View>
-										{course && (
-											<NeoBadge
-												variant="primary"
-												size="sm">
-												{course}
-											</NeoBadge>
-										)}
 									</View>
 
-									<View className="flex-row gap-2">
-										{(["BSIT", "BSCS"] as Course[]).map(
-											(c) => {
-												const isSelected = course === c;
-												return (
-													<Pressable
-														key={c}
-														onPress={() =>
-															setCourse(
-																isSelected
-																	? null
-																	: c,
-															)
-														}
-														className={`flex-1 items-center justify-center rounded-none border-2 py-2.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
-															isSelected
-																? "border-border bg-primary"
-																: "border-border bg-card"
-														}`}>
-														<Text
-															className={`font-bold text-xs uppercase ${
-																isSelected
-																	? "text-primary-foreground"
-																	: "text-foreground"
-															}`}>
-															{c}
-														</Text>
-													</Pressable>
-												);
-											},
-										)}
+									<View className={isDesktop ? "flex-1" : ""}>
+										<NeoInput
+											label="DISPLAY NAME"
+											value={displayName}
+											onChangeText={setDisplayName}
+											placeholder="e.g. Alex Rivera"
+											maxLength={50}
+											startContent={
+												<User
+													size={15}
+													color="#000000"
+													strokeWidth={2.2}
+												/>
+											}
+										/>
 									</View>
 								</View>
 
-								<View className="rounded-none border-2 border-border bg-card p-3 shadow-neo-sm">
-									<View className="mb-2 flex-row items-center justify-between">
-										<View className="flex-row items-center gap-2">
-											<BookOpen
-												size={15}
-												color="#000000"
-												strokeWidth={2.2}
-											/>
-											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-												YEAR LEVEL
-											</Text>
+								<View
+									className={
+										isDesktop ? "flex-row gap-3" : "gap-5"
+									}>
+									<View
+										className={`rounded-none border-2 border-border bg-card p-3 shadow-neo-sm ${isDesktop ? "flex-1" : ""}`}>
+										<View className="mb-2 flex-row items-center justify-between">
+											<View className="flex-row items-center gap-2">
+												<GraduationCap
+													size={15}
+													color="#000000"
+													strokeWidth={2.2}
+												/>
+												<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+													DEGREE COURSE
+												</Text>
+											</View>
+											{course && (
+												<NeoBadge
+													variant="primary"
+													size="sm">
+													{course}
+												</NeoBadge>
+											)}
 										</View>
-										{yearLevel && (
-											<NeoBadge
-												variant="default"
-												size="sm">
-												{`YEAR ${yearLevel}`}
-											</NeoBadge>
-										)}
+
+										<View className="flex-row gap-2">
+											{(["BSIT", "BSCS"] as Course[]).map(
+												(c) => {
+													const isSelected =
+														course === c;
+													return (
+														<Pressable
+															key={c}
+															onPress={() =>
+																setCourse(
+																	isSelected
+																		? null
+																		: c,
+																)
+															}
+															className={`flex-1 items-center justify-center rounded-none border-2 py-2.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
+																isSelected
+																	? "border-border bg-primary"
+																	: "border-border bg-card"
+															}`}>
+															<Text
+																className={`font-bold text-xs uppercase ${
+																	isSelected
+																		? "text-primary-foreground"
+																		: "text-foreground"
+																}`}>
+																{c}
+															</Text>
+														</Pressable>
+													);
+												},
+											)}
+										</View>
 									</View>
 
-									<View className="flex-row gap-2">
-										{([1, 2, 3, 4] as YearLevel[]).map(
-											(yl) => {
-												const isSelected =
-													yearLevel === yl;
-												return (
-													<Pressable
-														key={yl}
-														onPress={() =>
-															setYearLevel(
+									<View
+										className={`rounded-none border-2 border-border bg-card p-3 shadow-neo-sm ${isDesktop ? "flex-1" : ""}`}>
+										<View className="mb-2 flex-row items-center justify-between">
+											<View className="flex-row items-center gap-2">
+												<BookOpen
+													size={15}
+													color="#000000"
+													strokeWidth={2.2}
+												/>
+												<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
+													YEAR LEVEL
+												</Text>
+											</View>
+											{yearLevel && (
+												<NeoBadge
+													variant="default"
+													size="sm">
+													{`YEAR ${yearLevel}`}
+												</NeoBadge>
+											)}
+										</View>
+
+										<View className="flex-row gap-2">
+											{([1, 2, 3, 4] as YearLevel[]).map(
+												(yl) => {
+													const isSelected =
+														yearLevel === yl;
+													return (
+														<Pressable
+															key={yl}
+															onPress={() =>
+																setYearLevel(
+																	isSelected
+																		? null
+																		: yl,
+																)
+															}
+															className={`flex-1 items-center justify-center rounded-none border-2 py-2.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
 																isSelected
-																	? null
-																	: yl,
-															)
-														}
-														className={`flex-1 items-center justify-center rounded-none border-2 py-2.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
-															isSelected
-																? "border-border bg-primary"
-																: "border-border bg-card"
-														}`}>
-														<Text
-															className={`font-bold text-xs uppercase ${
-																isSelected
-																	? "text-primary-foreground"
-																	: "text-foreground"
+																	? "border-border bg-primary"
+																	: "border-border bg-card"
 															}`}>
-															{yl}
-														</Text>
-													</Pressable>
-												);
-											},
-										)}
+															<Text
+																className={`font-bold text-xs uppercase ${
+																	isSelected
+																		? "text-primary-foreground"
+																		: "text-foreground"
+																}`}>
+																{yl}
+															</Text>
+														</Pressable>
+													);
+												},
+											)}
+										</View>
 									</View>
 								</View>
 
@@ -492,7 +544,12 @@ export function EditProfileModal({
 									helperText={`${bio.length}/250 characters`}
 								/>
 
-								<View className="mt-2 gap-3 border-t-2 border-border pt-4">
+								<View
+									className={`border-t-2 border-border ${
+										isDesktop
+											? "mt-1 flex-row gap-3 pt-3"
+											: "mt-2 gap-3 pt-4"
+									}`}>
 									<NeoButton
 										variant="primary"
 										size="md"
@@ -505,14 +562,18 @@ export function EditProfileModal({
 											isUploadingAvatar
 										}
 										onPress={handleSave}
-										className="w-full">
+										className={
+											isDesktop ? "flex-1" : "w-full"
+										}>
 										SAVE CHANGES
 									</NeoButton>
 									<NeoButton
 										variant="outline"
 										size="md"
 										onPress={() => onOpenChange(false)}
-										className="w-full">
+										className={
+											isDesktop ? "flex-1" : "w-full"
+										}>
 										CANCEL
 									</NeoButton>
 								</View>

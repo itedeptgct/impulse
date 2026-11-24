@@ -15,7 +15,14 @@ import {
 	Trash2,
 } from "lucide-react-native";
 import { useState } from "react";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import {
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+	useWindowDimensions,
+} from "react-native";
 
 import {
 	MobileAlertSheet,
@@ -33,6 +40,8 @@ import { useAdminPosts, useDeleteAdminPost } from "../hooks/useAdmin";
 import type { AdminPostVisibilityFilter } from "../types";
 
 export function AdminPostDirectory() {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const queryClient = useQueryClient();
 	const [search, setSearch] = useState("");
 	const [visibilityFilter, setVisibilityFilter] =
@@ -127,7 +136,10 @@ export function AdminPostDirectory() {
 					</Text>
 				</NeoCard>
 			) : (
-				<View className="gap-3">
+				<View
+					className={
+						isDesktop ? "flex-row flex-wrap gap-3" : "gap-3"
+					}>
 					{posts.map((post) => {
 						const score =
 							(post.upvotes_count || 0) -
@@ -142,6 +154,11 @@ export function AdminPostDirectory() {
 						return (
 							<NeoCard
 								key={post.id}
+								style={
+									isDesktop
+										? { width: "48%", minWidth: 380 }
+										: undefined
+								}
 								className="gap-3 border-border bg-card p-4">
 								<View className="flex-row items-center justify-between gap-2">
 									<Pressable

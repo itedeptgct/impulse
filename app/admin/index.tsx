@@ -8,10 +8,17 @@ import {
 	Users,
 } from "lucide-react-native";
 import { useState } from "react";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import {
+	Platform,
+	RefreshControl,
+	ScrollView,
+	Text,
+	View,
+	useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { NeoButton } from "@/components/ui";
+import { NeoButton, OnboardingBackground } from "@/components/ui";
 import { AdminHeader } from "@/features/admin/components/AdminHeader";
 import { AdminPostDirectory } from "@/features/admin/components/AdminPostDirectory";
 import { AdminReportsQueue } from "@/features/admin/components/AdminReportsQueue";
@@ -26,6 +33,8 @@ type AdminSection = "queue" | "reports" | "posts" | "stats" | "directory";
 
 export default function AdminScreen() {
 	const insets = useSafeAreaInsets();
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 	const role = profile?.role;
@@ -73,15 +82,22 @@ export default function AdminScreen() {
 				paddingBottom: insets.bottom,
 			}}>
 			<StatusBar style="dark" />
+			{isDesktop && <OnboardingBackground />}
 
 			<AdminHeader
 				onRefresh={() => void handleRefresh()}
 				isRefreshing={isRefreshing}
+				desktop={isDesktop}
 			/>
 
 			<ScrollView
 				className="flex-1"
-				contentContainerStyle={{ paddingBottom: 32 }}
+				contentContainerStyle={{
+					paddingBottom: 32,
+					width: "100%",
+					maxWidth: isDesktop ? 1360 : undefined,
+					alignSelf: isDesktop ? "center" : undefined,
+				}}
 				showsVerticalScrollIndicator={false}
 				refreshControl={
 					<RefreshControl
@@ -91,11 +107,16 @@ export default function AdminScreen() {
 						colors={["#000000"]}
 					/>
 				}>
-				<View className="px-4 pt-4">
+				<View className={isDesktop ? "px-8 pt-6" : "px-4 pt-4"}>
 					<ScrollView
-						horizontal
+						horizontal={!isDesktop}
 						showsHorizontalScrollIndicator={false}
-						contentContainerStyle={{ gap: 8 }}
+						contentContainerStyle={{
+							gap: 8,
+							flexDirection: "row",
+							flexWrap: isDesktop ? "wrap" : "nowrap",
+							width: isDesktop ? "100%" : undefined,
+						}}
 						className="pb-3">
 						{isAdmin && (
 							<NeoButton

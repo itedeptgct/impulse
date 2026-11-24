@@ -2,7 +2,14 @@ import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
 import { useState } from "react";
 import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
-import { Platform, Pressable, ScrollView, Text, View } from "react-native";
+import {
+	Platform,
+	Pressable,
+	ScrollView,
+	Text,
+	View,
+	useWindowDimensions,
+} from "react-native";
 
 export interface PostMediaCarouselProps {
 	mediaUrls: string[];
@@ -25,6 +32,9 @@ export function PostMediaCarousel({
 }: PostMediaCarouselProps) {
 	const [cardWidth, setCardWidth] = useState(0);
 	const [activeIndex, setActiveIndex] = useState(0);
+	const [galleryWidth, setGalleryWidth] = useState(0);
+	const { width } = useWindowDimensions();
+	const showDesktopGallery = Platform.OS === "web" && width >= 1024;
 
 	if (!mediaUrls || mediaUrls.length === 0) {
 		return null;
@@ -34,6 +44,52 @@ export function PostMediaCarousel({
 		triggerHaptic();
 		onMediaPress?.(index);
 	};
+
+	if (showDesktopGallery) {
+		const columns =
+			mediaUrls.length >= 3 ? 3 : mediaUrls.length === 2 ? 2 : 1;
+		const gap = 8;
+		const imageWidth =
+			galleryWidth > 0
+				? (galleryWidth - gap * (columns - 1)) / columns
+				: 0;
+
+		return (
+			<View
+				className={`border-2 border-border bg-primary p-2 ${className ?? ""}`}>
+				<View
+					onLayout={(e) => {
+						const nextWidth = Math.round(
+							e.nativeEvent.layout.width,
+						);
+						if (nextWidth > 0 && nextWidth !== galleryWidth) {
+							setGalleryWidth(nextWidth);
+						}
+					}}
+					className="w-full flex-row flex-wrap"
+					style={{ gap }}>
+					{mediaUrls.map((uri, index) => (
+						<Pressable
+							key={`${uri}-${index}`}
+							accessibilityRole="imagebutton"
+							accessibilityLabel={`View image ${index + 1} of ${mediaUrls.length}`}
+							onPress={() => handleImagePress(index)}
+							style={{
+								width: imageWidth,
+								aspectRatio: columns === 1 ? 16 / 9 : 4 / 3,
+							}}
+							className="overflow-hidden border border-border bg-primary active:opacity-95">
+							<ExpoImage
+								source={{ uri }}
+								style={{ width: "100%", height: "100%" }}
+								contentFit="contain"
+							/>
+						</Pressable>
+					))}
+				</View>
+			</View>
+		);
+	}
 
 	if (mediaUrls.length === 1) {
 		return (

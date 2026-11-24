@@ -10,11 +10,13 @@ import { MobileAlertSheet, NeoButton } from "@/components/ui";
 interface AdminHeaderProps {
 	onRefresh?: () => void;
 	isRefreshing?: boolean;
+	desktop?: boolean;
 }
 
 export function AdminHeader({
 	onRefresh,
 	isRefreshing = false,
+	desktop = false,
 }: AdminHeaderProps) {
 	const clearSession = useAuthStore((state) => state.clearSession);
 
@@ -35,7 +37,20 @@ export function AdminHeader({
 
 	return (
 		<View className="border-b-2 border-border bg-card">
-			<View className="flex-row items-center justify-between px-4 py-3">
+			<View
+				className={`flex-row items-center justify-between px-4 ${
+					desktop ? "py-4" : "py-3"
+				}`}
+				style={
+					desktop
+						? {
+								width: "100%",
+								maxWidth: 1360,
+								alignSelf: "center",
+								paddingHorizontal: 32,
+							}
+						: undefined
+				}>
 				<View className="flex-row items-center gap-2.5">
 					<NeoButton
 						size="sm"
@@ -52,10 +67,18 @@ export function AdminHeader({
 
 					<View className="flex-col">
 						<View className="flex-row items-center gap-2">
-							<Text className="font-display text-base tracking-tight text-foreground uppercase sm:text-lg">
+							<Text
+								className={`font-display tracking-tight text-foreground uppercase ${
+									desktop ? "text-xl" : "text-base sm:text-lg"
+								}`}>
 								Admin Moderation
 							</Text>
 						</View>
+						{desktop && (
+							<Text className="mt-0.5 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+								CONTROL CENTER / STAFF ACCESS
+							</Text>
+						)}
 					</View>
 				</View>
 

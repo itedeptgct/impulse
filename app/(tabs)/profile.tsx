@@ -37,10 +37,12 @@ import {
 	ActivityIndicator,
 	FlatList,
 	Pressable,
+	Platform,
 	RefreshControl,
 	Switch,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -51,6 +53,7 @@ import {
 	NeoBadge,
 	NeoButton,
 	NeoCard,
+	OnboardingBackground,
 } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
 import { fetchUserPosts, votePost } from "@/features/posts/api";
@@ -61,6 +64,8 @@ import { ActiveDot } from "@/features/presence";
 
 export default function ProfileScreen() {
 	const insets = useSafeAreaInsets();
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const queryClient = useQueryClient();
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
@@ -198,7 +203,6 @@ export default function ProfileScreen() {
 		user?.email?.split("@")[0] ||
 		"Impulse User";
 
-	const email = profile?.email || user?.email || "No email available";
 	const role = profile?.role || "user";
 	const verificationStatus = verification?.status || "pending";
 	const isAdmin = role === "admin";
@@ -375,6 +379,7 @@ export default function ProfileScreen() {
 	return (
 		<View className="flex-1 bg-background text-foreground">
 			<StatusBar style="dark" />
+			{isDesktop && <OnboardingBackground />}
 
 			<MobileTopBar
 				sector="PROFILE"
@@ -874,7 +879,8 @@ export default function ProfileScreen() {
 				open={isAccountActionsOpen}
 				onOpenChange={setIsAccountActionsOpen}
 				title="Account & Settings"
-				subtitle="Manage your student verification, house, and account.">
+				subtitle="Manage your student verification, house, and account."
+				desktopCompact>
 				<View className="gap-3 py-2">
 					<NeoCard
 						variant="default"

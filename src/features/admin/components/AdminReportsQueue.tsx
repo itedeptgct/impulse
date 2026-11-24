@@ -19,6 +19,7 @@ import {
 	ScrollView,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 
 import { MobileAlertSheet, NeoButton, NeoCard } from "@/components/ui";
@@ -48,6 +49,8 @@ const REASON_COLORS: Record<ReportReason, string> = {
 };
 
 export function AdminReportsQueue() {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const profile = useAuthStore((state) => state.profile);
 	const userRole = profile?.role;
 	const userGuild = profile?.guild;
@@ -182,7 +185,10 @@ export function AdminReportsQueue() {
 					</Text>
 				</NeoCard>
 			) : (
-				<View className="gap-3">
+				<View
+					className={
+						isDesktop ? "flex-row flex-wrap gap-3" : "gap-3"
+					}>
 					{reports.map((report) => {
 						const isActionPending = activeActionId === report.id;
 						const isOpen = report.status === "open";
@@ -191,6 +197,11 @@ export function AdminReportsQueue() {
 						return (
 							<View
 								key={report.id}
+								style={
+									isDesktop
+										? { width: "48%", minWidth: 380 }
+										: undefined
+								}
 								className="border-2 border-border bg-card p-4 shadow-neo">
 								{/* Header: Target type, Reason, House, Date */}
 								<View className="mb-2.5 flex-row flex-wrap items-center justify-between gap-2 border-b-2 border-border/20 pb-2.5">
@@ -272,7 +283,7 @@ export function AdminReportsQueue() {
 										<Text className="font-mono text-3xs tracking-wider text-muted-foreground uppercase">
 											REPORTER CONTEXT &amp; DETAILS
 										</Text>
-										<Text className="mt-0.5 font-mono text-xs text-foreground italic">
+										<Text className="mt-0.5 italic font-mono text-xs text-foreground">
 											"{report.details}"
 										</Text>
 									</View>

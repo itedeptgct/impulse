@@ -9,7 +9,13 @@ import {
 	XCircle,
 } from "lucide-react-native";
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import {
+	Platform,
+	ScrollView,
+	Text,
+	View,
+	useWindowDimensions,
+} from "react-native";
 
 import { NeoBadge, NeoButton, NeoCard, NeoInput } from "@/components/ui";
 
@@ -30,6 +36,8 @@ export function AdminVerificationDesk({
 	adminId,
 	pendingCount = 0,
 }: AdminVerificationDeskProps) {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
 	const [filter, setFilter] = useState<VerificationFilter>("pending");
 	const [search, setSearch] = useState("");
 	const [selectedItem, setSelectedItem] =
@@ -165,7 +173,10 @@ export function AdminVerificationDesk({
 					</Text>
 				</NeoCard>
 			) : (
-				<View className="gap-3">
+				<View
+					className={
+						isDesktop ? "flex-row flex-wrap gap-3" : "gap-3"
+					}>
 					{verifications.map((item) => {
 						const isPending = item.status === "pending";
 						const isApproved = item.status === "approved";
@@ -178,6 +189,11 @@ export function AdminVerificationDesk({
 						return (
 							<NeoCard
 								key={item.id}
+								style={
+									isDesktop
+										? { width: "48%", minWidth: 380 }
+										: undefined
+								}
 								className={`gap-3 p-4 ${
 									isPending
 										? "border-2 border-border bg-card shadow-neo-sm"

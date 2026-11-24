@@ -10,14 +10,22 @@ import {
 	FlatList,
 	Platform,
 	Pressable,
+	ScrollView,
 	Text,
 	View,
+	useWindowDimensions,
 } from "react-native";
 
-import { MobileAlertSheet, MobileTopBar, NeoBadge } from "@/components/ui";
+import {
+	MobileAlertSheet,
+	MobileTopBar,
+	NeoBadge,
+	OnboardingBackground,
+} from "@/components/ui";
 import { updateUserProfile } from "@/features/auth/api";
 import { canSwitchGuild } from "@/features/auth/permissions";
 import { fetchGuildMetrics } from "@/features/guilds/api";
+import { HouseAffinityEvaluation } from "@/features/guilds/components/HouseAffinityEvaluation";
 import { GUILD_LIST } from "@/features/guilds/constants";
 import type { GuildId, GuildInfo } from "@/features/guilds/types";
 
@@ -28,6 +36,9 @@ const triggerHaptic = () => {
 };
 
 export default function GuildsScreen() {
+	const { width } = useWindowDimensions();
+	const isDesktop = Platform.OS === "web" && width >= 1024;
+	const columnCount = isDesktop ? (width >= 1440 ? 3 : 2) : 1;
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 	const verification = useAuthStore((state) => state.verification);
@@ -78,6 +89,47 @@ export default function GuildsScreen() {
 	const isPending =
 		profile?.role !== "admin" &&
 		(verification?.status === "pending" || !verification);
+	const shouldShowHouseEvaluation =
+		Boolean(user?.id) && !profile?.guild && !isSwitchLocked;
+
+	const handleEvaluationComplete = async (guildId: GuildId) => {
+		if (!user?.id) {
+			setErrorAlert("Sign in to complete your house assignment.");
+			return;
+		}
+		if (isPending) {
+			setErrorAlert(
+				"House assignment will unlock once your student ID is approved.",
+			);
+			return;
+		}
+		if (isSwitchLocked) {
+			setErrorAlert(
+				"House affiliation is locked while serving as House Moderator.",
+			);
+			return;
+		}
+		const guild = GUILD_LIST.find((item) => item.id === guildId);
+		if (!guild) {
+			setErrorAlert("Could not determine your recommended house.");
+			return;
+		}
+
+		setUpdatingGuildId(guildId);
+		try {
+			const updated = await updateUserProfile(user.id, {
+				guild: guildId,
+			});
+			setProfile(updated);
+			setJoinedGuildAlert(guild);
+		} catch {
+			setErrorAlert(
+				"Could not complete house assignment. Please try again.",
+			);
+		} finally {
+			setUpdatingGuildId(null);
+		}
+	};
 
 	const handleJoinGuild = async (guild: GuildInfo) => {
 		if (!user?.id) return;
@@ -167,7 +219,9 @@ export default function GuildsScreen() {
 		const counts = guildCounts[guild.id];
 
 		return (
-			<View className="mb-6 border-2 border-border bg-surface p-4 shadow-neo">
+			<View
+				className="mb-6 border-2 border-border bg-surface p-4 shadow-neo"
+				style={columnCount > 1 ? { flex: 1 } : undefined}>
 				<View className="mb-3 flex-row flex-wrap items-center justify-between gap-2 border border-border/25 bg-secondary p-2">
 					<Text
 						className={`flex-1 bg-linear-to-r from-primary via-accent to-primary/60 bg-clip-text font-display text-xl tracking-[0.12em] text-transparent uppercase`}>
@@ -322,23 +376,42 @@ export default function GuildsScreen() {
 	return (
 		<View className="flex-1 bg-background">
 			<StatusBar style="dark" />
-			<MobileTopBar sector="HOUSES" dotColor="#00FF66" />
+			{isDesktop && <OnboardingBackground />}
+			<MobileTopBar sector="HOUSES" dotColor="#00FF66" desktopCompact />
 
-			<FlatList
-				data={GUILD_LIST}
-				keyExtractor={(item) => item.id}
-				renderItem={renderGuildCard}
-				ListHeaderComponent={renderGuildHeader}
-				contentContainerStyle={{
-					paddingTop: 10,
-					paddingHorizontal: 16,
-					paddingBottom: 36,
-					maxWidth: 672,
-					width: "100%",
-					alignSelf: "center",
-				}}
-				showsVerticalScrollIndicator={false}
-			/>
+			{shouldShowHouseEvaluation ? (
+				<ScrollView
+					className="flex-1"
+					contentContainerStyle={{ flexGrow: 1 }}
+					showsVerticalScrollIndicator={false}
+					keyboardShouldPersistTaps="handled">
+					<HouseAffinityEvaluation
+						isSubmitting={updatingGuildId !== null}
+						onComplete={handleEvaluationComplete}
+					/>
+				</ScrollView>
+			) : (
+				<FlatList
+					key={columnCount}
+					data={GUILD_LIST}
+					numColumns={columnCount}
+					columnWrapperStyle={
+						columnCount > 1 ? { gap: 24 } : undefined
+					}
+					keyExtractor={(item) => item.id}
+					renderItem={renderGuildCard}
+					ListHeaderComponent={renderGuildHeader}
+					contentContainerStyle={{
+						paddingTop: 10,
+						paddingHorizontal: columnCount > 1 ? 24 : 16,
+						paddingBottom: 36,
+						maxWidth: columnCount > 1 ? 1240 : 672,
+						width: "100%",
+						alignSelf: "center",
+					}}
+					showsVerticalScrollIndicator={false}
+				/>
+			)}
 
 			<MobileAlertSheet
 				open={Boolean(joinedGuildAlert)}
