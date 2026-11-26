@@ -108,14 +108,23 @@ export const NeoButton = React.forwardRef(function NeoButton(
 		.filter(Boolean)
 		.join(" ");
 
+	const preserveCase =
+		textClassName.includes("normal-case") ||
+		textClassName.includes("lowercase");
+
 	const textClasses = [
-		"font-bold uppercase tracking-wider text-center",
+		"font-bold tracking-wider text-center px-0.5",
 		variantTextClasses[variant],
 		sizeTextClasses[size],
 		textClassName,
 	]
 		.filter(Boolean)
 		.join(" ");
+
+	const renderedChildren =
+		typeof children === "string" && !preserveCase
+			? children.toUpperCase()
+			: children;
 
 	return (
 		<Pressable
@@ -136,8 +145,11 @@ export const NeoButton = React.forwardRef(function NeoButton(
 			)}
 
 			{typeof children === "string" || typeof children === "number" ? (
-				<Text className={textClasses} style={textStyle}>
-					{children}
+				<Text
+					numberOfLines={1}
+					className={textClasses}
+					style={textStyle}>
+					{renderedChildren}
 				</Text>
 			) : (
 				children

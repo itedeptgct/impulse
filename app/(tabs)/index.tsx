@@ -382,7 +382,7 @@ export default function FeedScreen() {
 					</View>
 				)}
 
-				<View className="w-full flex-row items-center border-2 border-border bg-surface p-0.5 shadow-neo-xs">
+				<View className="w-full flex-row items-stretch border-2 border-border bg-surface p-0.5 shadow-neo-xs">
 					<Pressable
 						accessibilityRole="tab"
 						accessibilityState={{ selected: isPublicSelected }}
@@ -418,7 +418,7 @@ export default function FeedScreen() {
 								triggerHaptic();
 								setSelectedGuild(currentHouse);
 							}}
-							className={`flex-1 flex-row items-center justify-center gap-1.5 px-3 py-1 active:opacity-85 ${
+							className={`flex-1 flex-row items-center justify-center gap-1.5 px-3 py-1.5 active:opacity-85 ${
 								isHouseSelected
 									? "bg-primary"
 									: "bg-transparent"

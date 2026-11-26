@@ -144,6 +144,7 @@ export async function fetchModerationReports(
 
 	const postSnippetMap = new Map<string, string>();
 	const commentSnippetMap = new Map<string, string>();
+	const commentPostIdMap = new Map<string, string>();
 
 	if (postIds.length > 0) {
 		try {
@@ -164,7 +165,7 @@ export async function fetchModerationReports(
 		try {
 			const { data: comments } = await supabase
 				.from("comments")
-				.select("id, content, is_deleted")
+				.select("id, post_id, content, is_deleted")
 				.in("id", commentIds);
 			if (comments) {
 				for (const c of comments as any[]) {
@@ -172,6 +173,9 @@ export async function fetchModerationReports(
 						? "[deleted comment]"
 						: c.content || "(Empty comment)";
 					commentSnippetMap.set(c.id, snippet);
+					if (c.post_id) {
+						commentPostIdMap.set(c.id, c.post_id);
+					}
 				}
 			}
 		} catch {}
@@ -184,6 +188,12 @@ export async function fetchModerationReports(
 				? (postSnippetMap.get(r.target_id) ?? "[content unavailable]")
 				: (commentSnippetMap.get(r.target_id) ??
 					"[content unavailable]"),
+		target_post_id:
+			r.target_type === "post"
+				? postSnippetMap.has(r.target_id)
+					? r.target_id
+					: null
+				: (commentPostIdMap.get(r.target_id) ?? null),
 	}));
 }
 

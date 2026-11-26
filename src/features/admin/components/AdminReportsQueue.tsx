@@ -1,7 +1,9 @@
 import { useAuthStore } from "@auth/store";
 import { formatRelativeTime } from "@lib/date";
 import * as Haptics from "expo-haptics";
+import { router } from "expo-router";
 import {
+	ArrowUpRight,
 	CheckCircle,
 	FileText,
 	Flag,
@@ -16,6 +18,7 @@ import { useMemo, useState } from "react";
 import {
 	ActivityIndicator,
 	Platform,
+	Pressable,
 	ScrollView,
 	Text,
 	View,
@@ -108,7 +111,7 @@ export function AdminReportsQueue() {
 		<View className="gap-4">
 			{/* Guild Scoping Notification for House Mods */}
 			{userRole === "house_mod" && userGuild && (
-				<View className="bg-neo-yellow/20 flex-row items-center gap-2 border-2 border-border p-3 shadow-neo-xs">
+				<View className="flex-row items-center gap-2 border-2 border-border bg-neo-yellow/20 p-3 shadow-neo-xs">
 					<Shield size={16} color="#000000" strokeWidth={2.4} />
 					<Text className="flex-1 font-bold text-xs text-foreground uppercase">
 						SCOPED TO HOUSE {userGuild.toUpperCase()} DISPATCHES
@@ -254,17 +257,52 @@ export function AdminReportsQueue() {
 								</View>
 
 								{/* Content Snippet */}
-								<View className="mb-3 border-2 border-border bg-secondary p-3 shadow-neo-xs">
-									<Text className="font-mono text-3xs tracking-wider text-muted-foreground uppercase">
-										TARGET CONTENT REFERENCE
-									</Text>
-									<Text
-										numberOfLines={3}
-										className="mt-1 font-mono text-xs leading-relaxed text-foreground select-text">
-										{report.target_snippet ||
-											"[Content unavailable or deleted]"}
-									</Text>
-								</View>
+								{report.target_post_id ? (
+									<Pressable
+										accessibilityRole="button"
+										accessibilityLabel="View reported post"
+										onPress={() => {
+											triggerHaptic();
+											router.push(
+												`/post/${report.target_post_id}` as any,
+											);
+										}}
+										className="mb-3 border-2 border-border bg-secondary p-3 shadow-neo-xs active:opacity-80">
+										<View className="flex-row items-center justify-between gap-2">
+											<Text className="font-mono text-3xs tracking-wider text-muted-foreground uppercase">
+												TARGET CONTENT REFERENCE
+											</Text>
+											<View className="flex-row items-center gap-0.5 border border-border bg-surface px-1.5 py-0.5">
+												<Text className="font-bold text-3xs tracking-wider text-foreground uppercase">
+													VIEW POST
+												</Text>
+												<ArrowUpRight
+													size={11}
+													color="#000000"
+													strokeWidth={2.5}
+												/>
+											</View>
+										</View>
+										<Text
+											numberOfLines={3}
+											className="mt-1 font-mono text-xs leading-relaxed text-foreground">
+											{report.target_snippet ||
+												"[Content unavailable or deleted]"}
+										</Text>
+									</Pressable>
+								) : (
+									<View className="mb-3 border-2 border-border bg-secondary p-3 shadow-neo-xs">
+										<Text className="font-mono text-3xs tracking-wider text-muted-foreground uppercase">
+											TARGET CONTENT REFERENCE
+										</Text>
+										<Text
+											numberOfLines={3}
+											className="mt-1 font-mono text-xs leading-relaxed text-foreground select-text">
+											{report.target_snippet ||
+												"[Content unavailable or deleted]"}
+										</Text>
+									</View>
+								)}
 
 								{/* Additional Details */}
 								{report.details && (
@@ -272,7 +310,7 @@ export function AdminReportsQueue() {
 										<Text className="font-mono text-3xs tracking-wider text-muted-foreground uppercase">
 											REPORTER CONTEXT &amp; DETAILS
 										</Text>
-										<Text className="mt-0.5 font-mono text-xs text-foreground italic">
+										<Text className="mt-0.5 italic font-mono text-xs text-foreground">
 											"{report.details}"
 										</Text>
 									</View>

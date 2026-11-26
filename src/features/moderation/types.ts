@@ -40,6 +40,7 @@ export interface ModerationReport {
 	created_at: string;
 	reporter?: ReportReporter | null;
 	target_snippet?: string | null;
+	target_post_id?: string | null;
 }
 
 export const REPORT_REASONS: {
