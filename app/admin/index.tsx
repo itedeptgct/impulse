@@ -294,8 +294,8 @@ export default function AdminScreen() {
 									Post Management
 								</Text>
 								<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
-									Inspect, edit, and moderate student
-									transmissions across public and house feeds.
+									Inspect, edit, and moderate student posts
+									across public and house feeds.
 								</Text>
 							</View>
 							<AdminPostDirectory />

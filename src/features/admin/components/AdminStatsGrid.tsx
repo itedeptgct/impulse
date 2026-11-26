@@ -107,7 +107,7 @@ export function AdminStatsGrid({ stats }: AdminStatsGridProps) {
 			<NeoCard className="min-w-[45%] flex-1 border-border bg-card p-4">
 				<View className="flex-row items-center justify-between">
 					<Text className="font-bold text-xs tracking-wider text-muted-foreground uppercase">
-						Transmissions
+						Posts
 					</Text>
 					<View className="size-7 items-center justify-center rounded-none border-2 border-border bg-muted">
 						<FileText size={14} color="#000000" strokeWidth={2.5} />

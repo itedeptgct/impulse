@@ -414,7 +414,7 @@ export default function SearchScreen() {
 				rows.push({
 					type: "header",
 					id: "header-posts",
-					title: "TRANSMISSIONS",
+					title: "POSTS",
 					count: postResults.length,
 					icon: "posts",
 				});
@@ -536,7 +536,7 @@ export default function SearchScreen() {
 						</Text>
 						<Text className="mb-3 font-mono text-xs leading-relaxed text-muted-foreground">
 							Tap an indexed tag or enter an operator handle to
-							query public transmissions and house ledgers.
+							query public posts and house ledgers.
 						</Text>
 						<View className="flex-row flex-wrap gap-2">
 							{QUICK_TOPICS.map((topic) => (
@@ -561,14 +561,14 @@ export default function SearchScreen() {
 					</View>
 					<Text className="mt-4 text-center font-display text-base text-foreground uppercase">
 						{activeTab === "posts"
-							? `NO TRANSMISSIONS MATCHING "${query}"`
+							? `NO POSTS MATCHING "${query}"`
 							: activeTab === "users"
 								? `NO USERS MATCHING "${query}"`
 								: `NO RESULTS MATCHING "${query}"`}
 					</Text>
 					<Text className="mt-1 text-center font-mono text-xs leading-relaxed text-muted-foreground">
 						{activeTab === "posts"
-							? "No matching transmissions found in your house or public feed."
+							? "No matching posts found in your house or public feed."
 							: activeTab === "users"
 								? "No profiles found matching this name, handle, or house."
 								: "Check your keyword or try searching by popular topics like algorithms, mobile, or react."}
