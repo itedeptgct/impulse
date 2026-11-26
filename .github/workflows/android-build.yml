@@ -134,19 +134,46 @@ jobs:
                   git tag -f nightly "${{ github.sha }}"
                   git push -f origin nightly
 
-            - name: Publish Nightly Pre-release
+            - name: Update Nightly Pre-release
               if: ${{ steps.meta.outputs.profile == 'preview' }}
-              uses: softprops/action-gh-release@v2
-              with:
-                  tag_name: nightly
-                  name: Nightly Build (${{ steps.meta.outputs.version }}-nightly.${{ steps.meta.outputs.short_sha }})
-                  body: |
-                      Automated nightly preview build from `master` (`${{ github.sha }}`).
-                      - Profile: `preview`
-                      - Version: `${{ steps.meta.outputs.version }}-nightly.${{ steps.meta.outputs.short_sha }}`
-                  prerelease: true
-                  make_latest: false
-                  files: ./${{ steps.meta.outputs.apk_name }}
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  APK_NAME: ${{ steps.meta.outputs.apk_name }}
+                  APP_VERSION: ${{ steps.meta.outputs.version }}
+                  SHORT_SHA: ${{ steps.meta.outputs.short_sha }}
+              run: |
+                  LATEST_REL=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+                  BUILD_TIME=$(TZ=UTC date --iso-8601=seconds)
+                  BUILD_TIME_TEXT=$(LC_ALL=C TZ=UTC date --date="$BUILD_TIME" '+%B %-d, %Y %H:%M')
+                  RELEASE_NOTES=$(mktemp)
+                  {
+                    echo "Nightly build from commit \`${SHORT_SHA}\` (\`${APP_VERSION}-nightly.${SHORT_SHA}\`)."
+                    echo "Build time: <relative-time tense=\"past\" datetime=\"${BUILD_TIME}\">${BUILD_TIME_TEXT}</relative-time>"
+                    if [ -n "$LATEST_REL" ]; then
+                      echo "See changes: https://github.com/${{ github.repository }}/compare/${LATEST_REL}...master"
+                    fi
+                  } > "$RELEASE_NOTES"
+
+                  if gh release view nightly >/dev/null 2>&1; then
+                    PREVIOUS_ASSETS=$(gh release view nightly --json assets --jq '.assets[].name')
+                    gh release upload nightly "./${APK_NAME}" --clobber
+                    gh release edit nightly \
+                      --title "Nightly Build" \
+                      --notes-file "$RELEASE_NOTES" \
+                      --prerelease \
+                      --latest=false
+                    while IFS= read -r asset; do
+                      if [[ "$asset" == *.apk && "$asset" != "$APK_NAME" ]]; then
+                        gh release delete-asset nightly "$asset" --yes
+                      fi
+                    done <<< "$PREVIOUS_ASSETS"
+                  else
+                    gh release create nightly "./${APK_NAME}" \
+                      --title "Nightly Build" \
+                      --notes-file "$RELEASE_NOTES" \
+                      --prerelease \
+                      --latest=false
+                  fi
 
             - name: Publish Production Release
               if: ${{ steps.meta.outputs.profile == 'production' }}
