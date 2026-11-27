@@ -21,7 +21,11 @@ export function GuildBadge({
 
 	const symbol =
 		info.houseSymbol ||
-		(info.id === "octagram" ? "0x" : info.id === "chameleon" ? "★" : "BJ");
+		(info.id === "octagram"
+			? "0x"
+			: info.id === "chameleon"
+				? "RGB"
+				: "PRESS");
 
 	if (size === "lg") {
 		return (
@@ -32,7 +36,8 @@ export function GuildBadge({
 					{symbol}
 				</Text>
 				{showTagline && info.tagline ? (
-					<Text className="ml-1 font-mono text-[10px] text-foreground/70">
+					<Text
+						className={`ml-1 font-mono text-[10px] opacity-80 ${info.badgeTextColor}`}>
 						// {info.tagline}
 					</Text>
 				) : null}

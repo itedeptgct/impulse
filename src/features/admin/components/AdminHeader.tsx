@@ -52,7 +52,7 @@ export function AdminHeader({
 
 					<View className="flex-col">
 						<View className="flex-row items-center gap-2">
-							<Text className="font-display text-base tracking-tight text-foreground uppercase sm:text-lg">
+							<Text className="font-ndot-caps text-base tracking-tight text-foreground uppercase sm:text-lg">
 								Admin Moderation
 							</Text>
 						</View>

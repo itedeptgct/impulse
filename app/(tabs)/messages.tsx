@@ -1,4 +1,5 @@
 import { useAuthStore } from "@auth/store";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import { router, useFocusEffect } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -11,16 +12,7 @@ import {
 	X,
 } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-	ActivityIndicator,
-	Alert,
-	FlatList,
-	Pressable,
-	RefreshControl,
-	Text,
-	TextInput,
-	View,
-} from "react-native";
+import { Pressable, RefreshControl, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import {
@@ -31,24 +23,28 @@ import {
 } from "@/components/ui";
 import {
 	deleteOrLeaveConversation,
-	fetchConversations,
 	markConversationRead,
 	togglePinConversation,
 } from "@/features/messages/api";
 import { ConversationRow } from "@/features/messages/components/ConversationRow";
 import { ConversationSettingsSheet } from "@/features/messages/components/ConversationSettingsSheet";
 import { InboxEmptyState } from "@/features/messages/components/InboxEmptyState";
+import { InboxSkeleton } from "@/features/messages/components/InboxSkeleton";
+import { useConversationsQuery } from "@/features/messages/queries";
 import { useMessagesStore } from "@/features/messages/store";
 import type { DirectConversationSummary } from "@/features/messages/types";
 import { formatConversationTitle } from "@/features/messages/utils";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { useTabReselect } from "@/lib/tab-events";
+import { toast } from "@/lib/toast";
 
 export default function MessagesScreen() {
 	const insets = useSafeAreaInsets();
 	const userId = useAuthStore((s) => s.user?.id);
+	const listRef = useRef<FlashListRef<DirectConversationSummary>>(null);
+	const isRefreshingRef = useRef(false);
 
 	const conversations = useMessagesStore((s) => s.conversations);
-	const setConversations = useMessagesStore((s) => s.setConversations);
 	const togglePinConversationLocally = useMessagesStore(
 		(s) => s.togglePinConversationLocally,
 	);
@@ -57,10 +53,15 @@ export default function MessagesScreen() {
 		(s) => s.removeConversationLocally,
 	);
 
+	const conversationsQuery = useConversationsQuery(userId);
+	const isLoading = conversationsQuery.isPending;
+	const error = conversationsQuery.error
+		? conversationsQuery.error.message ||
+			"Unable to load your conversations. Check your connection."
+		: null;
+
 	const [searchQuery, setSearchQuery] = useState("");
-	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
-	const [error, setError] = useState<string | null>(null);
 	const [isRetrying, setIsRetrying] = useState(false);
 	const [selectedConversationId, setSelectedConversationId] = useState<
 		string | null
@@ -77,26 +78,9 @@ export default function MessagesScreen() {
 	);
 
 	const loadInbox = useCallback(async () => {
-		if (!userId) {
-			setIsLoading(false);
-			setIsRefreshing(false);
-			return;
-		}
-		try {
-			const data = await fetchConversations(userId);
-			setConversations(data);
-			setError(null);
-		} catch (err: unknown) {
-			const e = err as Error;
-			setError(
-				e?.message ||
-					"Unable to load your conversations. Check your connection.",
-			);
-		} finally {
-			setIsLoading(false);
-			setIsRefreshing(false);
-		}
-	}, [userId, setConversations]);
+		if (!userId) return;
+		await conversationsQuery.refetch();
+	}, [userId, conversationsQuery]);
 
 	const loadInboxRef = useRef(loadInbox);
 	useEffect(() => {
@@ -105,8 +89,10 @@ export default function MessagesScreen() {
 
 	useFocusEffect(
 		useCallback(() => {
-			void loadInbox();
-		}, [loadInbox]),
+			if (conversationsQuery.isStale) {
+				void loadInboxRef.current();
+			}
+		}, [conversationsQuery.isStale]),
 	);
 
 	useEffect(() => {
@@ -164,10 +150,22 @@ export default function MessagesScreen() {
 		};
 	}, [userId]);
 
-	const handleRefresh = useCallback(() => {
+	const handleRefresh = useCallback(async () => {
+		if (isRefreshingRef.current || isLoading) return;
+		isRefreshingRef.current = true;
 		setIsRefreshing(true);
-		void loadInbox();
-	}, [loadInbox]);
+		try {
+			await loadInbox();
+		} finally {
+			isRefreshingRef.current = false;
+			setIsRefreshing(false);
+		}
+	}, [isLoading, loadInbox]);
+
+	useTabReselect("messages", () => {
+		listRef.current?.scrollToOffset({ offset: 0, animated: true });
+		void handleRefresh();
+	});
 
 	const handleRetry = useCallback(async () => {
 		setIsRetrying(true);
@@ -225,10 +223,7 @@ export default function MessagesScreen() {
 		} catch (err: unknown) {
 			void loadInbox();
 			const e = err as Error;
-			Alert.alert(
-				"Error",
-				e?.message || "Failed to mark conversation as read.",
-			);
+			toast.error(e?.message || "Failed to mark conversation as read.");
 		}
 	}, [selectedConversation, userId, markReadLocally, loadInbox]);
 
@@ -243,10 +238,13 @@ export default function MessagesScreen() {
 				userId,
 				nextPinned,
 			);
+			toast.success(
+				nextPinned ? "Conversation pinned" : "Conversation unpinned",
+			);
 		} catch (err: unknown) {
 			togglePinConversationLocally(selectedConversation.id, !nextPinned);
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to update pin status.");
+			toast.error(e?.message || "Failed to update pin status.");
 		}
 	}, [selectedConversation, userId, togglePinConversationLocally]);
 
@@ -268,12 +266,10 @@ export default function MessagesScreen() {
 			removeConversationLocally(selectedConversation.id);
 			setDeleteConfirmOpen(false);
 			setSelectedConversationId(null);
+			toast.success("Conversation deleted");
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert(
-				"Error",
-				e?.message || "Failed to delete conversation.",
-			);
+			toast.error(e?.message || "Failed to delete conversation.");
 		} finally {
 			setIsDeleting(false);
 		}
@@ -332,12 +328,7 @@ export default function MessagesScreen() {
 			</View>
 
 			{isLoading && conversations.length === 0 ? (
-				<View className="flex-1 items-center justify-center">
-					<ActivityIndicator size="large" color="#000000" />
-					<Text className="mt-3 font-mono text-xs text-muted-foreground uppercase">
-						SYNCING WIRE...
-					</Text>
-				</View>
+				<InboxSkeleton count={6} />
 			) : error && conversations.length === 0 ? (
 				<View className="flex-1 items-center justify-center p-6">
 					<NetworkErrorCard
@@ -348,7 +339,8 @@ export default function MessagesScreen() {
 					/>
 				</View>
 			) : (
-				<FlatList
+				<FlashList
+					ref={listRef}
 					data={filteredConversations}
 					keyExtractor={(item) => item.id}
 					renderItem={renderItem}
@@ -360,7 +352,6 @@ export default function MessagesScreen() {
 						/>
 					}
 					contentContainerStyle={{
-						flexGrow: 1,
 						paddingBottom: insets.bottom + 24,
 					}}
 					ListEmptyComponent={

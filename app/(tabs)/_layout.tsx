@@ -15,8 +15,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { fetchConversations } from "@/features/messages/api";
 import { useMessagesStore } from "@/features/messages/store";
+import { useBookmarksStore } from "@/features/posts/bookmarks";
 import { PostComposerModal } from "@/features/posts/components/PostComposerModal";
+import { invalidateFeedCaches } from "@/features/posts/queries";
 import { useComposerStore } from "@/features/posts/store";
+import { emitTabReselect, type TabReselectKey } from "@/lib/tab-events";
 
 const triggerTabHaptic = () => {
 	if (Platform.OS !== "web") {
@@ -46,6 +49,7 @@ export default function TabsLayout() {
 		void fetchConversations(uid)
 			.then((data) => useMessagesStore.getState().setConversations(data))
 			.catch(() => {});
+		void useBookmarksStore.getState().loadBookmarks(uid);
 	}, [session?.user?.id]);
 
 	// I present you
@@ -213,6 +217,20 @@ export default function TabsLayout() {
 													}
 													onPress={() => {
 														triggerTabHaptic();
+														if (
+															item.active &&
+															(item.key ===
+																"index" ||
+																item.key ===
+																	"dispatch" ||
+																item.key ===
+																	"messages")
+														) {
+															emitTabReselect(
+																item.key as TabReselectKey,
+															);
+															return;
+														}
 														item.onPress();
 													}}
 													className={`relative min-h-14 flex-1 items-center justify-center py-2.5 ${
@@ -253,7 +271,7 @@ export default function TabsLayout() {
 														) : null}
 													</View>
 													<Text
-														className={`mt-1 font-bold text-[10px] tracking-wider uppercase ${
+														className={`mt-1 font-ndot text-[10px] tracking-wider uppercase ${
 															item.active
 																? "text-primary-foreground"
 																: "text-foreground"
@@ -286,6 +304,7 @@ export default function TabsLayout() {
 				initialTray={composerInitialTray}
 				onClose={closeComposer}
 				onCreated={() => {
+					void invalidateFeedCaches();
 					closeComposer();
 					router.replace("/(tabs)");
 				}}

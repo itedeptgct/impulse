@@ -532,6 +532,58 @@ export async function searchUsers(query: string): Promise<Profile[]> {
 	return results;
 }
 
+export async function searchMentionUsers(
+	query: string,
+	limit = 8,
+): Promise<Profile[]> {
+	const trimmed = query.trim().toLowerCase();
+
+	if (trimmed) {
+		const users = await searchUsers(trimmed);
+		const withUsername = users.filter((u) => Boolean(u.username));
+		withUsername.sort((a, b) => {
+			const aUser = (a.username || "").toLowerCase();
+			const bUser = (b.username || "").toLowerCase();
+			const aStarts = aUser.startsWith(trimmed) ? 0 : 1;
+			const bStarts = bUser.startsWith(trimmed) ? 0 : 1;
+			if (aStarts !== bStarts) return aStarts - bStarts;
+			const aContains = aUser.includes(trimmed) ? 0 : 1;
+			const bContains = bUser.includes(trimmed) ? 0 : 1;
+			if (aContains !== bContains) return aContains - bContains;
+			return aUser.localeCompare(bUser);
+		});
+		return withUsername.slice(0, limit);
+	}
+
+	try {
+		const { data, error } = await supabase
+			.from("profiles")
+			.select("*")
+			.order("karma", { ascending: false })
+			.limit(limit);
+
+		if (!error && data && data.length > 0) {
+			return (data as any[])
+				.map((item) => ({
+					...item,
+					karma: typeof item.karma === "number" ? item.karma : 0,
+					email: item.email || "",
+				}))
+				.filter((u) => Boolean(u.username)) as Profile[];
+		}
+	} catch {}
+
+	try {
+		const { useAuthStore } = require("./store");
+		const current = useAuthStore?.getState?.()?.profile;
+		if (current?.username) {
+			return [current];
+		}
+	} catch {}
+
+	return [];
+}
+
 export async function changeUsername(
 	userId: string,
 	username: string,

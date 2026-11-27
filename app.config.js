@@ -40,9 +40,19 @@ module.exports = {
 				{
 					photosPermission:
 						"Allow Impulse to access your photos so you can attach media to posts.",
+					cameraPermission:
+						"Allow Impulse to use your camera so you can take photos for posts and messages.",
 				},
 			],
-			"expo-font",
+			[
+				"expo-font",
+				{
+					fonts: [
+						"./assets/fonts/Ndot57-Regular.otf",
+						"./assets/fonts/Ndot57Caps-Regular.otf",
+					],
+				},
+			],
 			"expo-web-browser",
 			[
 				"expo-splash-screen",

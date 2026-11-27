@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     bio TEXT,
     avatar_url TEXT,
     karma INTEGER NOT NULL DEFAULT 0,
+    restricted_until TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     CONSTRAINT username_min_length CHECK (char_length(TRIM(username)) >= 2),
@@ -75,6 +76,116 @@ CREATE POLICY "Admins can update profiles"
     TO authenticated
     USING ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin')
     WITH CHECK ((SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin');
+
+CREATE POLICY "Mods can update user restrictions"
+    ON public.profiles FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = auth.uid()
+              AND (
+                  p.role = 'mod'
+                  OR (
+                      p.role = 'house_mod'
+                      AND p.guild IS NOT NULL
+                      AND p.guild = public.profiles.guild
+                  )
+              )
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = auth.uid()
+              AND (
+                  p.role = 'mod'
+                  OR (
+                      p.role = 'house_mod'
+                      AND p.guild IS NOT NULL
+                      AND p.guild = public.profiles.guild
+                  )
+              )
+        )
+    );
+
+CREATE OR REPLACE FUNCTION public.guard_profile_moderation_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_caller_id UUID;
+    v_caller_role TEXT;
+    v_caller_guild TEXT;
+BEGIN
+    v_caller_id := auth.uid();
+
+    IF v_caller_id IS NULL OR pg_trigger_depth() > 1 THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT role, guild
+    INTO v_caller_role, v_caller_guild
+    FROM public.profiles
+    WHERE id = v_caller_id;
+
+    IF NEW.restricted_until IS DISTINCT FROM OLD.restricted_until THEN
+        IF v_caller_role = 'admin' THEN
+            NULL;
+        ELSIF v_caller_role = 'mod' THEN
+            IF OLD.id = v_caller_id OR OLD.role = 'admin' THEN
+                RAISE EXCEPTION 'Moderators cannot modify their own restriction or restrict admins'
+                    USING ERRCODE = '42501';
+            END IF;
+        ELSIF v_caller_role = 'house_mod' THEN
+            IF OLD.id = v_caller_id
+               OR v_caller_guild IS NULL
+               OR v_caller_guild IS DISTINCT FROM OLD.guild
+               OR OLD.role IN ('admin', 'mod') THEN
+                RAISE EXCEPTION 'House moderators can only restrict non-staff members in their own guild'
+                    USING ERRCODE = '42501';
+            END IF;
+        ELSE
+            RAISE EXCEPTION 'Only authorized moderation staff can update restriction status'
+                USING ERRCODE = '42501';
+        END IF;
+    END IF;
+
+    IF v_caller_role IS DISTINCT FROM 'admin' THEN
+        IF NEW.role IS DISTINCT FROM OLD.role THEN
+            RAISE EXCEPTION 'Only admins can update user roles'
+                USING ERRCODE = '42501';
+        END IF;
+
+        IF v_caller_id <> OLD.id AND (
+            NEW.username IS DISTINCT FROM OLD.username OR
+            NEW.display_name IS DISTINCT FROM OLD.display_name OR
+            NEW.guild IS DISTINCT FROM OLD.guild OR
+            NEW.course IS DISTINCT FROM OLD.course OR
+            NEW.year_level IS DISTINCT FROM OLD.year_level OR
+            NEW.bio IS DISTINCT FROM OLD.bio OR
+            NEW.avatar_url IS DISTINCT FROM OLD.avatar_url OR
+            NEW.karma IS DISTINCT FROM OLD.karma OR
+            NEW.show_active_status IS DISTINCT FROM OLD.show_active_status OR
+            NEW.last_seen_at IS DISTINCT FROM OLD.last_seen_at OR
+            NEW.expo_push_token IS DISTINCT FROM OLD.expo_push_token
+        ) THEN
+            RAISE EXCEPTION 'Moderators can only update restriction status on other users'
+                USING ERRCODE = '42501';
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_guard_profile_moderation_fields ON public.profiles;
+CREATE TRIGGER trg_guard_profile_moderation_fields
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.guard_profile_moderation_fields();
 
 CREATE OR REPLACE FUNCTION public.auto_confirm_user_email()
 RETURNS TRIGGER
@@ -210,6 +321,16 @@ CREATE POLICY "Posts audience visibility"
         OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
     );
 
+CREATE POLICY "Admins and mods can view all posts"
+    ON public.posts FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
 CREATE POLICY "Users can insert their own posts"
     ON public.posts FOR INSERT
     TO authenticated
@@ -234,6 +355,58 @@ CREATE POLICY "Users can delete their own posts"
         auth.uid() = author_id
         OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
     );
+
+CREATE POLICY "Mods can delete any post"
+    ON public.posts FOR DELETE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role = 'mod'
+        )
+    );
+
+CREATE POLICY "House mods can delete guild posts"
+    ON public.posts FOR DELETE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid()
+              AND role = 'house_mod'
+              AND guild IS NOT NULL
+              AND guild = public.posts.guild
+        )
+    );
+
+CREATE OR REPLACE FUNCTION public.enforce_not_restricted_before_insert()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_restricted_until TIMESTAMPTZ;
+BEGIN
+    SELECT restricted_until
+    INTO v_restricted_until
+    FROM public.profiles
+    WHERE id = NEW.author_id;
+
+    IF v_restricted_until IS NOT NULL AND v_restricted_until > NOW() THEN
+        RAISE EXCEPTION 'Your account is temporarily restricted until %', v_restricted_until
+            USING ERRCODE = '42501';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_posts_reject_restricted_author ON public.posts;
+CREATE TRIGGER trg_posts_reject_restricted_author
+    BEFORE INSERT ON public.posts
+    FOR EACH ROW
+    EXECUTE FUNCTION public.enforce_not_restricted_before_insert();
 
 CREATE OR REPLACE FUNCTION public.get_post_access_status(p_post_id UUID)
 RETURNS TEXT
@@ -465,6 +638,32 @@ CREATE POLICY "Admins and mods can update comments"
         )
     );
 
+CREATE POLICY "House mods can update guild comments"
+    ON public.comments FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.profiles p
+            JOIN public.posts po ON po.id = public.comments.post_id
+            WHERE p.id = auth.uid()
+              AND p.role = 'house_mod'
+              AND p.guild IS NOT NULL
+              AND po.guild = p.guild
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.profiles p
+            JOIN public.posts po ON po.id = public.comments.post_id
+            WHERE p.id = auth.uid()
+              AND p.role = 'house_mod'
+              AND p.guild IS NOT NULL
+              AND po.guild = p.guild
+        )
+    );
+
 CREATE POLICY "Users and admins can delete comments"
     ON public.comments FOR DELETE
     TO authenticated
@@ -475,6 +674,27 @@ CREATE POLICY "Users and admins can delete comments"
             WHERE id = auth.uid() AND role IN ('admin', 'mod')
         )
     );
+
+CREATE POLICY "House mods can delete guild comments"
+    ON public.comments FOR DELETE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.profiles p
+            JOIN public.posts po ON po.id = public.comments.post_id
+            WHERE p.id = auth.uid()
+              AND p.role = 'house_mod'
+              AND p.guild IS NOT NULL
+              AND po.guild = p.guild
+        )
+    );
+
+DROP TRIGGER IF EXISTS trg_comments_reject_restricted_author ON public.comments;
+CREATE TRIGGER trg_comments_reject_restricted_author
+    BEFORE INSERT ON public.comments
+    FOR EACH ROW
+    EXECUTE FUNCTION public.enforce_not_restricted_before_insert();
 
 CREATE OR REPLACE FUNCTION public.handle_comment_count_change()
 RETURNS TRIGGER AS $$
@@ -548,6 +768,10 @@ CREATE TABLE IF NOT EXISTS public.reports (
     reason TEXT NOT NULL CHECK (reason IN ('spam', 'harassment', 'misinformation', 'inappropriate', 'other')),
     details TEXT,
     status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved', 'dismissed')),
+    moderator_note TEXT,
+    resolution_action TEXT CHECK (resolution_action IN ('dismiss', 'warn', 'restrict_24h', 'restrict_7d', 'remove_content')),
+    assigned_to UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    assigned_at TIMESTAMPTZ,
     resolved_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     resolved_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
@@ -566,12 +790,24 @@ CREATE INDEX IF NOT EXISTS idx_reports_guild_status
 CREATE INDEX IF NOT EXISTS idx_reports_target 
     ON public.reports (target_type, target_id);
 
+CREATE INDEX IF NOT EXISTS idx_reports_assigned_status
+    ON public.reports (assigned_to, status);
+
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Users can insert own reports"
     ON public.reports FOR INSERT
     TO authenticated
-    WITH CHECK (auth.uid() = reporter_id);
+    WITH CHECK (
+        auth.uid() = reporter_id
+        AND status = 'open'
+        AND moderator_note IS NULL
+        AND resolution_action IS NULL
+        AND assigned_to IS NULL
+        AND assigned_at IS NULL
+        AND resolved_by IS NULL
+        AND resolved_at IS NULL
+    );
 
 CREATE POLICY "Users can view own reports"
     ON public.reports FOR SELECT
@@ -636,6 +872,208 @@ CREATE POLICY "House mods can update guild reports"
               AND role = 'house_mod'
               AND guild IS NOT NULL
               AND guild = public.reports.guild
+        )
+    );
+
+-- Moderation actions audit table & staff-only RLS
+CREATE TABLE IF NOT EXISTS public.moderation_actions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    target_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    target_type TEXT NOT NULL CHECK (target_type IN ('post', 'comment', 'user')),
+    target_id UUID NOT NULL,
+    guild TEXT CHECK (guild IN ('octagram', 'chameleon', 'blue_jays')),
+    action TEXT NOT NULL CHECK (action IN ('dismiss', 'warn', 'restrict_24h', 'restrict_7d', 'remove_content')),
+    moderator_note TEXT,
+    public_explanation TEXT,
+    report_ids UUID[] NOT NULL DEFAULT ARRAY[]::UUID[],
+    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE INDEX IF NOT EXISTS idx_moderation_actions_target_user
+    ON public.moderation_actions (target_user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_moderation_actions_guild_created
+    ON public.moderation_actions (guild, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_moderation_actions_actor
+    ON public.moderation_actions (actor_id, created_at DESC);
+
+ALTER TABLE public.moderation_actions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins and mods can view all moderation actions"
+    ON public.moderation_actions FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
+CREATE POLICY "House mods can view guild moderation actions"
+    ON public.moderation_actions FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid()
+              AND role = 'house_mod'
+              AND guild IS NOT NULL
+              AND guild = public.moderation_actions.guild
+        )
+    );
+
+CREATE POLICY "Admins and mods can insert moderation actions"
+    ON public.moderation_actions FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        auth.uid() = actor_id
+        AND EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
+CREATE POLICY "House mods can insert guild moderation actions"
+    ON public.moderation_actions FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        auth.uid() = actor_id
+        AND EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid()
+              AND role = 'house_mod'
+              AND guild IS NOT NULL
+              AND guild = public.moderation_actions.guild
+        )
+    );
+
+-- Moderation appeals table & RLS
+CREATE TABLE IF NOT EXISTS public.moderation_appeals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    action_id UUID NOT NULL REFERENCES public.moderation_actions(id) ON DELETE CASCADE,
+    appellant_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    reviewed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    review_note TEXT,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS moderation_appeals_unique_action_appellant
+    ON public.moderation_appeals (action_id, appellant_id);
+
+CREATE INDEX IF NOT EXISTS idx_moderation_appeals_status_created
+    ON public.moderation_appeals (status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_moderation_appeals_appellant_created
+    ON public.moderation_appeals (appellant_id, created_at DESC);
+
+ALTER TABLE public.moderation_appeals ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.is_moderation_action_target(
+    p_action_id UUID
+)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.moderation_actions
+        WHERE id = p_action_id
+          AND target_user_id = auth.uid()
+    );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_moderation_action_target(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_moderation_action_target(UUID) TO authenticated;
+
+CREATE POLICY "Users can insert own moderation appeals"
+    ON public.moderation_appeals FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        auth.uid() = appellant_id
+        AND status = 'pending'
+        AND reviewed_by IS NULL
+        AND review_note IS NULL
+        AND reviewed_at IS NULL
+        AND public.is_moderation_action_target(action_id)
+    );
+
+CREATE POLICY "Users can view own moderation appeals"
+    ON public.moderation_appeals FOR SELECT
+    TO authenticated
+    USING (auth.uid() = appellant_id);
+
+CREATE POLICY "Admins and mods can view all moderation appeals"
+    ON public.moderation_appeals FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
+CREATE POLICY "House mods can view guild moderation appeals"
+    ON public.moderation_appeals FOR SELECT
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.profiles p
+            JOIN public.moderation_actions ma ON ma.id = public.moderation_appeals.action_id
+            WHERE p.id = auth.uid()
+              AND p.role = 'house_mod'
+              AND p.guild IS NOT NULL
+              AND ma.guild = p.guild
+        )
+    );
+
+CREATE POLICY "Admins and mods can update all moderation appeals"
+    ON public.moderation_appeals FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles
+            WHERE id = auth.uid() AND role IN ('admin', 'mod')
+        )
+    );
+
+CREATE POLICY "House mods can update guild moderation appeals"
+    ON public.moderation_appeals FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1
+            FROM public.profiles p
+            JOIN public.moderation_actions ma ON ma.id = public.moderation_appeals.action_id
+            WHERE p.id = auth.uid()
+              AND p.role = 'house_mod'
+              AND p.guild IS NOT NULL
+              AND ma.guild = p.guild
+        )
+    )
+    WITH CHECK (
+        EXISTS (
+            SELECT 1
+            FROM public.profiles p
+            JOIN public.moderation_actions ma ON ma.id = public.moderation_appeals.action_id
+            WHERE p.id = auth.uid()
+              AND p.role = 'house_mod'
+              AND p.guild IS NOT NULL
+              AND ma.guild = p.guild
         )
     );
 
@@ -992,7 +1430,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     recipient_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    type TEXT NOT NULL CHECK (type IN ('comment', 'reply', 'mention', 'message')),
+    type TEXT NOT NULL CHECK (type IN ('comment', 'reply', 'mention', 'message', 'moderation')),
     title TEXT NOT NULL,
     body TEXT NOT NULL,
     post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE,
@@ -1405,5 +1843,79 @@ CREATE TRIGGER mark_message_notifications_read_on_last_read
     AFTER UPDATE OF last_read_at ON public.conversation_participants
     FOR EACH ROW
     EXECUTE FUNCTION public.handle_conversation_read_notifications();
+
+CREATE OR REPLACE FUNCTION public.notify_moderation_outcome(
+    p_recipient_id UUID,
+    p_title TEXT,
+    p_body TEXT,
+    p_post_id UUID DEFAULT NULL,
+    p_comment_id UUID DEFAULT NULL,
+    p_data JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_caller_id UUID;
+    v_caller_role TEXT;
+    v_clean_data JSONB;
+    v_notification_id UUID;
+BEGIN
+    v_caller_id := auth.uid();
+    IF v_caller_id IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated'
+            USING ERRCODE = '42501';
+    END IF;
+
+    SELECT role
+    INTO v_caller_role
+    FROM public.profiles
+    WHERE id = v_caller_id;
+
+    IF v_caller_role IS NULL OR v_caller_role NOT IN ('admin', 'mod', 'house_mod') THEN
+        RAISE EXCEPTION 'Only moderation staff can send moderation notifications'
+            USING ERRCODE = '42501';
+    END IF;
+
+    IF p_recipient_id IS NULL THEN
+        RAISE EXCEPTION 'Recipient ID is required';
+    END IF;
+
+    v_clean_data := CASE
+        WHEN jsonb_typeof(COALESCE(p_data, '{}'::jsonb)) = 'object'
+            THEN COALESCE(p_data, '{}'::jsonb) - 'moderator_note'
+        ELSE '{}'::jsonb
+    END;
+
+    INSERT INTO public.notifications (
+        recipient_id,
+        actor_id,
+        type,
+        title,
+        body,
+        post_id,
+        comment_id,
+        data
+    )
+    VALUES (
+        p_recipient_id,
+        NULL,
+        'moderation',
+        p_title,
+        p_body,
+        p_post_id,
+        p_comment_id,
+        v_clean_data
+    )
+    RETURNING id INTO v_notification_id;
+
+    RETURN v_notification_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.notify_moderation_outcome(UUID, TEXT, TEXT, UUID, UUID, JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.notify_moderation_outcome(UUID, TEXT, TEXT, UUID, UUID, JSONB) TO authenticated;
 
 

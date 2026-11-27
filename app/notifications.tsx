@@ -11,12 +11,12 @@ import {
 	MessageCircle,
 	MessageSquare,
 	Settings,
+	ShieldAlert,
 	Trash2,
 } from "lucide-react-native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
 	ActivityIndicator,
-	Alert,
 	FlatList,
 	Platform,
 	Pressable,
@@ -26,6 +26,7 @@ import {
 } from "react-native";
 
 import { MobileTopBar, NeoButton } from "@/components/ui";
+import { AppealModal } from "@/features/moderation";
 import { NotificationPreferencesModal } from "@/features/notifications/components/NotificationPreferencesModal";
 import {
 	useDeleteNotification,
@@ -38,6 +39,7 @@ import type {
 	NotificationItem,
 	NotificationType,
 } from "@/features/notifications/types";
+import { toast } from "@/lib/toast";
 
 const triggerHaptic = () => {
 	if (Platform.OS !== "web") {
@@ -95,6 +97,15 @@ function NotificationTypeBadge({ type }: { type: NotificationType }) {
 					</Text>
 				</View>
 			);
+		case "moderation":
+			return (
+				<View className="flex-row items-center gap-1 border border-border bg-destructive px-1.5 py-0.5">
+					<ShieldAlert size={10} color="#FFFFFF" strokeWidth={2.5} />
+					<Text className="font-bold text-[10px] text-white uppercase">
+						MODERATION
+					</Text>
+				</View>
+			);
 	}
 }
 
@@ -103,6 +114,11 @@ export default function NotificationsScreen() {
 	const userId = user?.id;
 
 	const [isPrefsOpen, setIsPrefsOpen] = useState(false);
+	const [appealTarget, setAppealTarget] = useState<{
+		actionId: string;
+		summary: string;
+	} | null>(null);
+	const [submittedAppealIds, setSubmittedAppealIds] = useState<string[]>([]);
 
 	const {
 		data,
@@ -150,9 +166,23 @@ export default function NotificationsScreen() {
 				username: actorUsername,
 			});
 
-			if (route) {
+			if (route && route !== "/notifications") {
 				router.push(route as any);
 			}
+		},
+		[markRead],
+	);
+
+	const handleOpenAppeal = useCallback(
+		(item: NotificationItem, actionId: string) => {
+			triggerHaptic();
+			if (!item.read_at) {
+				markRead.mutate(item.id);
+			}
+			const summary = item.body
+				? `${item.title}\n${item.body}`
+				: item.title;
+			setAppealTarget({ actionId, summary });
 		},
 		[markRead],
 	);
@@ -175,10 +205,7 @@ export default function NotificationsScreen() {
 			deleteNotif.mutate(notificationId, {
 				onError: (err: unknown) => {
 					const e = err as Error;
-					Alert.alert(
-						"Error",
-						e?.message || "Failed to delete notification.",
-					);
+					toast.error(e?.message || "Failed to delete notification.");
 				},
 			});
 		},
@@ -194,6 +221,17 @@ export default function NotificationsScreen() {
 	const renderItem = useCallback(
 		({ item }: { item: NotificationItem }) => {
 			const isUnread = !item.read_at;
+			const isModeration = item.type === "moderation";
+			const appealActionId =
+				isModeration &&
+				item.data?.canAppeal === true &&
+				typeof item.data?.actionId === "string" &&
+				item.data.actionId.trim().length > 0
+					? item.data.actionId.trim()
+					: null;
+			const isAppealSubmitted = Boolean(
+				appealActionId && submittedAppealIds.includes(appealActionId),
+			);
 			const actorName =
 				item.actor?.display_name || item.actor?.username || "Operator";
 			const initials = actorName.slice(0, 2).toUpperCase();
@@ -215,33 +253,45 @@ export default function NotificationsScreen() {
 						<View className="mt-1.5 size-2.5 shrink-0 border border-border bg-primary" />
 					)}
 
-					{/* Actor Avatar */}
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel={
-							actorUsername
-								? `View @${actorUsername} profile`
-								: "Operator avatar"
-						}
-						disabled={!actorUsername}
-						hitSlop={6}
-						onPress={(e) => {
-							e.stopPropagation();
-							handlePressActor(actorUsername);
-						}}
-						className="size-10 shrink-0 items-center justify-center overflow-hidden border-2 border-border bg-secondary">
-						{item.actor?.avatar_url?.startsWith("http") ? (
-							<ExpoImage
-								source={{ uri: item.actor.avatar_url }}
-								style={{ width: "100%", height: "100%" }}
-								contentFit="cover"
+					{/* Actor Avatar or Moderation Icon */}
+					{isModeration ? (
+						<View
+							accessibilityLabel="Moderation alert"
+							className="size-10 shrink-0 items-center justify-center border-2 border-border bg-destructive/15">
+							<ShieldAlert
+								size={20}
+								color="#DC2626"
+								strokeWidth={2.5}
 							/>
-						) : (
-							<Text className="font-bold text-xs text-foreground">
-								{initials}
-							</Text>
-						)}
-					</Pressable>
+						</View>
+					) : (
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel={
+								actorUsername
+									? `View @${actorUsername} profile`
+									: "Operator avatar"
+							}
+							disabled={!actorUsername}
+							hitSlop={6}
+							onPress={(e) => {
+								e.stopPropagation();
+								handlePressActor(actorUsername);
+							}}
+							className="size-10 shrink-0 items-center justify-center overflow-hidden border-2 border-border bg-secondary">
+							{item.actor?.avatar_url?.startsWith("http") ? (
+								<ExpoImage
+									source={{ uri: item.actor.avatar_url }}
+									style={{ width: "100%", height: "100%" }}
+									contentFit="cover"
+								/>
+							) : (
+								<Text className="font-bold text-xs text-foreground">
+									{initials}
+								</Text>
+							)}
+						</Pressable>
+					)}
 
 					{/* Content */}
 					<View className="min-w-0 flex-1">
@@ -282,11 +332,59 @@ export default function NotificationsScreen() {
 								{item.body}
 							</Text>
 						)}
+
+						{appealActionId && (
+							<View className="mt-2.5 flex-row">
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel={
+										isAppealSubmitted
+											? "Appeal submitted"
+											: "Submit moderation appeal"
+									}
+									disabled={isAppealSubmitted}
+									onPress={(e) => {
+										e.stopPropagation();
+										handleOpenAppeal(item, appealActionId);
+									}}
+									className={`flex-row items-center gap-1.5 border-2 border-border px-2.5 py-1.5 shadow-neo-xs active:translate-x-px active:translate-y-px ${
+										isAppealSubmitted
+											? "bg-secondary opacity-60"
+											: "bg-primary"
+									}`}>
+									<ShieldAlert
+										size={12}
+										color={
+											isAppealSubmitted
+												? "#000000"
+												: "#FAF9F5"
+										}
+										strokeWidth={2.5}
+									/>
+									<Text
+										className={`font-bold text-[11px] tracking-wider uppercase ${
+											isAppealSubmitted
+												? "text-foreground"
+												: "text-primary-foreground"
+										}`}>
+										{isAppealSubmitted
+											? "APPEAL SUBMITTED"
+											: "SUBMIT APPEAL"}
+									</Text>
+								</Pressable>
+							</View>
+						)}
 					</View>
 				</Pressable>
 			);
 		},
-		[handleDeleteNotification, handlePressActor, handlePressNotification],
+		[
+			handleDeleteNotification,
+			handleOpenAppeal,
+			handlePressActor,
+			handlePressNotification,
+			submittedAppealIds,
+		],
 	);
 
 	return (
@@ -424,6 +522,27 @@ export default function NotificationsScreen() {
 				open={isPrefsOpen}
 				onOpenChange={setIsPrefsOpen}
 				userId={userId}
+			/>
+
+			<AppealModal
+				open={Boolean(appealTarget)}
+				onOpenChange={(open) => {
+					if (!open) {
+						setAppealTarget(null);
+					}
+				}}
+				actionId={appealTarget?.actionId ?? null}
+				summary={appealTarget?.summary ?? null}
+				onAppealSubmitted={() => {
+					if (appealTarget?.actionId) {
+						const submittedId = appealTarget.actionId;
+						setSubmittedAppealIds((prev) =>
+							prev.includes(submittedId)
+								? prev
+								: [...prev, submittedId],
+						);
+					}
+				}}
 			/>
 		</View>
 	);

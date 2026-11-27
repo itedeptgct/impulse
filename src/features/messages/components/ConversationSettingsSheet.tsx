@@ -33,6 +33,7 @@ import {
 
 import { MobileSheet, NeoButton } from "@/components/ui";
 import { validateUploadFileSize } from "@/lib/media-validation";
+import { toast } from "@/lib/toast";
 
 import {
 	addGroupMember,
@@ -143,9 +144,9 @@ export function ConversationSettingsSheet({
 		const asset = result.assets[0];
 		const validation = validateUploadFileSize(asset.fileSize);
 		if (!validation.valid) {
-			Alert.alert(
-				"File Too Large",
+			toast.error(
 				validation.error || "File exceeds the 10 MB size limit.",
+				"FILE TOO LARGE",
 			);
 			return;
 		}
@@ -163,9 +164,10 @@ export function ConversationSettingsSheet({
 				receiveRealtimeMessage(systemMessage, currentUserId);
 				onBroadcastMessage?.(systemMessage);
 			}
+			toast.success("Saved");
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to update group photo.");
+			toast.error(e?.message || "Failed to update group photo.");
 		} finally {
 			setSavingKey(null);
 		}
@@ -191,11 +193,11 @@ export function ConversationSettingsSheet({
 									queryKey: ["conversations"],
 								});
 								handleOpenChange(false);
+								toast.success("Group deleted");
 								router.replace("/(tabs)/messages" as never);
 							} catch (err: unknown) {
 								const e = err as Error;
-								Alert.alert(
-									"Error",
+								toast.error(
 									e?.message || "Failed to delete group.",
 								);
 							} finally {
@@ -236,9 +238,10 @@ export function ConversationSettingsSheet({
 					? `${actorName} named the group ${normalized}.`
 					: `${actorName} cleared the group name.`,
 			);
+			toast.success("Saved");
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to update group title.");
+			toast.error(e?.message || "Failed to update group title.");
 		} finally {
 			setSavingKey(null);
 		}
@@ -277,9 +280,10 @@ export function ConversationSettingsSheet({
 					? `${actorName} set ${targetName}'s nickname to ${normalized}.`
 					: `${actorName} cleared ${targetName}'s nickname.`,
 			);
+			toast.success("Saved");
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to update nickname.");
+			toast.error(e?.message || "Failed to update nickname.");
 		} finally {
 			setSavingKey(null);
 		}
@@ -301,7 +305,7 @@ export function ConversationSettingsSheet({
 			setSearchResults(users.filter((u) => !existingIds.has(u.id)));
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to search users.");
+			toast.error(e?.message || "Failed to search users.");
 		} finally {
 			setIsSearchingUsers(false);
 		}
@@ -321,9 +325,10 @@ export function ConversationSettingsSheet({
 			await announceSystemChange(
 				`${actorName} added ${targetName} to the group.`,
 			);
+			toast.success(`Added ${targetName}`);
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to add member.");
+			toast.error(e?.message || "Failed to add member.");
 		} finally {
 			setSavingKey(null);
 		}
@@ -342,9 +347,10 @@ export function ConversationSettingsSheet({
 			await announceSystemChange(
 				`${actorName} removed ${targetName} from the group.`,
 			);
+			toast.success(`Removed ${targetName}`);
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to remove member.");
+			toast.error(e?.message || "Failed to remove member.");
 		} finally {
 			setSavingKey(null);
 		}

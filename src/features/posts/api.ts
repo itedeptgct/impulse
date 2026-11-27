@@ -6,6 +6,8 @@ import { uploadToR2 } from "@lib/r2-storage";
 import { supabase } from "@lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { isUserRestricted } from "@/features/moderation/utils/queue";
+
 import type {
 	Comment,
 	CreatePostInput,
@@ -17,6 +19,7 @@ import type {
 	UpdatePostInput,
 	VoteType,
 } from "./types";
+import { buildPostSearchOrFilter } from "./utils/search-filter";
 
 const STORAGE_POSTS_KEY = "impulse_posts_cache_v2";
 const STORAGE_COMMENTS_KEY = "impulse_comments_cache_v2";
@@ -460,10 +463,60 @@ export async function fetchFeedPosts(
 	};
 }
 
+export function formatRestrictionLiftDate(restrictedUntil: string): string {
+	const parsed = new Date(restrictedUntil);
+	if (Number.isNaN(parsed.getTime())) {
+		return restrictedUntil;
+	}
+	return parsed.toLocaleString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+		hour: "numeric",
+		minute: "2-digit",
+	});
+}
+
+export function assertNotRestricted(
+	restrictedUntil: string | null | undefined,
+	action: "posting" | "commenting" = "posting",
+	nowMs = Date.now(),
+): void {
+	if (isUserRestricted(restrictedUntil, nowMs) && restrictedUntil) {
+		const liftDate = formatRestrictionLiftDate(restrictedUntil);
+		throw new Error(
+			`Your account is temporarily restricted from ${action} until ${liftDate}.`,
+		);
+	}
+}
+
+async function ensureUserNotRestricted(
+	userId: string,
+	action: "posting" | "commenting",
+): Promise<void> {
+	if (!userId) return;
+	const { data, error } = await supabase
+		.from("profiles")
+		.select("restricted_until")
+		.eq("id", userId)
+		.maybeSingle();
+
+	if (error) {
+		return;
+	}
+
+	const restrictedUntil = (
+		data as { restricted_until?: string | null } | null
+	)?.restricted_until;
+	assertNotRestricted(restrictedUntil, action);
+}
+
 export async function createPost(
 	input: CreatePostInput,
 	author: PostAuthor,
 ): Promise<Post> {
+	await ensureUserNotRestricted(author.id, "posting");
+
 	const nowIso = new Date().toISOString();
 	const rawMediaUrls = normalizePostMedia({
 		image_url: input.image_url,
@@ -712,8 +765,15 @@ export async function updatePost(
 }
 
 export async function deletePost(postId: string): Promise<void> {
-	const { error } = await supabase.from("posts").delete().eq("id", postId);
+	const { data, error } = await supabase
+		.from("posts")
+		.delete()
+		.eq("id", postId)
+		.select("id");
 	if (error) throw error;
+	if (!data || data.length === 0) {
+		throw new Error("Post could not be deleted or you lack permission.");
+	}
 
 	const cached = await getCachedPosts();
 	await saveCachedPosts(cached.filter((p) => p.id !== postId));
@@ -1060,6 +1120,8 @@ export async function addPostComment(
 	parentId?: string | null,
 	replyToUsername?: string | null,
 ): Promise<Comment> {
+	await ensureUserNotRestricted(author.id, "commenting");
+
 	const newComment: Comment = {
 		id: `comment-${Date.now()}`,
 		post_id: postId,
@@ -1182,23 +1244,35 @@ export async function deleteComment(
 	const mode: "hard" | "soft" = hasReplies ? "soft" : "hard";
 
 	if (hasReplies) {
-		const { error: updateError } = await supabase
+		const { data, error: updateError } = await supabase
 			.from("comments")
 			.update({
 				is_deleted: true,
 				content: "",
 				updated_at: new Date().toISOString(),
 			})
-			.eq("id", commentId);
+			.eq("id", commentId)
+			.select("id");
 
 		if (updateError) throw updateError;
+		if (!data || data.length === 0) {
+			throw new Error(
+				"Comment could not be deleted or you lack permission.",
+			);
+		}
 	} else {
-		const { error: deleteError } = await supabase
+		const { data, error: deleteError } = await supabase
 			.from("comments")
 			.delete()
-			.eq("id", commentId);
+			.eq("id", commentId)
+			.select("id");
 
 		if (deleteError) throw deleteError;
+		if (!data || data.length === 0) {
+			throw new Error(
+				"Comment could not be deleted or you lack permission.",
+			);
+		}
 	}
 
 	const allComments = await getCachedComments();
@@ -1437,7 +1511,7 @@ export async function searchPosts(
 		let supabaseQuery = supabase
 			.from("posts")
 			.select(POST_PROJECTION)
-			.or(`title.ilike.%${trimmed}%,content.ilike.%${trimmed}%`);
+			.or(buildPostSearchOrFilter(trimmed));
 
 		if (isAdmin) {
 		} else if (userGuild) {

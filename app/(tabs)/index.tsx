@@ -1,4 +1,5 @@
 import { useAuthStore } from "@auth/store";
+import { FlashList, type FlashListRef } from "@shopify/flash-list";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -12,10 +13,9 @@ import {
 	X,
 	Zap,
 } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
-	FlatList,
 	Platform,
 	Pressable,
 	RefreshControl,
@@ -26,10 +26,20 @@ import {
 
 import { MobileTopBar, NetworkErrorCard } from "@/components/ui";
 import type { GuildId } from "@/features/guilds/types";
-import { fetchFeedPosts, votePost } from "@/features/posts/api";
+import { votePost } from "@/features/posts/api";
+import { FeedSkeleton } from "@/features/posts/components/FeedSkeleton";
 import { PostCard } from "@/features/posts/components/PostCard";
+import {
+	flattenUniquePosts,
+	patchPostInFeedCaches,
+	removePostFromFeedCaches,
+	replacePostInFeedCaches,
+	useFeedPostsQuery,
+} from "@/features/posts/queries";
 import { useComposerStore } from "@/features/posts/store";
 import type { FeedGuildFilter, FeedSort, Post } from "@/features/posts/types";
+import { useTabReselect } from "@/lib/tab-events";
+import { toast } from "@/lib/toast";
 
 const SORT_TABS: { key: FeedSort; label: string; icon: typeof Flame }[] = [
 	{ key: "hot", label: "HOT", icon: Flame },
@@ -38,9 +48,9 @@ const SORT_TABS: { key: FeedSort; label: string; icon: typeof Flame }[] = [
 ];
 
 const HOUSE_META: Record<GuildId, { label: string; dotClass: string }> = {
-	octagram: { label: "OCTOGRAM", dotClass: "bg-[#be0203]" },
-	chameleon: { label: "CHAMELEON", dotClass: "bg-[#0c7c28]" },
-	blue_jays: { label: "BLUE JAYS", dotClass: "bg-[#00E5FF]" },
+	octagram: { label: "OCTAGRAM", dotClass: "bg-primary" },
+	chameleon: { label: "CHAMELEON", dotClass: "bg-neo-green" },
+	blue_jays: { label: "BLUE JAYS", dotClass: "bg-neo-cyan" },
 };
 
 const triggerHaptic = () => {
@@ -57,19 +67,15 @@ export default function FeedScreen() {
 	const loadedUserId = useAuthStore((state) => state.loadedUserId);
 	const refreshUserData = useAuthStore((state) => state.refreshUserData);
 	const openComposer = useComposerStore((state) => state.openComposer);
+	const listRef = useRef<FlashListRef<Post>>(null);
+	const isRefreshingRef = useRef(false);
 
 	const [isVerificationNoticeDismissed, setIsVerificationNoticeDismissed] =
 		useState(false);
 
-	const [posts, setPosts] = useState<Post[]>([]);
-	const [isLoading, setIsLoading] = useState(true);
 	const [isRefreshing, setIsRefreshing] = useState(false);
 	const [selectedGuild, setSelectedGuild] = useState<FeedGuildFilter>("all");
 	const [selectedSort, setSelectedSort] = useState<FeedSort>("hot");
-	const [hasMore, setHasMore] = useState(true);
-	const [isLoadingMore, setIsLoadingMore] = useState(false);
-	const [nextOffset, setNextOffset] = useState<number | null>(null);
-	const [error, setError] = useState<string | null>(null);
 	const [isRetrying, setIsRetrying] = useState(false);
 
 	const PAGE_SIZE = 20;
@@ -91,6 +97,7 @@ export default function FeedScreen() {
 	const userId = user?.id;
 	const profileGuild = profile?.guild;
 	const profileRole = profile?.role;
+	const isAdmin = profileRole === "admin";
 	const isStaff =
 		profileRole === "admin" ||
 		profileRole === "mod" ||
@@ -104,146 +111,66 @@ export default function FeedScreen() {
 	);
 	const isVerificationRejected = verification?.status === "rejected";
 
-	const loadData = useCallback(async () => {
-		if (!userId) return;
+	const targetHouse = (profileGuild ?? currentHouse ?? undefined) as
+		| GuildId
+		| undefined;
+	const resolvedFilter: FeedGuildFilter =
+		selectedGuild === "all" || !targetHouse ? "all" : targetHouse;
+
+	const feedQuery = useFeedPostsQuery({
+		filter: resolvedFilter,
+		sort: selectedSort,
+		userId,
+		profileGuild,
+		isAdmin,
+		pageSize: PAGE_SIZE,
+	});
+
+	const posts = useMemo(
+		() => flattenUniquePosts(feedQuery.data?.pages),
+		[feedQuery.data?.pages],
+	);
+	const isLoading = feedQuery.isPending;
+	const isLoadingMore = feedQuery.isFetchingNextPage;
+	const hasMore = Boolean(feedQuery.hasNextPage);
+	const error = feedQuery.error
+		? feedQuery.error.message ||
+			"Unable to reach the server. Check your connection and try again."
+		: null;
+
+	const handleRefresh = useCallback(async () => {
+		if (isRefreshingRef.current || isLoading) return;
+		isRefreshingRef.current = true;
+		setIsRefreshing(true);
 		try {
-			const activeGuild = profileGuild ?? undefined;
-			const targetHouse = activeGuild ?? currentHouse ?? undefined;
-			const resolvedFilter: FeedGuildFilter =
-				selectedGuild === "all" || !targetHouse ? "all" : targetHouse;
-			const isAdmin = profileRole === "admin";
-			const feedResult = await fetchFeedPosts(
-				resolvedFilter,
-				selectedSort,
-				userId,
-				activeGuild,
-				isAdmin,
-				PAGE_SIZE,
-				0,
-			);
-			const visiblePosts =
-				resolvedFilter === "all"
-					? feedResult.items.filter(
-							(post) =>
-								!(
-									post.visibility === "house" &&
-									post.author_id === userId
-								),
-						)
-					: feedResult.items;
-			setPosts(visiblePosts);
-			setHasMore(feedResult.hasMore);
-			setNextOffset(feedResult.nextOffset);
-			setError(null);
-		} catch (err: unknown) {
-			const e = err as Error;
-			setError(
-				e?.message ||
-					"Unable to reach the server. Check your connection and try again.",
-			);
+			await Promise.all([refreshUserData(), feedQuery.refetch()]);
 		} finally {
-			setIsLoading(false);
+			isRefreshingRef.current = false;
 			setIsRefreshing(false);
 		}
-	}, [
-		userId,
-		selectedGuild,
-		currentHouse,
-		selectedSort,
-		profileGuild,
-		profileRole,
-	]);
+	}, [isLoading, refreshUserData, feedQuery]);
+
+	useTabReselect("index", () => {
+		listRef.current?.scrollToOffset({ offset: 0, animated: true });
+		void handleRefresh();
+	});
 
 	const handleRetry = useCallback(async () => {
 		triggerHaptic();
 		setIsRetrying(true);
 		try {
-			await loadData();
+			await feedQuery.refetch();
 		} finally {
 			setIsRetrying(false);
 		}
-	}, [loadData]);
+	}, [feedQuery]);
 
-	const loadMore = useCallback(async () => {
-		if (
-			!userId ||
-			isLoading ||
-			isLoadingMore ||
-			isRefreshing ||
-			!hasMore ||
-			nextOffset === null
-		) {
+	const loadMore = useCallback(() => {
+		if (!userId || isLoading || isLoadingMore || isRefreshing || !hasMore) {
 			return;
 		}
-
-		setIsLoadingMore(true);
-		try {
-			const activeGuild = profileGuild ?? undefined;
-			const targetHouse = activeGuild ?? currentHouse ?? undefined;
-			const resolvedFilter: FeedGuildFilter =
-				selectedGuild === "all" || !targetHouse ? "all" : targetHouse;
-			const isAdmin = profileRole === "admin";
-			const feedResult = await fetchFeedPosts(
-				resolvedFilter,
-				selectedSort,
-				userId,
-				activeGuild,
-				isAdmin,
-				PAGE_SIZE,
-				nextOffset,
-			);
-			const visibleItems =
-				resolvedFilter === "all"
-					? feedResult.items.filter(
-							(post) =>
-								!(
-									post.visibility === "house" &&
-									post.author_id === userId
-								),
-						)
-					: feedResult.items;
-
-			setPosts((prev) => {
-				const existingIds = new Set(prev.map((p) => p.id));
-				const newUnique = visibleItems.filter(
-					(p) => !existingIds.has(p.id),
-				);
-				return [...prev, ...newUnique];
-			});
-			setHasMore(feedResult.hasMore);
-			setNextOffset(feedResult.nextOffset);
-		} finally {
-			setIsLoadingMore(false);
-		}
-	}, [
-		userId,
-		isLoading,
-		isLoadingMore,
-		isRefreshing,
-		hasMore,
-		nextOffset,
-		profileGuild,
-		profileRole,
-		currentHouse,
-		selectedGuild,
-		selectedSort,
-	]);
-
-	useEffect(() => {
-		let cancelled = false;
-		queueMicrotask(() => {
-			if (!cancelled) void loadData();
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, [loadData]);
-
-	const patchPost = useCallback((postId: string, patch: Partial<Post>) => {
-		setPosts((prev) =>
-			prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)),
-		);
-	}, []);
+		void feedQuery.fetchNextPage();
+	}, [userId, isLoading, isLoadingMore, isRefreshing, hasMore, feedQuery]);
 
 	const handleVote = useCallback(
 		async (post: Post, targetVote: 1 | -1) => {
@@ -261,7 +188,7 @@ export default function FeedScreen() {
 					post.downvotes_count - (currentVote === -1 ? 1 : 0),
 				) + (nextVote === -1 ? 1 : 0);
 
-			patchPost(post.id, {
+			patchPostInFeedCaches(post.id, {
 				upvotes_count: newUp,
 				downvotes_count: newDown,
 				user_vote: nextVote,
@@ -269,20 +196,21 @@ export default function FeedScreen() {
 
 			try {
 				const res = await votePost(post.id, currentUserId, targetVote);
-				patchPost(post.id, {
+				patchPostInFeedCaches(post.id, {
 					upvotes_count: res.upvotes_count,
 					downvotes_count: res.downvotes_count,
 					user_vote: res.user_vote,
 				});
 			} catch {
-				patchPost(post.id, {
+				patchPostInFeedCaches(post.id, {
 					upvotes_count: post.upvotes_count,
 					downvotes_count: post.downvotes_count,
 					user_vote: currentVote,
 				});
+				toast.error("Failed to update vote. Please try again.");
 			}
 		},
-		[user?.id, patchPost],
+		[user?.id],
 	);
 
 	const handleOpenComments = useCallback((post: Post) => {
@@ -290,13 +218,11 @@ export default function FeedScreen() {
 	}, []);
 
 	const handlePostUpdated = useCallback((updated: Post) => {
-		setPosts((prev) =>
-			prev.map((p) => (p.id === updated.id ? updated : p)),
-		);
+		replacePostInFeedCaches(updated);
 	}, []);
 
 	const handlePostDeleted = useCallback((deletedId: string) => {
-		setPosts((prev) => prev.filter((p) => p.id !== deletedId));
+		removePostFromFeedCaches(deletedId);
 	}, []);
 
 	const renderItem = useCallback(
@@ -501,29 +427,7 @@ export default function FeedScreen() {
 
 	const renderEmpty = () => {
 		if (isLoading) {
-			return (
-				<View className="gap-4 py-4">
-					{[1, 2].map((item) => (
-						<View key={item} className="border-2 border-border">
-							<View className="flex-row items-center justify-between border-b-2 border-border bg-secondary px-3 py-2">
-								<View className="h-3.5 w-36 bg-foreground/15" />
-								<View className="h-3.5 w-16 bg-foreground/15" />
-							</View>
-							<View className="bg-surface p-4">
-								<View className="mb-2 h-6 w-4/5 bg-foreground/15" />
-								<View className="mb-4 h-6 w-3/5 bg-foreground/15" />
-								<View className="mb-1.5 h-3.5 w-full bg-foreground/10" />
-								<View className="mb-4 h-3.5 w-5/6 bg-foreground/10" />
-								<View className="h-24 w-full border border-border/30 bg-primary/90 p-3">
-									<Text className="font-mono text-2xs text-neo-green uppercase">
-										&gt; LOADING...
-									</Text>
-								</View>
-							</View>
-						</View>
-					))}
-				</View>
-			);
+			return <FeedSkeleton count={3} />;
 		}
 
 		if (error) {
@@ -572,7 +476,8 @@ export default function FeedScreen() {
 			<StatusBar style="dark" />
 			<MobileTopBar sector="FEED" dotColor="#00FF66" />
 
-			<FlatList
+			<FlashList
+				ref={listRef}
 				data={posts}
 				keyExtractor={(item) => item.id}
 				renderItem={renderItem}
@@ -591,24 +496,11 @@ export default function FeedScreen() {
 					paddingTop: 8,
 					paddingBottom: 92,
 					paddingHorizontal: 16,
-					maxWidth: 672,
-					width: "100%",
-					alignSelf: "center",
 				}}
 				refreshControl={
 					<RefreshControl
 						refreshing={isRefreshing}
-						onRefresh={async () => {
-							setIsRefreshing(true);
-							try {
-								await Promise.all([
-									refreshUserData(),
-									loadData(),
-								]);
-							} finally {
-								setIsRefreshing(false);
-							}
-						}}
+						onRefresh={handleRefresh}
 						tintColor="#000000"
 					/>
 				}

@@ -28,7 +28,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Uniwind } from "uniwind";
 
-import { MobileAlertSheet, NeoCard } from "@/components/ui";
+import { MobileAlertSheet, NeoCard, NeoToastViewport } from "@/components/ui";
 import {
 	useNotificationRealtime,
 	resolveNotificationRoute,
@@ -128,6 +128,8 @@ export default function RootLayout() {
 		CourierPrime_700Bold_Italic,
 		JetBrainsMono_400Regular,
 		JetBrainsMono_400Regular_Italic,
+		Ndot57: require("../assets/fonts/Ndot57-Regular.otf"),
+		Ndot57Caps: require("../assets/fonts/Ndot57Caps-Regular.otf"),
 	});
 
 	useEffect(() => {
@@ -203,8 +205,8 @@ export default function RootLayout() {
 	return (
 		<GestureHandlerRootView style={{ flex: 1, backgroundColor: "#faf9f5" }}>
 			<StatusBar style="dark" />
-			<PanelUIProvider>
-				<SafeAreaProvider>
+			<SafeAreaProvider>
+				<PanelUIProvider>
 					<QueryClientProvider client={queryClient}>
 						<NotificationRealtimeSync userId={user?.id} />
 						<Stack
@@ -277,8 +279,9 @@ export default function RootLayout() {
 							]}
 						/>
 					</QueryClientProvider>
-				</SafeAreaProvider>
-			</PanelUIProvider>
+				</PanelUIProvider>
+				<NeoToastViewport />
+			</SafeAreaProvider>
 		</GestureHandlerRootView>
 	);
 }

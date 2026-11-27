@@ -1,5 +1,6 @@
 export * from "./LinkifiedText";
 export * from "./LinkPreviewCard";
+export { shouldShowLinkPreview } from "@/lib/link-preview";
 export * from "./NeoBadge";
 export * from "./NeoButton";
 export * from "./NeoCard";
@@ -8,4 +9,5 @@ export * from "./NetworkErrorCard";
 export * from "./MobileAlertSheet";
 export * from "./MobileSheet";
 export * from "./MobileTopBar";
+export * from "./NeoToast";
 export * from "./TerminalCodeViewport";

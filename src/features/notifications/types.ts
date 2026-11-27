@@ -1,4 +1,9 @@
-export type NotificationType = "comment" | "reply" | "mention" | "message";
+export type NotificationType =
+	| "comment"
+	| "reply"
+	| "mention"
+	| "message"
+	| "moderation";
 
 export interface NotificationActor {
 	id: string;

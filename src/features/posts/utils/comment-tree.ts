@@ -76,3 +76,27 @@ export function countSubtreeReplies(node: CommentTreeNode): number {
 	}
 	return count;
 }
+
+export type CommentSort = "top" | "new" | "old";
+
+export function sortCommentTree(
+	roots: CommentTreeNode[],
+	sort: CommentSort,
+): CommentTreeNode[] {
+	const copy = [...roots];
+	copy.sort((a, b) => {
+		const timeA = new Date(a.comment.created_at).getTime() || 0;
+		const timeB = new Date(b.comment.created_at).getTime() || 0;
+		if (sort === "new") {
+			return timeB - timeA;
+		}
+		if (sort === "old") {
+			return timeA - timeB;
+		}
+		// "top": prioritize threads with more replies, then newest
+		const repliesDiff = countSubtreeReplies(b) - countSubtreeReplies(a);
+		if (repliesDiff !== 0) return repliesDiff;
+		return timeB - timeA;
+	});
+	return copy;
+}

@@ -1,10 +1,18 @@
+import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
-import { Check, Download, X } from "lucide-react-native";
+import {
+	Check,
+	ChevronLeft,
+	ChevronRight,
+	Download,
+	X,
+} from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import type { NativeScrollEvent, NativeSyntheticEvent } from "react-native";
 import {
 	ActivityIndicator,
 	Modal,
+	Platform,
 	Pressable,
 	ScrollView,
 	Text,
@@ -12,8 +20,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { NeoButton } from "@/components/ui";
 import { downloadMedia } from "@/features/posts/utils/downloadMedia";
+
+const triggerHaptic = () => {
+	if (Platform.OS !== "web") {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+	}
+};
 
 export interface PostMediaLightboxModalProps {
 	visible: boolean;
@@ -111,34 +124,44 @@ export function PostMediaLightboxModal({
 
 	const content = (
 		<SafeAreaView
-			style={{ backgroundColor: "rgba(0, 0, 0, 0.96)", flex: 1 }}
-			className="flex-1"
+			style={{ backgroundColor: "#050505", flex: 1 }}
+			className="flex-1 bg-[#050505]"
 			edges={["top", "bottom"]}>
-			<View className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
-				<Text className="font-mono text-xs tracking-wider text-foreground uppercase">
-					{hasMultiple
-						? `MEDIA ${safeIndex + 1} / ${safeMediaUrls.length}`
-						: "MEDIA PREVIEW"}
-				</Text>
+			{/* Dark Minimal Top HUD */}
+			<View className="flex-row items-center justify-between border-b border-white/15 bg-black/90 px-4 py-3">
+				<View className="flex-row items-center gap-2">
+					<View className="size-2 bg-neo-green" />
+					<Text className="font-ndot-caps text-xs tracking-widest text-white uppercase tabular-nums">
+						{hasMultiple
+							? `${String(safeIndex + 1).padStart(2, "0")} / ${String(safeMediaUrls.length).padStart(2, "0")}`
+							: "MEDIA VIEW"}
+					</Text>
+				</View>
 
 				<View className="flex-row items-center gap-2">
-					<NeoButton
-						size="sm"
-						variant="secondary"
-						className="h-9 flex-row items-center gap-1.5 px-3"
+					<Pressable
+						accessibilityRole="button"
 						accessibilityLabel="Download active media"
 						disabled={isDownloading}
-						onPress={handleDownload}>
+						onPress={() => {
+							triggerHaptic();
+							void handleDownload();
+						}}
+						className={`h-9 flex-row items-center gap-1.5 border px-3 active:opacity-80 ${
+							downloadSuccess
+								? "border-neo-green bg-neo-green"
+								: "border-white/30 bg-white/10"
+						}`}>
 						{isDownloading ? (
-							<ActivityIndicator size="small" color="#000000" />
+							<ActivityIndicator size="small" color="#ffffff" />
 						) : downloadSuccess ? (
 							<>
 								<Check
 									size={14}
 									color="#000000"
-									strokeWidth={2.5}
+									strokeWidth={2.8}
 								/>
-								<Text className="font-bold text-2xs text-foreground uppercase">
+								<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
 									SAVED
 								</Text>
 							</>
@@ -146,29 +169,33 @@ export function PostMediaLightboxModal({
 							<>
 								<Download
 									size={14}
-									color="#000000"
+									color="#ffffff"
 									strokeWidth={2.2}
 								/>
-								<Text className="font-bold text-2xs text-foreground uppercase">
-									DOWNLOAD
+								<Text className="font-bold text-2xs tracking-widest text-white uppercase">
+									SAVE
 								</Text>
 							</>
 						)}
-					</NeoButton>
+					</Pressable>
 
-					<NeoButton
-						size="sm"
-						variant="secondary"
-						className="size-9 px-0"
+					<Pressable
+						accessibilityRole="button"
 						accessibilityLabel="Close maximized media"
-						onPress={onClose}>
-						<X size={16} color="#000000" strokeWidth={2.5} />
-					</NeoButton>
+						hitSlop={8}
+						onPress={() => {
+							triggerHaptic();
+							onClose();
+						}}
+						className="size-9 items-center justify-center border border-white/30 bg-white/10 active:bg-white/20">
+						<X size={16} color="#ffffff" strokeWidth={2.5} />
+					</Pressable>
 				</View>
 			</View>
 
+			{/* Full-Bleed Media Stage */}
 			<View
-				className="relative flex-1"
+				className="relative flex-1 bg-[#050505]"
 				onLayout={(e) => {
 					const w = Math.round(e.nativeEvent.layout.width);
 					if (w > 0 && w !== viewportWidth) {
@@ -188,7 +215,7 @@ export function PostMediaLightboxModal({
 							<View
 								key={`${uri}-${idx}`}
 								style={{ width: viewportWidth }}
-								className="h-full items-center justify-center p-3">
+								className="h-full items-center justify-center">
 								<Pressable
 									accessibilityLabel="Dismiss maximized media"
 									onPress={onClose}
@@ -203,26 +230,69 @@ export function PostMediaLightboxModal({
 						))}
 					</ScrollView>
 				)}
+
+				{hasMultiple && safeIndex > 0 && (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Previous image"
+						onPress={() => {
+							triggerHaptic();
+							handleSelectThumbnail(safeIndex - 1);
+						}}
+						className="absolute top-1/2 left-3 -mt-5 size-10 items-center justify-center border border-white/25 bg-black/70 active:bg-white/20">
+						<ChevronLeft
+							size={18}
+							color="#ffffff"
+							strokeWidth={2.5}
+						/>
+					</Pressable>
+				)}
+
+				{hasMultiple && safeIndex < safeMediaUrls.length - 1 && (
+					<Pressable
+						accessibilityRole="button"
+						accessibilityLabel="Next image"
+						onPress={() => {
+							triggerHaptic();
+							handleSelectThumbnail(safeIndex + 1);
+						}}
+						className="absolute top-1/2 right-3 -mt-5 size-10 items-center justify-center border border-white/25 bg-black/70 active:bg-white/20">
+						<ChevronRight
+							size={18}
+							color="#ffffff"
+							strokeWidth={2.5}
+						/>
+					</Pressable>
+				)}
 			</View>
 
+			{/* Dark Filmstrip Thumbnail Bar */}
 			{hasMultiple && (
-				<View className="border-t-2 border-border bg-card px-4 py-2.5">
+				<View className="border-t border-white/15 bg-black/95 px-4 py-3">
 					<ScrollView
 						horizontal
 						showsHorizontalScrollIndicator={false}
-						contentContainerStyle={{ gap: 8 }}>
+						contentContainerStyle={{
+							gap: 8,
+							flexGrow: 1,
+							justifyContent: "center",
+						}}>
 						{safeMediaUrls.map((uri, idx) => {
 							const isSelected = idx === safeIndex;
 							return (
 								<Pressable
 									key={`${uri}-${idx}`}
+									accessibilityRole="button"
 									accessibilityLabel={`View media ${idx + 1}`}
-									onPress={() => handleSelectThumbnail(idx)}
+									onPress={() => {
+										triggerHaptic();
+										handleSelectThumbnail(idx);
+									}}
 									style={{ width: 52, height: 52 }}
-									className={`overflow-hidden rounded-none border-2 bg-primary ${
+									className={`overflow-hidden border-2 bg-black ${
 										isSelected
-											? "border-border"
-											: "border-border opacity-60"
+											? "border-neo-green"
+											: "border-white/20 opacity-45"
 									}`}>
 									<ExpoImage
 										source={{ uri }}

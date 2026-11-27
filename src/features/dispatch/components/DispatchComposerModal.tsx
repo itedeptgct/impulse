@@ -32,6 +32,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import type { GuildId } from "@/features/guilds/types";
 import { createPost, serializePostMediaUrl } from "@/features/posts/api";
+import { MentionAutocomplete } from "@/features/posts/components/MentionAutocomplete";
 import type { Post } from "@/features/posts/types";
 import { formatEventDateTime } from "@/lib/date";
 import { validateUploadFileSize } from "@/lib/media-validation";
@@ -47,7 +48,7 @@ const STORAGE_POSTS_KEY = "impulse_posts_cache_v2";
 
 const TARGET_OPTIONS: { id: GuildId | null; label: string }[] = [
 	{ id: null, label: "GLOBAL WIRE" },
-	{ id: "octagram", label: "OCTOGRAM" },
+	{ id: "octagram", label: "OCTAGRAM" },
 	{ id: "chameleon", label: "CHAMELEON" },
 	{ id: "blue_jays", label: "BLUE JAYS" },
 ];
@@ -87,6 +88,9 @@ export function DispatchComposerModal({
 	);
 	const [title, setTitle] = useState("");
 	const [content, setContent] = useState("");
+	const [contentCursor, setContentCursor] = useState<number | undefined>(
+		undefined,
+	);
 	const [eventDate, setEventDate] = useState("");
 	const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 	const [fallbackDate] = useState(() => new Date());
@@ -309,45 +313,51 @@ export function DispatchComposerModal({
 					style={{ backgroundColor: "#faf9f5", flex: 1 }}
 					className="flex-1 bg-background"
 					edges={["top", "bottom"]}>
-					{/* Top Header */}
-					<View className="flex-row items-center justify-between border-b-2 border-border bg-background px-4 py-3 shadow-neo-header">
+					{/* Clean 3-Slot Header */}
+					<View className="flex-row items-center justify-between border-b-2 border-border bg-background px-4 py-3">
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Cancel"
+							hitSlop={8}
 							onPress={handleClose}
 							disabled={isSubmitting}
-							className="border-2 border-border bg-surface px-3 py-1.5 shadow-neo-sm active:translate-x-px active:translate-y-px">
-							<Text className="font-bold text-xs text-foreground uppercase">
-								[ CANCEL ]
-							</Text>
+							className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
+							<X size={16} color="#000000" strokeWidth={2.5} />
 						</Pressable>
 
-						<View className="flex-row items-center gap-1.5">
-							<Text className="font-display text-lg tracking-wider text-foreground uppercase">
-								OFFICIAL DISPATCH
-							</Text>
-						</View>
+						<Text className="font-ndot-caps text-base tracking-wider text-foreground uppercase">
+							OFFICIAL DISPATCH
+						</Text>
 
 						<Pressable
 							accessibilityRole="button"
 							accessibilityLabel="Broadcast dispatch"
 							onPress={handleSubmit}
 							disabled={!isValid || isSubmitting}
-							className={`flex-row items-center gap-1.5 border-2 border-border bg-primary px-4 py-1.5 shadow-neo-sm ${
+							className={`h-9 flex-row items-center gap-1.5 border-2 border-border px-3.5 shadow-neo-xs ${
 								!isValid || isSubmitting
-									? "opacity-50"
-									: "active:translate-x-px active:translate-y-px"
+									? "bg-secondary"
+									: "bg-neo-yellow active:translate-x-px active:translate-y-px"
 							}`}>
 							{isSubmitting ? (
-								<ActivityIndicator size={14} color="#FFFFFF" />
+								<ActivityIndicator size={14} color="#000000" />
 							) : (
 								<>
-									<Text className="font-bold text-xs tracking-wider text-primary-foreground uppercase">
+									<Text
+										className={`font-bold text-2xs tracking-widest uppercase ${
+											!isValid || isSubmitting
+												? "text-muted-foreground"
+												: "text-foreground"
+										}`}>
 										BROADCAST
 									</Text>
 									<Send
-										size={13}
-										color="#FFFFFF"
+										size={12}
+										color={
+											!isValid || isSubmitting
+												? "#4c4546"
+												: "#000000"
+										}
 										strokeWidth={2.5}
 									/>
 								</>
@@ -363,278 +373,466 @@ export function DispatchComposerModal({
 								padding: 16,
 								paddingBottom: 40,
 							}}
+							showsVerticalScrollIndicator={false}
 							keyboardShouldPersistTaps="handled"
 							className="flex-1">
-							{error && (
-								<View className="mb-4 flex-row items-center gap-2 border-2 border-border bg-destructive/15 p-3">
-									<AlertCircle
-										size={16}
-										color="#FF2A00"
-										strokeWidth={2.5}
-									/>
-									<Text className="flex-1 font-mono text-xs text-destructive">
-										{error}
-									</Text>
-								</View>
-							)}
-
-							{/* Wire Destination Selector */}
-							<View className="mb-5">
-								<Text className="mb-2 font-bold text-xs tracking-wider text-foreground uppercase">
-									TARGET WIRE / DESTINATION
-								</Text>
-
-								{isHouseMod ? (
-									<View className="flex-row items-center gap-2 border-2 border-border bg-neo-surface-active p-3">
-										<Lock
+							<View className="mx-auto w-full max-w-xl gap-5">
+								{error && (
+									<View className="flex-row items-center gap-2.5 border-2 border-destructive bg-destructive/10 p-3">
+										<AlertCircle
 											size={16}
-											color="#000000"
-											strokeWidth={2.4}
+											color="#FF2A00"
+											strokeWidth={2.5}
 										/>
-										<View className="flex-1">
-											<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-												LOCKED TO{" "}
-												{userGuild?.toUpperCase()}
-											</Text>
-											<Text className="font-mono text-2xs text-foreground/70">
-												House Moderator wire
-												authorization locked to your
-												assigned house.
-											</Text>
-										</View>
-									</View>
-								) : (
-									<View className="flex-row flex-wrap gap-2">
-										{TARGET_OPTIONS.map((opt) => {
-											const isSelected =
-												targetGuild === opt.id;
-											return (
-												<Pressable
-													key={String(opt.id)}
-													accessibilityRole="radio"
-													accessibilityState={{
-														selected: isSelected,
-													}}
-													disabled={isSubmitting}
-													onPress={() => {
-														triggerHaptic();
-														setTargetGuild(opt.id);
-													}}
-													className={`flex-row items-center gap-1.5 border-2 border-border px-3 py-2 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-														isSelected
-															? "bg-primary"
-															: "bg-surface"
-													}`}>
-													{isSelected && (
-														<Check
-															size={14}
-															color="#FAF9F5"
-															strokeWidth={2.5}
-														/>
-													)}
-													<Text
-														className={`font-bold text-xs tracking-wider uppercase ${
-															isSelected
-																? "text-primary-foreground"
-																: "text-foreground"
-														}`}>
-														{opt.label}
-													</Text>
-												</Pressable>
-											);
-										})}
-									</View>
-								)}
-							</View>
-
-							{/* Title Input */}
-							<View className="mb-4">
-								<View className="mb-1.5 flex-row items-center justify-between">
-									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-										HEADLINE / TITLE *
-									</Text>
-									<Text className="font-mono text-2xs text-foreground/60 tabular-nums">
-										{title.length}/120
-									</Text>
-								</View>
-								<TextInput
-									value={title}
-									onChangeText={setTitle}
-									maxLength={120}
-									editable={!isSubmitting}
-									placeholder="OFFICIAL DISPATCH HEADLINE..."
-									placeholderTextColor="#666666"
-									className="border-2 border-border bg-surface px-3 py-2.5 font-bold text-sm text-foreground uppercase shadow-neo-xs"
-								/>
-							</View>
-
-							{/* Content Input */}
-							<View className="mb-4">
-								<View className="mb-1.5 flex-row items-center justify-between">
-									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-										DISPATCH CONTENT *
-									</Text>
-									<Text className="font-mono text-2xs text-foreground/60 tabular-nums">
-										{content.length}/5000
-									</Text>
-								</View>
-								<TextInput
-									value={content}
-									onChangeText={setContent}
-									maxLength={5000}
-									editable={!isSubmitting}
-									multiline
-									textAlignVertical="top"
-									placeholder="Enter official statement, announcement details, or house wire updates..."
-									placeholderTextColor="#666666"
-									className="min-h-35 border-2 border-border bg-surface p-3 font-mono text-sm leading-relaxed text-foreground shadow-neo-xs"
-								/>
-							</View>
-
-							{/* Media Attachments (Optional - Max 10 MB) */}
-							<View className="mb-4">
-								<View className="mb-1.5 flex-row items-center justify-between">
-									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-										ATTACH MEDIA (OPTIONAL - MAX 10 MB)
-									</Text>
-									<Text className="font-mono text-2xs text-foreground/60 tabular-nums">
-										{mediaUrls.length}{" "}
-										{mediaUrls.length === 1
-											? "FILE"
-											: "FILES"}
-									</Text>
-								</View>
-
-								{mediaUrls.length > 0 && (
-									<View className="mb-2 flex-row flex-wrap gap-2 border-2 border-border bg-surface p-2 shadow-neo-xs">
-										{mediaUrls.map((uri, idx) => (
-											<View
-												key={uri}
-												className="relative size-16 border-2 border-border bg-neo-surface-active">
-												<ExpoImage
-													source={{ uri }}
-													style={{
-														width: "100%",
-														height: "100%",
-													}}
-													contentFit="cover"
-												/>
-												<Pressable
-													accessibilityRole="button"
-													accessibilityLabel={`Remove media ${idx + 1}`}
-													onPress={() =>
-														handleRemoveMedia(idx)
-													}
-													className="absolute -top-1.5 -right-1.5 border border-border bg-destructive p-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
-													<X
-														size={10}
-														color="#FFFFFF"
-														strokeWidth={2.5}
-													/>
-												</Pressable>
-											</View>
-										))}
-									</View>
-								)}
-
-								<Pressable
-									accessibilityRole="button"
-									accessibilityLabel="Attach media image"
-									disabled={isSubmitting}
-									onPress={handlePickMedia}
-									className="flex-row items-center justify-center gap-2 border-2 border-dashed border-border bg-surface px-4 py-3 shadow-neo-xs active:bg-neo-surface-active">
-									<ImageIcon
-										size={16}
-										color="#000000"
-										strokeWidth={2.4}
-									/>
-									<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-										{mediaUrls.length > 0
-											? "ATTACH MORE IMAGES"
-											: "ATTACH IMAGES (PNG, JPG, WEBP)"}
-									</Text>
-								</Pressable>
-							</View>
-
-							{/* Event Metadata (Optional) */}
-							<View className="mb-6 border-2 border-border bg-neo-surface-active p-3">
-								<Text className="mb-2.5 font-bold text-xs tracking-wider text-foreground uppercase">
-									EVENT SCHEDULE & VENUE (OPTIONAL)
-								</Text>
-
-								<View className="mb-3">
-									<View className="mb-1.5 flex-row items-center gap-1.5">
-										<Calendar
-											size={13}
-											color="#000000"
-											strokeWidth={2.4}
-										/>
-										<Text className="font-bold text-2xs tracking-wider text-foreground/80 uppercase">
-											EVENT DATE / TIME
+										<Text className="flex-1 font-mono text-xs text-destructive">
+											{error}
 										</Text>
 									</View>
+								)}
 
-									{Platform.OS === "web" ? (
-										<View className="border border-border bg-surface p-2 shadow-neo-xs">
-											<input
-												type="datetime-local"
-												value={
-													selectedDate
-														? formatDatetimeLocal(
-																selectedDate,
-															)
-														: ""
-												}
-												onChange={(e: any) =>
-													handleWebDateChange(
-														e.target.value,
-													)
-												}
-												style={{
-													width: "100%",
-													padding: "8px 10px",
-													fontFamily: "monospace",
-													fontSize: "12px",
-													fontWeight: "bold",
-													border: "1px solid #000000",
-													backgroundColor: "#FAF9F5",
-													color: "#000000",
-													borderRadius: 0,
-													outline: "none",
-													boxSizing: "border-box",
-													textTransform: "uppercase",
-												}}
-											/>
-											{selectedDate && (
-												<Pressable
-													accessibilityRole="button"
-													accessibilityLabel="Clear event date"
-													onPress={() => {
-														triggerHaptic();
-														setSelectedDate(null);
-														setEventDate("");
-													}}
-													className="mt-2 self-start border border-border bg-destructive/10 px-2 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
-													<Text className="font-bold text-2xs text-destructive uppercase">
-														[ CLEAR DATE ]
-													</Text>
-												</Pressable>
-											)}
+								{/* Card 1: Broadcast Destination */}
+								<View className="bg-card shadow-neo-sm">
+									<View className="overflow-hidden border-2 border-border bg-card">
+										<View className="border-b-2 border-border bg-surface px-4 py-2">
+											<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+												BROADCAST WIRE
+											</Text>
 										</View>
-									) : selectedDate ? (
-										<View className="border border-border bg-surface p-2.5 shadow-neo-xs">
-											<View className="flex-row items-center justify-between">
-												<View className="flex-1 pr-2">
+
+										{isHouseMod ? (
+											<View className="flex-row items-center gap-3 bg-neo-yellow/25 p-3.5">
+												<Lock
+													size={16}
+													color="#000000"
+													strokeWidth={2.4}
+												/>
+												<View className="flex-1">
 													<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
-														{formatEventDateTime(
-															selectedDate.toISOString(),
-														)}
+														LOCKED TO{" "}
+														{userGuild?.toUpperCase()}
+													</Text>
+													<Text className="mt-0.5 font-mono text-2xs text-muted-foreground">
+														House Moderator wire
+														authorization is scoped
+														to your assigned house.
 													</Text>
 												</View>
-												<View className="flex-row items-center gap-1.5">
+											</View>
+										) : (
+											<View>
+												<View className="flex-row border-b-2 border-border">
+													{TARGET_OPTIONS.slice(
+														0,
+														2,
+													).map((opt, idx) => {
+														const isSelected =
+															targetGuild ===
+															opt.id;
+														return (
+															<Pressable
+																key={String(
+																	opt.id,
+																)}
+																accessibilityRole="radio"
+																accessibilityState={{
+																	checked:
+																		isSelected,
+																}}
+																disabled={
+																	isSubmitting
+																}
+																onPress={() => {
+																	triggerHaptic();
+																	setTargetGuild(
+																		opt.id,
+																	);
+																}}
+																className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 ${
+																	idx === 0
+																		? "border-r-2 border-border"
+																		: ""
+																} ${
+																	isSelected
+																		? "bg-primary"
+																		: "bg-surface active:bg-secondary"
+																}`}>
+																{isSelected && (
+																	<Check
+																		size={
+																			13
+																		}
+																		color="#FFE600"
+																		strokeWidth={
+																			2.8
+																		}
+																	/>
+																)}
+																<Text
+																	className={`font-bold text-2xs tracking-widest uppercase ${
+																		isSelected
+																			? "text-neo-yellow"
+																			: "text-foreground"
+																	}`}>
+																	{opt.label}
+																</Text>
+															</Pressable>
+														);
+													})}
+												</View>
+												<View className="flex-row">
+													{TARGET_OPTIONS.slice(
+														2,
+														4,
+													).map((opt, idx) => {
+														const isSelected =
+															targetGuild ===
+															opt.id;
+														return (
+															<Pressable
+																key={String(
+																	opt.id,
+																)}
+																accessibilityRole="radio"
+																accessibilityState={{
+																	checked:
+																		isSelected,
+																}}
+																disabled={
+																	isSubmitting
+																}
+																onPress={() => {
+																	triggerHaptic();
+																	setTargetGuild(
+																		opt.id,
+																	);
+																}}
+																className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 ${
+																	idx === 0
+																		? "border-r-2 border-border"
+																		: ""
+																} ${
+																	isSelected
+																		? "bg-primary"
+																		: "bg-surface active:bg-secondary"
+																}`}>
+																{isSelected && (
+																	<Check
+																		size={
+																			13
+																		}
+																		color="#FFE600"
+																		strokeWidth={
+																			2.8
+																		}
+																	/>
+																)}
+																<Text
+																	className={`font-bold text-2xs tracking-widest uppercase ${
+																		isSelected
+																			? "text-neo-yellow"
+																			: "text-foreground"
+																	}`}>
+																	{opt.label}
+																</Text>
+															</Pressable>
+														);
+													})}
+												</View>
+											</View>
+										)}
+									</View>
+								</View>
+
+								{/* Card 2: Dispatch Editor & Media */}
+								<View className="bg-card shadow-neo">
+									<View className="overflow-hidden border-2 border-border bg-card">
+										{/* Headline Strip */}
+										<View className="flex-row items-center justify-between border-b-2 border-border bg-surface px-4 py-2">
+											<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+												HEADLINE *
+											</Text>
+											<Text className="font-mono text-2xs text-muted-foreground tabular-nums">
+												{title.length}/120
+											</Text>
+										</View>
+										<TextInput
+											value={title}
+											onChangeText={setTitle}
+											maxLength={120}
+											editable={!isSubmitting}
+											placeholder="OFFICIAL DISPATCH HEADLINE..."
+											placeholderTextColor="#888888"
+											className="bg-card px-4 py-3 font-display text-xl text-foreground uppercase"
+										/>
+
+										{/* Content Strip */}
+										<View className="flex-row items-center justify-between border-y-2 border-border bg-surface px-4 py-2">
+											<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+												DISPATCH CONTENT *
+											</Text>
+											<Text className="font-mono text-2xs text-muted-foreground tabular-nums">
+												{content.length}/5000
+											</Text>
+										</View>
+										<View className="bg-card px-4 py-3">
+											<MentionAutocomplete
+												text={content}
+												cursorIndex={contentCursor}
+												onSelectText={(next) => {
+													setContent(next);
+													setContentCursor(undefined);
+												}}
+												className="mb-2.5"
+											/>
+											<TextInput
+												value={content}
+												onChangeText={(next) => {
+													setContentCursor((prev) =>
+														prev !== undefined
+															? Math.max(
+																	0,
+																	prev +
+																		(next.length -
+																			content.length),
+																)
+															: undefined,
+													);
+													setContent(next);
+												}}
+												onSelectionChange={(e) => {
+													const pos =
+														e.nativeEvent.selection
+															.end;
+													setContentCursor(
+														pos < content.length
+															? pos
+															: undefined,
+													);
+												}}
+												maxLength={5000}
+												editable={!isSubmitting}
+												multiline
+												textAlignVertical="top"
+												placeholder="Enter official statement, announcement details, or house wire updates..."
+												placeholderTextColor="#888888"
+												className="min-h-36 font-sans text-sm leading-relaxed text-foreground"
+											/>
+										</View>
+
+										{/* Attached Media Thumbnails */}
+										{mediaUrls.length > 0 && (
+											<View className="flex-row flex-wrap gap-2.5 border-t-2 border-border bg-surface p-3">
+												{mediaUrls.map((uri, idx) => (
+													<View
+														key={uri}
+														className="relative size-18 border-2 border-border bg-card">
+														<ExpoImage
+															source={{ uri }}
+															style={{
+																width: "100%",
+																height: "100%",
+															}}
+															contentFit="cover"
+														/>
+														<Pressable
+															accessibilityRole="button"
+															accessibilityLabel={`Remove media ${idx + 1}`}
+															onPress={() =>
+																handleRemoveMedia(
+																	idx,
+																)
+															}
+															className="absolute -top-1.5 -right-1.5 border border-border bg-destructive p-0.5">
+															<X
+																size={10}
+																color="#FFFFFF"
+																strokeWidth={
+																	2.5
+																}
+															/>
+														</Pressable>
+													</View>
+												))}
+											</View>
+										)}
+
+										{/* Docked Media Attach Bar */}
+										<Pressable
+											accessibilityRole="button"
+											accessibilityLabel="Attach media image"
+											disabled={isSubmitting}
+											onPress={handlePickMedia}
+											className="h-11 flex-row items-center justify-between border-t-2 border-border bg-surface px-4 active:bg-secondary">
+											<View className="flex-row items-center gap-2">
+												<ImageIcon
+													size={15}
+													color="#000000"
+													strokeWidth={2.4}
+												/>
+												<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+													{mediaUrls.length > 0
+														? "ATTACH MORE IMAGES"
+														: "ATTACH IMAGES (MAX 10 MB)"}
+												</Text>
+											</View>
+											<Text className="font-mono text-2xs text-muted-foreground tabular-nums">
+												{mediaUrls.length}{" "}
+												{mediaUrls.length === 1
+													? "FILE"
+													: "FILES"}
+											</Text>
+										</Pressable>
+									</View>
+								</View>
+
+								{/* Card 3: Event Schedule & Venue (Optional) */}
+								<View className="bg-card shadow-neo-sm">
+									<View className="overflow-hidden border-2 border-border bg-card">
+										<View className="border-b-2 border-border bg-surface px-4 py-2">
+											<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+												EVENT SCHEDULE &amp; VENUE
+												(OPTIONAL)
+											</Text>
+										</View>
+
+										<View className="bg-card p-4">
+											<View className="mb-3">
+												<View className="mb-1.5 flex-row items-center gap-1.5">
+													<Calendar
+														size={13}
+														color="#000000"
+														strokeWidth={2.4}
+													/>
+													<Text className="font-bold text-2xs tracking-wider text-foreground/80 uppercase">
+														EVENT DATE / TIME
+													</Text>
+												</View>
+
+												{Platform.OS === "web" ? (
+													<View className="border border-border bg-surface p-2 shadow-neo-xs">
+														<input
+															type="datetime-local"
+															value={
+																selectedDate
+																	? formatDatetimeLocal(
+																			selectedDate,
+																		)
+																	: ""
+															}
+															onChange={(
+																e: any,
+															) =>
+																handleWebDateChange(
+																	e.target
+																		.value,
+																)
+															}
+															style={{
+																width: "100%",
+																padding:
+																	"8px 10px",
+																fontFamily:
+																	"monospace",
+																fontSize:
+																	"12px",
+																fontWeight:
+																	"bold",
+																border: "1px solid #000000",
+																backgroundColor:
+																	"#FAF9F5",
+																color: "#000000",
+																borderRadius: 0,
+																outline: "none",
+																boxSizing:
+																	"border-box",
+																textTransform:
+																	"uppercase",
+															}}
+														/>
+														{selectedDate && (
+															<Pressable
+																accessibilityRole="button"
+																accessibilityLabel="Clear event date"
+																onPress={() => {
+																	triggerHaptic();
+																	setSelectedDate(
+																		null,
+																	);
+																	setEventDate(
+																		"",
+																	);
+																}}
+																className="mt-2 self-start border border-border bg-destructive/10 px-2 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+																<Text className="font-bold text-2xs text-destructive uppercase">
+																	[ CLEAR DATE
+																	]
+																</Text>
+															</Pressable>
+														)}
+													</View>
+												) : selectedDate ? (
+													<View className="border border-border bg-surface p-2.5 shadow-neo-xs">
+														<View className="flex-row items-center justify-between">
+															<View className="flex-1 pr-2">
+																<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
+																	{formatEventDateTime(
+																		selectedDate.toISOString(),
+																	)}
+																</Text>
+															</View>
+															<View className="flex-row items-center gap-1.5">
+																<Pressable
+																	accessibilityRole="button"
+																	accessibilityLabel="Edit date"
+																	disabled={
+																		isSubmitting
+																	}
+																	onPress={() => {
+																		if (
+																			Platform.OS ===
+																			"android"
+																		) {
+																			openAndroidDatePicker();
+																		} else {
+																			openIosDatePicker();
+																		}
+																	}}
+																	className="border border-border bg-surface px-2.5 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+																	<Text className="font-bold text-2xs text-foreground uppercase">
+																		[ EDIT ]
+																	</Text>
+																</Pressable>
+																<Pressable
+																	accessibilityRole="button"
+																	accessibilityLabel="Clear date"
+																	disabled={
+																		isSubmitting
+																	}
+																	onPress={() => {
+																		triggerHaptic();
+																		setSelectedDate(
+																			null,
+																		);
+																		setEventDate(
+																			"",
+																		);
+																		setShowIosPicker(
+																			false,
+																		);
+																	}}
+																	className="border border-border bg-destructive/10 px-2.5 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+																	<Text className="font-bold text-2xs text-destructive uppercase">
+																		[ CLEAR
+																		]
+																	</Text>
+																</Pressable>
+															</View>
+														</View>
+													</View>
+												) : (
 													<Pressable
 														accessibilityRole="button"
-														accessibilityLabel="Edit date"
+														accessibilityLabel="Select event date and time"
 														disabled={isSubmitting}
 														onPress={() => {
 															if (
@@ -646,113 +844,90 @@ export function DispatchComposerModal({
 																openIosDatePicker();
 															}
 														}}
-														className="border border-border bg-surface px-2.5 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
-														<Text className="font-bold text-2xs text-foreground uppercase">
-															[ EDIT ]
+														className="flex-row items-center justify-between border border-border bg-surface px-3 py-2.5 shadow-neo-xs active:translate-x-px active:translate-y-px">
+														<Text className="font-mono text-xs text-foreground/60 uppercase">
+															SELECT EVENT DATE &
+															TIME...
+														</Text>
+														<Text className="font-bold text-2xs text-primary uppercase">
+															[ PICK DATE ]
 														</Text>
 													</Pressable>
-													<Pressable
-														accessibilityRole="button"
-														accessibilityLabel="Clear date"
-														disabled={isSubmitting}
-														onPress={() => {
-															triggerHaptic();
-															setSelectedDate(
-																null,
-															);
-															setEventDate("");
-															setShowIosPicker(
-																false,
-															);
-														}}
-														className="border border-border bg-destructive/10 px-2.5 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
-														<Text className="font-bold text-2xs text-destructive uppercase">
-															[ CLEAR ]
-														</Text>
-													</Pressable>
-												</View>
-											</View>
-										</View>
-									) : (
-										<Pressable
-											accessibilityRole="button"
-											accessibilityLabel="Select event date and time"
-											disabled={isSubmitting}
-											onPress={() => {
-												if (Platform.OS === "android") {
-													openAndroidDatePicker();
-												} else {
-													openIosDatePicker();
-												}
-											}}
-											className="flex-row items-center justify-between border border-border bg-surface px-3 py-2.5 shadow-neo-xs active:translate-x-px active:translate-y-px">
-											<Text className="font-mono text-xs text-foreground/60 uppercase">
-												SELECT EVENT DATE & TIME...
-											</Text>
-											<Text className="font-bold text-2xs text-primary uppercase">
-												[ PICK DATE ]
-											</Text>
-										</Pressable>
-									)}
+												)}
 
-									{Platform.OS === "ios" && showIosPicker && (
-										<View className="mt-2 border-2 border-border bg-surface p-2.5 shadow-neo-xs">
-											<View className="mb-2 flex-row items-center justify-between border-b border-border pb-1.5">
-												<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
-													SELECT DATE & TIME
-												</Text>
-												<Pressable
-													accessibilityRole="button"
-													accessibilityLabel="Confirm date"
-													onPress={() =>
-														setShowIosPicker(false)
-													}
-													className="border border-border bg-primary px-3 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
-													<Text className="font-bold text-2xs tracking-wider text-primary-foreground uppercase">
-														DONE
+												{Platform.OS === "ios" &&
+													showIosPicker && (
+														<View className="mt-2 border-2 border-border bg-surface p-2.5 shadow-neo-xs">
+															<View className="mb-2 flex-row items-center justify-between border-b border-border pb-1.5">
+																<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
+																	SELECT DATE
+																	& TIME
+																</Text>
+																<Pressable
+																	accessibilityRole="button"
+																	accessibilityLabel="Confirm date"
+																	onPress={() =>
+																		setShowIosPicker(
+																			false,
+																		)
+																	}
+																	className="border border-border bg-primary px-3 py-1 shadow-neo-xs active:translate-x-px active:translate-y-px">
+																	<Text className="font-bold text-2xs tracking-wider text-primary-foreground uppercase">
+																		DONE
+																	</Text>
+																</Pressable>
+															</View>
+															<DateTimePicker
+																value={
+																	selectedDate ||
+																	fallbackDate
+																}
+																mode="datetime"
+																display="spinner"
+																themeVariant="light"
+																onChange={(
+																	_event,
+																	date,
+																) => {
+																	if (date) {
+																		setSelectedDate(
+																			date,
+																		);
+																		setEventDate(
+																			date.toISOString(),
+																		);
+																	}
+																}}
+															/>
+														</View>
+													)}
+											</View>
+
+											<View>
+												<View className="mb-1.5 flex-row items-center gap-1.5">
+													<MapPin
+														size={13}
+														color="#000000"
+														strokeWidth={2.4}
+													/>
+													<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+														EVENT VENUE / LOCATION
 													</Text>
-												</Pressable>
-											</View>
-											<DateTimePicker
-												value={
-													selectedDate || fallbackDate
-												}
-												mode="datetime"
-												display="spinner"
-												themeVariant="light"
-												onChange={(_event, date) => {
-													if (date) {
-														setSelectedDate(date);
-														setEventDate(
-															date.toISOString(),
-														);
+												</View>
+												<TextInput
+													value={eventLocation}
+													onChangeText={
+														setEventLocation
 													}
-												}}
-											/>
+													maxLength={100}
+													editable={!isSubmitting}
+													placeholder="e.g. MAIN AUDITORIUM / STAGE 01"
+													placeholderTextColor="#888888"
+													className="border-2 border-border bg-surface px-3 py-2.5 font-mono text-xs text-foreground"
+												/>
+											</View>
 										</View>
-									)}
-								</View>
-
-								<View>
-									<View className="mb-1 flex-row items-center gap-1.5">
-										<MapPin
-											size={13}
-											color="#000000"
-											strokeWidth={2.4}
-										/>
-										<Text className="font-bold text-2xs tracking-wider text-foreground/80 uppercase">
-											EVENT VENUE / LOCATION
-										</Text>
 									</View>
-									<TextInput
-										value={eventLocation}
-										onChangeText={setEventLocation}
-										maxLength={100}
-										editable={!isSubmitting}
-										placeholder="e.g. MAIN AUDITORIUM / STAGE 01"
-										placeholderTextColor="#666666"
-										className="border border-border bg-surface px-3 py-2 font-mono text-xs text-foreground"
-									/>
 								</View>
 							</View>
 						</ScrollView>

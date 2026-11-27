@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Calendar, Plus, Radio } from "lucide-react-native";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	ActivityIndicator,
 	FlatList,
@@ -26,6 +26,8 @@ import {
 } from "@/features/dispatch/utils/filter";
 import { fetchFeedPosts, votePost } from "@/features/posts/api";
 import type { Post } from "@/features/posts/types";
+import { useTabReselect } from "@/lib/tab-events";
+import { toast } from "@/lib/toast";
 
 const STORAGE_POSTS_KEY = "impulse_posts_cache_v2";
 
@@ -61,6 +63,7 @@ export default function DispatchScreen() {
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 	const refreshUserData = useAuthStore((state) => state.refreshUserData);
+	const listRef = useRef<FlatList<Post>>(null);
 
 	const [posts, setPosts] = useState<Post[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -152,6 +155,21 @@ export default function DispatchScreen() {
 		}
 	}, [userId, userGuild, userRole]);
 
+	const handleRefresh = useCallback(async () => {
+		if (isRefreshing || isLoading) return;
+		setIsRefreshing(true);
+		try {
+			await Promise.all([refreshUserData(), loadData()]);
+		} finally {
+			setIsRefreshing(false);
+		}
+	}, [isRefreshing, isLoading, refreshUserData, loadData]);
+
+	useTabReselect("dispatch", () => {
+		listRef.current?.scrollToOffset({ offset: 0, animated: true });
+		void handleRefresh();
+	});
+
 	const handleRetry = useCallback(async () => {
 		triggerHaptic();
 		setIsRetrying(true);
@@ -211,6 +229,7 @@ export default function DispatchScreen() {
 				setPosts((prev) =>
 					prev.map((p) => (p.id === post.id ? post : p)),
 				);
+				toast.error("Failed to update vote. Please try again.");
 			}
 		},
 		[user],
@@ -339,7 +358,7 @@ export default function DispatchScreen() {
 
 		return (
 			<View className="my-8 items-center border-2 border-border bg-surface p-6 text-center shadow-neo">
-				<View className="bg-neo-yellow mb-3.5 size-12 items-center justify-center border-2 border-border shadow-neo-xs">
+				<View className="mb-3.5 size-12 items-center justify-center border-2 border-border bg-neo-yellow shadow-neo-xs">
 					{eventsOnly ? (
 						<Calendar size={22} color="#000000" strokeWidth={2.4} />
 					) : (
@@ -361,7 +380,7 @@ export default function DispatchScreen() {
 							triggerHaptic();
 							setIsComposerOpen(true);
 						}}
-						className="bg-neo-yellow flex-row items-center gap-1.5 border-2 border-border px-4 py-2.5 shadow-neo-xs active:translate-x-px active:translate-y-px">
+						className="flex-row items-center gap-1.5 border-2 border-border bg-neo-yellow px-4 py-2.5 shadow-neo-xs active:translate-x-px active:translate-y-px">
 						<Plus size={14} color="#000000" strokeWidth={2.8} />
 						<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 							ISSUE FIRST DISPATCH
@@ -524,6 +543,7 @@ export default function DispatchScreen() {
 				</View>
 			) : (
 				<FlatList
+					ref={listRef}
 					data={filteredPosts}
 					keyExtractor={(item) => item.id}
 					renderItem={({ item }) => (
@@ -548,17 +568,7 @@ export default function DispatchScreen() {
 					refreshControl={
 						<RefreshControl
 							refreshing={isRefreshing}
-							onRefresh={async () => {
-								setIsRefreshing(true);
-								try {
-									await Promise.all([
-										refreshUserData(),
-										loadData(),
-									]);
-								} finally {
-									setIsRefreshing(false);
-								}
-							}}
+							onRefresh={handleRefresh}
 							tintColor="#000000"
 						/>
 					}
@@ -574,7 +584,7 @@ export default function DispatchScreen() {
 						triggerHaptic();
 						setIsComposerOpen(true);
 					}}
-					className="bg-neo-yellow absolute right-4 bottom-6 z-20 flex-row items-center gap-1.5 border-2 border-border px-4 py-3 shadow-neo active:translate-x-0.5 active:translate-y-0.5">
+					className="absolute right-4 bottom-6 z-20 flex-row items-center gap-1.5 border-2 border-border bg-neo-yellow px-4 py-3 shadow-neo active:translate-x-0.5 active:translate-y-0.5">
 					<Plus size={16} color="#000000" strokeWidth={3} />
 					<Text className="font-bold text-xs tracking-wider text-foreground uppercase">
 						[DISPATCH]

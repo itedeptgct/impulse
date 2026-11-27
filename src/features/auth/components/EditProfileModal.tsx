@@ -1,13 +1,15 @@
 import { changeUsername, updateUserProfile, uploadAvatar } from "@auth/api";
 import { useAuthStore } from "@auth/store";
 import type { Course, Profile, YearLevel } from "@auth/types";
+import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import {
 	AlertCircle,
+	ArrowLeft,
 	AtSign,
-	BookOpen,
 	Camera,
+	Check,
 	FileText,
 	GraduationCap,
 	Trash2,
@@ -27,7 +29,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { NeoBadge, NeoButton, NeoInput } from "@/components/ui";
+import { NeoInput } from "@/components/ui";
+
+import { ProfileSurfaceEffect } from "./ProfileSurfaceEffect";
+
+const triggerHaptic = () => {
+	if (Platform.OS !== "web") {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+	}
+};
 
 export interface EditProfileModalProps {
 	open: boolean;
@@ -201,6 +211,10 @@ export function EditProfileModal({
 	const initials = (displayName || profile?.username || "ST")
 		.slice(0, 2)
 		.toUpperCase();
+	const academicPreview = [course, yearLevel ? `YEAR ${yearLevel}` : null]
+		.filter(Boolean)
+		.join(" · ");
+	const isSaveDisabled = !hasChanges || isSubmitting || isUploadingAvatar;
 
 	return (
 		<Modal
@@ -216,26 +230,44 @@ export function EditProfileModal({
 					style={{ backgroundColor: "#faf9f5", flex: 1 }}
 					className="flex-1 bg-background"
 					edges={["top", "bottom"]}>
-					<View className="relative flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
-						<NeoButton
-							variant="secondary"
-							size="sm"
-							onPress={() => onOpenChange(false)}>
-							CANCEL
-						</NeoButton>
+					{/* Clean Non-Overlapping Header */}
+					<View className="flex-row items-center justify-between border-b-2 border-border bg-background px-4 py-3">
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Cancel editing profile"
+							hitSlop={8}
+							onPress={() => {
+								triggerHaptic();
+								onOpenChange(false);
+							}}
+							className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
+							<ArrowLeft
+								size={16}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						</Pressable>
 
-						<Text className="absolute inset-x-0 text-center font-display text-base tracking-tight text-foreground uppercase">
+						<Text className="font-ndot-caps text-base tracking-wider text-foreground uppercase">
 							EDIT PROFILE
 						</Text>
+
+						<View className="size-9" />
 					</View>
 
 					{error && (
-						<View className="mx-4 mt-3 flex-row items-center gap-2 rounded-none border-2 border-destructive bg-destructive/10 p-3">
-							<AlertCircle size={16} color="#ff2a00" />
+						<View className="mx-4 mt-3 flex-row items-center gap-2.5 border-2 border-destructive bg-destructive/10 p-3">
+							<AlertCircle
+								size={16}
+								color="#ff2a00"
+								strokeWidth={2.4}
+							/>
 							<Text className="flex-1 font-mono text-xs text-destructive">
 								{error}
 							</Text>
 							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Dismiss error"
 								onPress={() => setError(null)}
 								hitSlop={8}>
 								<X size={14} color="#ff2a00" />
@@ -249,69 +281,112 @@ export function EditProfileModal({
 						<ScrollView
 							contentContainerStyle={{
 								flexGrow: 1,
-								paddingBottom: 32,
+								paddingBottom: 28,
 							}}
 							showsVerticalScrollIndicator={false}
 							keyboardShouldPersistTaps="handled"
 							className="flex-1 px-4 pt-4">
-							<View className="gap-5">
-								<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
-									<View className="mb-3 flex-row items-center gap-2">
-										<Camera
-											size={15}
-											color="#000000"
-											strokeWidth={2.2}
+							<View className="mx-auto w-full max-w-xl gap-5">
+								{/* Section 1: Live Operator Identity Preview & Avatar */}
+								<View className="bg-card shadow-neo">
+									<View className="overflow-hidden border-2 border-border bg-card">
+										<ProfileSurfaceEffect
+											guild={profile?.guild}
+											height={72}
 										/>
-										<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-											PROFILE PICTURE
-										</Text>
-									</View>
 
-									<View className="flex-row items-center gap-4">
-										<View className="size-20 items-center justify-center overflow-hidden rounded-none border-2 border-border bg-muted shadow-neo-sm">
-											{isUploadingAvatar ? (
-												<ActivityIndicator
-													color="#000000"
-													size="small"
-												/>
-											) : avatarUrl &&
-											  avatarUrl.startsWith("http") ? (
-												<ExpoImage
-													source={{ uri: avatarUrl }}
-													style={{
-														width: "100%",
-														height: "100%",
-													}}
-													contentFit="cover"
-												/>
-											) : (
-												<View className="flex-1 items-center justify-center">
-													<Text className="font-bold text-2xl text-foreground">
-														{initials}
+										<View className="border-t-2 border-border bg-card px-4 pb-4">
+											<View className="flex-row items-end gap-3.5">
+												<View className="-mt-9 size-18 items-center justify-center overflow-hidden border-2 border-border bg-surface">
+													{isUploadingAvatar ? (
+														<ActivityIndicator
+															color="#000000"
+															size="small"
+														/>
+													) : avatarUrl &&
+													  avatarUrl.startsWith(
+															"http",
+													  ) ? (
+														<ExpoImage
+															source={{
+																uri: avatarUrl,
+															}}
+															style={{
+																width: "100%",
+																height: "100%",
+															}}
+															contentFit="cover"
+														/>
+													) : (
+														<Text className="font-display text-2xl text-foreground uppercase">
+															{initials}
+														</Text>
+													)}
+												</View>
+
+												<View className="min-w-0 flex-1 pt-2">
+													<Text
+														numberOfLines={1}
+														className="font-ndot-caps text-lg leading-none text-foreground uppercase">
+														{displayName.trim() ||
+															profile?.username ||
+															"STUDENT"}
+													</Text>
+													<Text
+														numberOfLines={1}
+														className="mt-1 font-mono text-xs text-muted-foreground">
+														@
+														{username.trim() ||
+															profile?.username ||
+															"handle"}
 													</Text>
 												</View>
-											)}
+											</View>
 										</View>
 
-										<View className="flex-1 gap-2">
-											<NeoButton
-												variant="secondary"
-												size="sm"
-												loading={isUploadingAvatar}
+										{/* Docked Photo Action Rail */}
+										<View className="flex-row border-t-2 border-border bg-surface">
+											<Pressable
+												accessibilityRole="button"
+												accessibilityLabel="Choose new profile photo"
 												disabled={isUploadingAvatar}
-												onPress={handlePickAvatar}
-												className="w-full">
-												CHOOSE NEW PHOTO
-											</NeoButton>
+												onPress={() => {
+													triggerHaptic();
+													void handlePickAvatar();
+												}}
+												className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 active:bg-secondary ${
+													avatarUrl
+														? "border-r-2 border-border"
+														: ""
+												}`}>
+												<Camera
+													size={14}
+													color="#000000"
+													strokeWidth={2.3}
+												/>
+												<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+													{isUploadingAvatar
+														? "UPLOADING..."
+														: "CHANGE PHOTO"}
+												</Text>
+											</Pressable>
+
 											{avatarUrl ? (
 												<Pressable
-													onPress={handleRemoveAvatar}
-													className="flex-row items-center justify-center gap-1.5 py-1">
+													accessibilityRole="button"
+													accessibilityLabel="Remove profile photo"
+													disabled={isUploadingAvatar}
+													onPress={() => {
+														triggerHaptic();
+														handleRemoveAvatar();
+													}}
+													className="h-11 flex-1 flex-row items-center justify-center gap-1.5 active:bg-destructive/10">
 													<Trash2
-														size={12}
+														size={14}
 														color="#ff2a00"
+														strokeWidth={2.3}
 													/>
-													<Text className="font-mono text-[11px] text-destructive uppercase">
+													<Text className="font-bold text-2xs tracking-widest text-destructive uppercase">
 														REMOVE PHOTO
 													</Text>
 												</Pressable>
@@ -320,204 +395,280 @@ export function EditProfileModal({
 									</View>
 								</View>
 
-								<NeoInput
-									label="USERNAME (HANDLE)"
-									value={username}
-									onChangeText={(text) => {
-										const clean = text
-											.toLowerCase()
-											.replace(/[^a-z0-9_]/g, "");
-										setUsername(clean);
-									}}
-									placeholder="janedoe"
-									maxLength={20}
-									autoCapitalize="none"
-									autoCorrect={false}
-									startContent={
-										<AtSign
-											size={15}
-											color="#000000"
-											strokeWidth={2.2}
-										/>
-									}
-									helperText={`${username.length}/20 characters • Letters, numbers, underscores`}
-								/>
-
-								<NeoInput
-									label="DISPLAY NAME"
-									value={displayName}
-									onChangeText={setDisplayName}
-									placeholder="e.g. Alex Rivera"
-									maxLength={50}
-									startContent={
-										<User
-											size={15}
-											color="#000000"
-											strokeWidth={2.2}
-										/>
-									}
-								/>
-
-								<View className="rounded-none border-2 border-border bg-card p-3 shadow-neo-sm">
-									<View className="mb-2 flex-row items-center justify-between">
-										<View className="flex-row items-center gap-2">
-											<GraduationCap
-												size={15}
+								{/* Section 2: Identity & Bio */}
+								<View className="bg-card shadow-neo">
+									<View className="overflow-hidden border-2 border-border bg-card">
+										<View className="flex-row items-center gap-2 border-b-2 border-border bg-surface px-4 py-2.5">
+											<User
+												size={14}
 												color="#000000"
-												strokeWidth={2.2}
+												strokeWidth={2.4}
 											/>
-											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-												DEGREE COURSE
+											<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+												IDENTITY &amp; BIO
 											</Text>
 										</View>
-										{course && (
-											<NeoBadge
-												variant="primary"
-												size="sm">
-												{course}
-											</NeoBadge>
-										)}
-									</View>
 
-									<View className="flex-row gap-2">
-										{(["BSIT", "BSCS"] as Course[]).map(
-											(c) => {
-												const isSelected = course === c;
-												return (
-													<Pressable
-														key={c}
-														onPress={() =>
-															setCourse(
-																isSelected
-																	? null
-																	: c,
-															)
-														}
-														className={`flex-1 items-center justify-center rounded-none border-2 py-2.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
-															isSelected
-																? "border-border bg-primary"
-																: "border-border bg-card"
-														}`}>
-														<Text
-															className={`font-bold text-xs uppercase ${
-																isSelected
-																	? "text-primary-foreground"
-																	: "text-foreground"
-															}`}>
-															{c}
-														</Text>
-													</Pressable>
-												);
-											},
-										)}
+										<View className="gap-4 bg-card p-4">
+											<NeoInput
+												label="USERNAME (HANDLE)"
+												value={username}
+												onChangeText={(text) => {
+													const clean = text
+														.toLowerCase()
+														.replace(
+															/[^a-z0-9_]/g,
+															"",
+														);
+													setUsername(clean);
+												}}
+												placeholder="janedoe"
+												maxLength={20}
+												autoCapitalize="none"
+												autoCorrect={false}
+												startContent={
+													<AtSign
+														size={15}
+														color="#000000"
+														strokeWidth={2.2}
+													/>
+												}
+												helperText={`${username.length}/20 · Letters, numbers, underscores`}
+											/>
+
+											<NeoInput
+												label="DISPLAY NAME"
+												value={displayName}
+												onChangeText={setDisplayName}
+												placeholder="e.g. Alex Rivera"
+												maxLength={50}
+												startContent={
+													<User
+														size={15}
+														color="#000000"
+														strokeWidth={2.2}
+													/>
+												}
+											/>
+
+											<NeoInput
+												label="BIO / INTEL"
+												value={bio}
+												onChangeText={setBio}
+												placeholder="Briefly describe your campus focus, stack, or projects..."
+												multiline
+												numberOfLines={4}
+												maxLength={250}
+												textAlignVertical="top"
+												inputWrapperClassName="items-start py-1"
+												className="min-h-24"
+												startContent={
+													<View className="pt-2">
+														<FileText
+															size={15}
+															color="#000000"
+															strokeWidth={2.2}
+														/>
+													</View>
+												}
+												helperText={`${bio.length}/250 characters`}
+											/>
+										</View>
 									</View>
 								</View>
 
-								<View className="rounded-none border-2 border-border bg-card p-3 shadow-neo-sm">
-									<View className="mb-2 flex-row items-center justify-between">
-										<View className="flex-row items-center gap-2">
-											<BookOpen
-												size={15}
-												color="#000000"
-												strokeWidth={2.2}
-											/>
-											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-												YEAR LEVEL
-											</Text>
+								{/* Section 3: Academic Classification */}
+								<View className="bg-card shadow-neo">
+									<View className="overflow-hidden border-2 border-border bg-card">
+										<View className="flex-row items-center justify-between border-b-2 border-border bg-surface px-4 py-2.5">
+											<View className="flex-row items-center gap-2">
+												<GraduationCap
+													size={14}
+													color="#000000"
+													strokeWidth={2.4}
+												/>
+												<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+													ACADEMIC CLASSIFICATION
+												</Text>
+											</View>
+											{academicPreview ? (
+												<View className="border border-border bg-primary px-2 py-0.5">
+													<Text className="font-bold text-3xs tracking-widest text-primary-foreground uppercase">
+														{academicPreview}
+													</Text>
+												</View>
+											) : null}
 										</View>
-										{yearLevel && (
-											<NeoBadge
-												variant="default"
-												size="sm">
-												{`YEAR ${yearLevel}`}
-											</NeoBadge>
-										)}
-									</View>
 
-									<View className="flex-row gap-2">
-										{([1, 2, 3, 4] as YearLevel[]).map(
-											(yl) => {
-												const isSelected =
-													yearLevel === yl;
-												return (
-													<Pressable
-														key={yl}
-														onPress={() =>
-															setYearLevel(
-																isSelected
-																	? null
-																	: yl,
-															)
-														}
-														className={`flex-1 items-center justify-center rounded-none border-2 py-2.5 shadow-neo-sm active:translate-x-px active:translate-y-px ${
-															isSelected
-																? "border-border bg-primary"
-																: "border-border bg-card"
-														}`}>
-														<Text
-															className={`font-bold text-xs uppercase ${
-																isSelected
-																	? "text-primary-foreground"
-																	: "text-foreground"
-															}`}>
-															{yl}
-														</Text>
-													</Pressable>
-												);
-											},
-										)}
-									</View>
-								</View>
+										<View className="gap-4 bg-card p-4">
+											{/* Degree Course Segmented Control */}
+											<View>
+												<Text className="mb-1.5 font-bold text-2xs tracking-widest text-foreground uppercase">
+													DEGREE COURSE
+												</Text>
+												<View className="flex-row overflow-hidden border-2 border-border bg-surface">
+													{(
+														[
+															"BSIT",
+															"BSCS",
+														] as Course[]
+													).map((c, idx) => {
+														const isSelected =
+															course === c;
+														return (
+															<Pressable
+																key={c}
+																accessibilityRole="radio"
+																accessibilityState={{
+																	checked:
+																		isSelected,
+																}}
+																onPress={() => {
+																	triggerHaptic();
+																	setCourse(
+																		isSelected
+																			? null
+																			: c,
+																	);
+																}}
+																className={`h-11 flex-1 items-center justify-center ${
+																	idx === 0
+																		? "border-r-2 border-border"
+																		: ""
+																} ${
+																	isSelected
+																		? "bg-primary"
+																		: "bg-surface active:bg-secondary"
+																}`}>
+																<Text
+																	className={`font-bold text-xs tracking-widest uppercase ${
+																		isSelected
+																			? "text-primary-foreground"
+																			: "text-foreground"
+																	}`}>
+																	{c}
+																</Text>
+															</Pressable>
+														);
+													})}
+												</View>
+											</View>
 
-								<NeoInput
-									label="BIO / INTEL"
-									value={bio}
-									onChangeText={setBio}
-									placeholder="Briefly describe your campus focus, technical stack, or projects..."
-									multiline
-									numberOfLines={4}
-									maxLength={250}
-									textAlignVertical="top"
-									inputWrapperClassName="items-start py-1"
-									className="min-h-24"
-									startContent={
-										<View className="pt-2">
-											<FileText
-												size={15}
-												color="#000000"
-												strokeWidth={2.2}
-											/>
+											{/* Year Level Segmented Control */}
+											<View>
+												<Text className="mb-1.5 font-bold text-2xs tracking-widest text-foreground uppercase">
+													YEAR LEVEL
+												</Text>
+												<View className="flex-row overflow-hidden border-2 border-border bg-surface">
+													{(
+														[
+															1, 2, 3, 4,
+														] as YearLevel[]
+													).map((yl, idx) => {
+														const isSelected =
+															yearLevel === yl;
+														return (
+															<Pressable
+																key={yl}
+																accessibilityRole="radio"
+																accessibilityState={{
+																	checked:
+																		isSelected,
+																}}
+																onPress={() => {
+																	triggerHaptic();
+																	setYearLevel(
+																		isSelected
+																			? null
+																			: yl,
+																	);
+																}}
+																className={`h-11 flex-1 items-center justify-center ${
+																	idx < 3
+																		? "border-r-2 border-border"
+																		: ""
+																} ${
+																	isSelected
+																		? "bg-primary"
+																		: "bg-surface active:bg-secondary"
+																}`}>
+																<Text
+																	className={`font-bold text-xs tracking-wider uppercase ${
+																		isSelected
+																			? "text-primary-foreground"
+																			: "text-foreground"
+																	}`}>
+																	Y{yl}
+																</Text>
+															</Pressable>
+														);
+													})}
+												</View>
+											</View>
 										</View>
-									}
-									helperText={`${bio.length}/250 characters`}
-								/>
-
-								<View className="mt-2 gap-3 border-t-2 border-border pt-4">
-									<NeoButton
-										variant="primary"
-										size="md"
-										loading={
-											isSubmitting || isUploadingAvatar
-										}
-										disabled={
-											!hasChanges ||
-											isSubmitting ||
-											isUploadingAvatar
-										}
-										onPress={handleSave}
-										className="w-full">
-										SAVE CHANGES
-									</NeoButton>
-									<NeoButton
-										variant="outline"
-										size="md"
-										onPress={() => onOpenChange(false)}
-										className="w-full">
-										CANCEL
-									</NeoButton>
+									</View>
 								</View>
 							</View>
 						</ScrollView>
+
+						{/* Sticky Bottom Save Bar */}
+						<View className="border-t-2 border-border bg-card px-4 py-3">
+							<View className="mx-auto w-full max-w-xl flex-row gap-2.5">
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Cancel"
+									onPress={() => {
+										triggerHaptic();
+										onOpenChange(false);
+									}}
+									className="h-12 items-center justify-center border-2 border-border bg-surface px-4 active:bg-secondary">
+									<Text className="font-bold text-xs tracking-widest text-foreground uppercase">
+										CANCEL
+									</Text>
+								</Pressable>
+
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Save profile changes"
+									disabled={isSaveDisabled}
+									onPress={() => {
+										triggerHaptic();
+										void handleSave();
+									}}
+									className={`h-12 flex-1 flex-row items-center justify-center gap-2 border-2 border-border px-4 active:opacity-85 ${
+										isSaveDisabled
+											? "bg-secondary"
+											: "bg-neo-green"
+									}`}>
+									{isSubmitting || isUploadingAvatar ? (
+										<ActivityIndicator
+											size="small"
+											color="#000000"
+										/>
+									) : (
+										<>
+											<Check
+												size={15}
+												color={
+													isSaveDisabled
+														? "#4c4546"
+														: "#000000"
+												}
+												strokeWidth={2.8}
+											/>
+											<Text
+												className={`font-bold text-xs tracking-widest uppercase ${
+													isSaveDisabled
+														? "text-muted-foreground"
+														: "text-foreground"
+												}`}>
+												SAVE CHANGES
+											</Text>
+										</>
+									)}
+								</Pressable>
+							</View>
+						</View>
 					</KeyboardAvoidingView>
 				</SafeAreaView>
 			</View>

@@ -4,14 +4,20 @@ import type { GuildId, GuildInfo } from "./types";
 
 export const GUILD_BADGES: Record<GuildId, string> = {
 	octagram: "0x",
-	chameleon: "★",
-	blue_jays: "BJ",
+	chameleon: "RGB",
+	blue_jays: "PRESS",
 };
 
 const GUILD_LOGOS = {
 	octagram: require("../../../assets/guilds/octagram.svg"),
 	chameleon: require("../../../assets/guilds/chameleon.svg"),
 	blue_jays: require("../../../assets/guilds/bluejays.svg"),
+};
+
+const GUILD_BANNERS = {
+	octagram: require("../../../assets/guilds/banners/octagram.png"),
+	chameleon: require("../../../assets/guilds/banners/chameleon.png"),
+	blue_jays: require("../../../assets/guilds/banners/bluejays.png"),
 };
 
 const GUILDS: Record<GuildId, GuildInfo> = {
@@ -21,10 +27,11 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		tagline: "Developers & Coders",
 		manifesto:
 			"Building ideas through code, creating solutions through technology, and connecting people through innovation.",
-		accentColor: "#be0203",
-		badgeBgColor: "bg-[#be0203]",
-		badgeTextColor: "text-foreground",
+		accentColor: "#000000",
+		badgeBgColor: "bg-primary",
+		badgeTextColor: "text-primary-foreground",
 		logo: GUILD_LOGOS.octagram,
+		banner: GUILD_BANNERS.octagram,
 		houseNumber: "01",
 		houseSymbol: "0x",
 		sector: "HARDWARE, SOFTWARE & NETWORKING",
@@ -37,12 +44,13 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		tagline: "GFX & Artists",
 		manifesto:
 			"Bringing ideas to life through creative designs, colorful visuals, and engaging media.",
-		accentColor: "#0c7c28",
-		badgeBgColor: "bg-[#0c7c28]",
-		badgeTextColor: "text-primary-background",
+		accentColor: "#00ff66",
+		badgeBgColor: "bg-neo-green",
+		badgeTextColor: "text-foreground",
 		logo: GUILD_LOGOS.chameleon,
+		banner: GUILD_BANNERS.chameleon,
 		houseNumber: "02",
-		houseSymbol: "★",
+		houseSymbol: "RGB",
 		sector: "3D, GFX & TYPOGRAPHY",
 		actionLabel: "[ VIEW GALLERY ]",
 		HeroIcon: Palette,
@@ -53,12 +61,13 @@ const GUILDS: Record<GuildId, GuildInfo> = {
 		tagline: "Influencers & Media",
 		manifesto:
 			"Creating meaningful content, connecting people, and sharing stories that inspire.",
-		accentColor: "#00E5FF",
-		badgeBgColor: "bg-[#00E5FF]",
+		accentColor: "#00e5ff",
+		badgeBgColor: "bg-neo-cyan",
 		badgeTextColor: "text-foreground",
 		logo: GUILD_LOGOS.blue_jays,
+		banner: GUILD_BANNERS.blue_jays,
 		houseNumber: "03",
-		houseSymbol: "BJ",
+		houseSymbol: "PRESS",
 		sector: "JOURNALISM & MEDIA",
 		actionLabel: "[ TUNE IN ]",
 		HeroIcon: Radio,

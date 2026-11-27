@@ -8,6 +8,7 @@ import {
 	ArrowDown,
 	ArrowLeft,
 	ArrowUp,
+	Bookmark,
 	CornerDownRight,
 	FileQuestion,
 	Flag,
@@ -30,6 +31,7 @@ import {
 	KeyboardAvoidingView,
 	Platform,
 	Pressable,
+	RefreshControl,
 	ScrollView,
 	Text,
 	TextInput,
@@ -44,6 +46,7 @@ import {
 	MobileSheet,
 	NeoButton,
 	NetworkErrorCard,
+	shouldShowLinkPreview,
 	TerminalCodeViewport,
 } from "@/components/ui";
 import { UserRoleBadge } from "@/features/auth/components/UserRoleBadge";
@@ -64,21 +67,50 @@ import {
 	type PostAccessStatus,
 	votePost,
 } from "@/features/posts/api";
+import { useBookmarksStore } from "@/features/posts/bookmarks";
+import { MentionAutocomplete } from "@/features/posts/components/MentionAutocomplete";
 import { PostComposerModal } from "@/features/posts/components/PostComposerModal";
 import { PostMediaCarousel } from "@/features/posts/components/PostMediaCarousel";
 import { PostMediaLightboxModal } from "@/features/posts/components/PostMediaLightboxModal";
+import {
+	patchPostInFeedCaches,
+	removePostFromFeedCaches,
+	replacePostInFeedCaches,
+} from "@/features/posts/queries";
 import type { Comment, Post } from "@/features/posts/types";
 import {
 	buildCommentTree,
+	type CommentSort,
 	type CommentTreeNode,
 	countSubtreeReplies,
 	MAX_VISUAL_DEPTH,
+	sortCommentTree,
 } from "@/features/posts/utils/comment-tree";
+import { formatHashtag } from "@/features/posts/utils/search-filter";
+import { toast } from "@/lib/toast";
 
-const GUILD_META: Record<string, { tag: string; badge: string; bg: string }> = {
-	octagram: { tag: "OCTOGRAM", badge: "0x", bg: "bg-primary" },
-	chameleon: { tag: "CHAMELEON", badge: "★", bg: "bg-neo-magenta" },
-	blue_jays: { tag: "BLUE JAYS", badge: "BJ", bg: "bg-neo-green-dark" },
+const GUILD_META: Record<
+	string,
+	{ tag: string; badge: string; bg: string; textClass: string }
+> = {
+	octagram: {
+		tag: "OCTAGRAM",
+		badge: "0x",
+		bg: "bg-primary",
+		textClass: "text-primary-foreground",
+	},
+	chameleon: {
+		tag: "CHAMELEON",
+		badge: "RGB",
+		bg: "bg-neo-green",
+		textClass: "text-foreground",
+	},
+	blue_jays: {
+		tag: "BLUE JAYS",
+		badge: "PRESS",
+		bg: "bg-neo-cyan",
+		textClass: "text-foreground",
+	},
 };
 
 const triggerHaptic = () => {
@@ -103,6 +135,10 @@ export default function PostDetailScreen() {
 
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
+	const isBookmarked = useBookmarksStore((s) =>
+		id ? Boolean(s.bookmarkedIds[id]) : false,
+	);
+	const toggleBookmark = useBookmarksStore((s) => s.toggleBookmark);
 
 	const userId = user?.id;
 	const userGuild = profile?.guild;
@@ -115,6 +151,9 @@ export default function PostDetailScreen() {
 	const [accessStatus, setAccessStatus] =
 		useState<PostAccessStatus>("accessible");
 	const [replyText, setReplyText] = useState("");
+	const [replyCursor, setReplyCursor] = useState<number | undefined>(
+		undefined,
+	);
 	const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 	const [replyingTo, setReplyingTo] = useState<{
 		id: string;
@@ -149,8 +188,13 @@ export default function PostDetailScreen() {
 		null,
 	);
 	const [isDeletingComment, setIsDeletingComment] = useState(false);
+	const [commentSort, setCommentSort] = useState<CommentSort>("top");
+	const [isRefreshing, setIsRefreshing] = useState(false);
 
-	const commentTree = useMemo(() => buildCommentTree(comments), [comments]);
+	const commentTree = useMemo(
+		() => sortCommentTree(buildCommentTree(comments), commentSort),
+		[comments, commentSort],
+	);
 
 	if (targetCommentId !== prevTargetCommentId) {
 		setPrevTargetCommentId(targetCommentId);
@@ -219,11 +263,13 @@ export default function PostDetailScreen() {
 		setIsDeleting(true);
 		try {
 			await deletePost(post.id);
+			removePostFromFeedCaches(post.id);
 			setIsDeleteOpen(false);
+			toast.success("Post deleted");
 			handleGoBack();
 		} catch (err: unknown) {
 			const e = err as Error;
-			setError(e.message || "Failed to delete post.");
+			toast.error(e.message || "Failed to delete post.");
 		} finally {
 			setIsDeleting(false);
 		}
@@ -231,6 +277,25 @@ export default function PostDetailScreen() {
 
 	const handleRetry = () => {
 		setReloadTick((prev) => prev + 1);
+	};
+
+	const handlePullRefresh = async () => {
+		if (!id || isRefreshing) return;
+		setIsRefreshing(true);
+		try {
+			const res = await fetchPostById(id, userId, userGuild, isAdmin);
+			setAccessStatus(res.accessStatus);
+			if (res.post) {
+				setPost(res.post);
+				const comms = await fetchPostComments(id);
+				setComments(comms);
+			}
+		} catch (err: unknown) {
+			const e = err as Error;
+			toast.error(e?.message || "Failed to refresh post.");
+		} finally {
+			setIsRefreshing(false);
+		}
 	};
 
 	useEffect(() => {
@@ -300,6 +365,11 @@ export default function PostDetailScreen() {
 			downvotes_count: newDown,
 			user_vote: nextVote,
 		});
+		patchPostInFeedCaches(post.id, {
+			upvotes_count: newUp,
+			downvotes_count: newDown,
+			user_vote: nextVote,
+		});
 
 		try {
 			const res = await votePost(post.id, user.id, targetVote);
@@ -313,13 +383,23 @@ export default function PostDetailScreen() {
 						}
 					: null,
 			);
+			patchPostInFeedCaches(post.id, {
+				upvotes_count: res.upvotes_count,
+				downvotes_count: res.downvotes_count,
+				user_vote: res.user_vote,
+			});
 			if (user.id === post.author_id) {
 				void useAuthStore.getState().refreshUserData();
 			}
 		} catch (err: unknown) {
 			setPost(previousPost);
+			patchPostInFeedCaches(post.id, {
+				upvotes_count: previousPost.upvotes_count,
+				downvotes_count: previousPost.downvotes_count,
+				user_vote: previousPost.user_vote,
+			});
 			const e = err as Error;
-			setError(e.message || "Failed to record vote.");
+			toast.error(e.message || "Failed to record vote.");
 		}
 	};
 
@@ -366,7 +446,7 @@ export default function PostDetailScreen() {
 			}, 100);
 		} catch (err: unknown) {
 			const e = err as Error;
-			setError(e.message || "Failed to send comment.");
+			toast.error(e.message || "Failed to send comment.");
 		} finally {
 			setIsSubmittingReply(false);
 		}
@@ -390,7 +470,7 @@ export default function PostDetailScreen() {
 			triggerHaptic();
 		} catch (err: unknown) {
 			const e = err as Error;
-			setError(e.message || "Failed to edit comment.");
+			toast.error(e.message || "Failed to edit comment.");
 		} finally {
 			setIsSavingCommentEdit(false);
 		}
@@ -433,7 +513,7 @@ export default function PostDetailScreen() {
 			triggerHaptic();
 		} catch (err: unknown) {
 			const e = err as Error;
-			setError(e.message || "Failed to delete comment.");
+			toast.error(e.message || "Failed to delete comment.");
 		} finally {
 			setIsDeletingComment(false);
 		}
@@ -696,59 +776,59 @@ export default function PostDetailScreen() {
 
 			{/* Top App Bar */}
 			<View
-				style={{ paddingTop: Math.max(insets.top, 16) + 4 }}
-				className="flex-row items-center justify-between border-b-2 border-border bg-card px-4 pb-3 shadow-neo-sm">
-				<Pressable
-					accessibilityRole="button"
-					accessibilityLabel="Return to feed"
-					onPress={handleGoBack}
-					hitSlop={8}
-					className="size-10 items-center justify-center border-2 border-border bg-secondary shadow-neo-sm active:translate-x-px active:translate-y-px">
-					<ArrowLeft size={18} color="#000000" strokeWidth={2.5} />
-				</Pressable>
-
-				<View className="mx-2 flex-1 items-center">
-					<Text
-						numberOfLines={1}
-						className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
-						POST //{" "}
-						{post
-							? `ID:${post.id.slice(0, 8).toUpperCase()}`
-							: "LOG"}
-					</Text>
-					<Text
-						numberOfLines={1}
-						className="font-display text-sm tracking-tight text-foreground uppercase">
-						{authorDisplayName}'S POST
-					</Text>
-				</View>
-
-				{canManage || Boolean(user) ? (
+				style={{ paddingTop: Math.max(insets.top, 8) }}
+				className="border-b-2 border-border bg-background">
+				<View className="flex-row items-center justify-between px-4 py-2.5">
 					<Pressable
 						accessibilityRole="button"
-						accessibilityLabel="Post options"
-						onPress={() => {
-							triggerHaptic();
-							setIsMenuOpen(true);
-						}}
+						accessibilityLabel="Return to feed"
+						onPress={handleGoBack}
 						hitSlop={8}
-						className="size-10 items-center justify-center border-2 border-border bg-secondary shadow-neo-sm active:translate-x-px active:translate-y-px">
-						<MoreHorizontal
-							size={18}
+						className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
+						<ArrowLeft
+							size={16}
 							color="#000000"
 							strokeWidth={2.5}
 						/>
 					</Pressable>
-				) : (
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Share post"
-						onPress={handleOpenShare}
-						hitSlop={8}
-						className="size-10 items-center justify-center border-2 border-border bg-secondary shadow-neo-sm active:translate-x-px active:translate-y-px">
-						<Share2 size={16} color="#000000" strokeWidth={2.3} />
-					</Pressable>
-				)}
+
+					<Text
+						numberOfLines={1}
+						className="mx-3 flex-1 text-center font-ndot-caps text-sm tracking-wider text-foreground uppercase">
+						{authorDisplayName}'S POST
+					</Text>
+
+					{canManage || Boolean(user) ? (
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Post options"
+							onPress={() => {
+								triggerHaptic();
+								setIsMenuOpen(true);
+							}}
+							hitSlop={8}
+							className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
+							<MoreHorizontal
+								size={16}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						</Pressable>
+					) : (
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Share post"
+							onPress={handleOpenShare}
+							hitSlop={8}
+							className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
+							<Share2
+								size={15}
+								color="#000000"
+								strokeWidth={2.3}
+							/>
+						</Pressable>
+					)}
+				</View>
 			</View>
 
 			{isLoading ? (
@@ -767,10 +847,17 @@ export default function PostDetailScreen() {
 							flexGrow: 1,
 							paddingBottom: 24,
 						}}
+						refreshControl={
+							<RefreshControl
+								refreshing={isRefreshing}
+								onRefresh={() => void handlePullRefresh()}
+								tintColor="#000000"
+							/>
+						}
 						showsVerticalScrollIndicator={false}
 						keyboardShouldPersistTaps="handled">
-						{/* Edge-to-Edge Author & Classification Bar */}
-						<View className="flex-row items-center justify-between border-b-2 border-border bg-neo-surface-active px-4 py-2.5">
+						{/* Author & Classification Bar */}
+						<View className="flex-row items-center justify-between border-b-2 border-border bg-surface px-4 py-3">
 							<Pressable
 								onPress={() => {
 									if (post.author?.username) {
@@ -780,9 +867,9 @@ export default function PostDetailScreen() {
 										);
 									}
 								}}
-								className="min-w-0 flex-1 flex-row items-center gap-2.5 pr-2 active:opacity-75">
+								className="min-w-0 flex-1 flex-row items-center gap-3 pr-2 active:opacity-75">
 								<View
-									className={`size-8 shrink-0 items-center justify-center border border-border ${guildMeta?.bg ?? "bg-primary"}`}>
+									className={`size-10 shrink-0 items-center justify-center overflow-hidden border-2 border-border ${guildMeta?.bg ?? "bg-primary"}`}>
 									{post.author?.avatar_url?.startsWith(
 										"http",
 									) ? (
@@ -797,7 +884,10 @@ export default function PostDetailScreen() {
 											contentFit="cover"
 										/>
 									) : (
-										<Text className="font-bold text-xs text-primary-foreground">
+										<Text
+											numberOfLines={1}
+											adjustsFontSizeToFit
+											className={`px-0.5 font-bold text-2xs ${guildMeta?.textClass ?? "text-primary-foreground"}`}>
 											{guildMeta?.badge ?? authorInitials}
 										</Text>
 									)}
@@ -821,9 +911,9 @@ export default function PostDetailScreen() {
 											size="sm"
 										/>
 									</View>
-									<Text className="font-mono text-2xs text-muted-foreground">
+									<Text className="mt-0.5 font-mono text-2xs tracking-wider text-muted-foreground uppercase tabular-nums">
 										{formatRelativeTime(post.created_at)}
-										{edited ? " • (EDITED)" : ""}
+										{edited ? " · EDITED" : ""}
 									</Text>
 								</View>
 							</Pressable>
@@ -836,7 +926,7 @@ export default function PostDetailScreen() {
 											color="#00FF66"
 											strokeWidth={2.5}
 										/>
-										<Text className="font-bold text-3xs tracking-wider text-neo-green uppercase">
+										<Text className="font-bold text-3xs tracking-widest text-neo-green uppercase">
 											HOUSE
 										</Text>
 									</View>
@@ -850,26 +940,29 @@ export default function PostDetailScreen() {
 							</View>
 						</View>
 
-						{/* Editorial Dispatch Body (Full Bleed - No enclosing NeoCard box!) */}
-						<View className="bg-background px-4 pt-5 pb-4">
+						{/* Editorial Body */}
+						<View className="bg-card px-4 pt-5 pb-5">
 							<Text className="font-display text-2xl leading-tight tracking-tight text-foreground uppercase sm:text-3xl">
 								{post.title}
 							</Text>
 
 							<LinkifiedText
-								hideStandaloneUrls
+								hideStandaloneUrls={shouldShowLinkPreview(
+									post.content,
+									mediaUrls.length > 0,
+								)}
 								compactInlineLinks
-								className="mt-3.5 font-mono text-sm leading-relaxed text-foreground select-text sm:text-base">
+								className="mt-3.5 font-sans text-sm leading-relaxed text-foreground select-text sm:text-base">
 								{post.content}
 							</LinkifiedText>
 
 							<LinkPreviewList
 								text={post.content}
-								maxLinks={4}
-								className="mt-3.5"
+								hasMedia={mediaUrls.length > 0}
+								className="mt-4"
 							/>
 
-							{/* Neo-brutalist Terminal Code Viewport */}
+							{/* Terminal Code Viewport */}
 							{post.code_snippet && (
 								<TerminalCodeViewport
 									code={post.code_snippet}
@@ -878,7 +971,7 @@ export default function PostDetailScreen() {
 								/>
 							)}
 
-							{/* Media Asset Render (Single or Swipeable Carousel) */}
+							{/* Media Carousel */}
 							{mediaUrls.length > 0 && (
 								<PostMediaCarousel
 									mediaUrls={mediaUrls}
@@ -892,43 +985,57 @@ export default function PostDetailScreen() {
 
 							{/* Post Tags */}
 							{normalizedTags.length > 0 && (
-								<View className="mt-3 flex-row flex-wrap items-center gap-1.5">
-									{normalizedTags.map((tag) => (
-										<View
-											key={tag}
-											className="border border-border bg-secondary px-2.5 py-1">
-											<Text className="font-bold text-xs text-foreground uppercase">
-												{tag.startsWith("#")
-													? tag
-													: `#${tag}`}
-											</Text>
-										</View>
-									))}
+								<View className="mt-3.5 flex-row flex-wrap items-center gap-1.5">
+									{normalizedTags.map((tag) => {
+										const formattedTag = formatHashtag(tag);
+										if (!formattedTag) return null;
+										return (
+											<Pressable
+												key={tag}
+												accessibilityRole="button"
+												accessibilityLabel={`Search tag ${formattedTag}`}
+												onPress={() => {
+													triggerHaptic();
+													router.push({
+														pathname:
+															"/(tabs)/search",
+														params: {
+															q: formattedTag,
+														},
+													} as any);
+												}}
+												className="border border-border/60 bg-surface px-2.5 py-0.5 active:bg-neo-green">
+												<Text className="font-mono text-2xs tracking-wider text-foreground uppercase">
+													{formattedTag}
+												</Text>
+											</Pressable>
+										);
+									})}
 								</View>
 							)}
 						</View>
 
-						{/* Action & Engagement Bar (Consistent with Feed PostCard!) */}
-						<View className="flex-row items-center justify-between border-t-2 border-border bg-surface px-4 py-3">
-							<View className="flex-row items-center border-2 border-border bg-surface shadow-neo-xs">
+						{/* Docked Structural Engagement Rail */}
+						<View className="flex-row items-stretch justify-between border-t-2 border-border bg-surface">
+							<View className="flex-row items-stretch">
 								<Pressable
 									accessibilityRole="button"
 									accessibilityLabel="Upvote"
 									onPress={() => handleVote(1)}
-									className={`h-9 items-center justify-center border-r border-border px-3.5 ${
+									className={`h-11 w-12 items-center justify-center border-r-2 border-border ${
 										isUpvoted
 											? "bg-neo-green"
-											: "active:bg-primary/10"
+											: "active:bg-secondary"
 									}`}>
 									<ArrowUp
 										size={16}
 										color="#000000"
-										strokeWidth={isUpvoted ? 3 : 2.2}
+										strokeWidth={isUpvoted ? 3 : 2.3}
 									/>
 								</Pressable>
 
-								<View className="min-w-11 items-center justify-center px-2.5">
-									<Text className="font-bold text-xs text-foreground tabular-nums">
+								<View className="min-w-12 items-center justify-center border-r-2 border-border bg-card px-2.5">
+									<Text className="font-display text-sm text-foreground tabular-nums">
 										{score}
 									</Text>
 								</View>
@@ -937,25 +1044,25 @@ export default function PostDetailScreen() {
 									accessibilityRole="button"
 									accessibilityLabel="Downvote"
 									onPress={() => handleVote(-1)}
-									className={`h-9 items-center justify-center border-l border-border px-3.5 ${
+									className={`h-11 w-12 items-center justify-center border-r-2 border-border ${
 										isDownvoted
 											? "bg-primary"
-											: "active:bg-primary/10"
+											: "active:bg-secondary"
 									}`}>
 									<ArrowDown
 										size={16}
 										color={
 											isDownvoted ? "#faf9f5" : "#000000"
 										}
-										strokeWidth={isDownvoted ? 3 : 2.2}
+										strokeWidth={isDownvoted ? 3 : 2.3}
 									/>
 								</Pressable>
 							</View>
 
-							<View className="flex-row items-center gap-2">
-								<View className="h-9 flex-row items-center gap-1.5 border-2 border-border bg-surface px-3 shadow-neo-xs">
+							<View className="flex-row items-stretch">
+								<View className="h-11 flex-row items-center gap-1.5 border-l-2 border-border px-3.5">
 									<MessageSquare
-										size={14}
+										size={15}
 										color="#000000"
 										strokeWidth={2.2}
 									/>
@@ -966,9 +1073,46 @@ export default function PostDetailScreen() {
 
 								<Pressable
 									accessibilityRole="button"
+									accessibilityLabel={
+										isBookmarked
+											? "Remove bookmark"
+											: "Save post"
+									}
+									onPress={() => {
+										if (!user?.id || !post) return;
+										triggerHaptic();
+										void toggleBookmark(user.id, post).then(
+											(saved) => {
+												if (saved) {
+													toast.success(
+														"Saved to bookmarks",
+													);
+												} else {
+													toast.info(
+														"Removed from saved",
+													);
+												}
+											},
+										);
+									}}
+									className={`h-11 w-11 items-center justify-center border-l-2 border-border ${
+										isBookmarked
+											? "bg-neo-yellow"
+											: "active:bg-secondary"
+									}`}>
+									<Bookmark
+										size={15}
+										color="#000000"
+										fill={isBookmarked ? "#000000" : "none"}
+										strokeWidth={2.2}
+									/>
+								</Pressable>
+
+								<Pressable
+									accessibilityRole="button"
 									accessibilityLabel="Share post"
 									onPress={handleOpenShare}
-									className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
+									className="h-11 w-11 items-center justify-center border-l-2 border-border active:bg-secondary">
 									<Share2
 										size={15}
 										color="#000000"
@@ -978,11 +1122,48 @@ export default function PostDetailScreen() {
 							</View>
 						</View>
 
-						{/* Section Header: Responses Stream */}
-						<View className="flex-row items-center justify-between border-y-2 border-border bg-neo-surface-active px-4 py-2.5">
-							<Text className="font-mono text-xs tracking-wider text-foreground uppercase">
+						{/* Responses Stream Header */}
+						<View className="flex-row items-center justify-between border-y-2 border-border bg-card px-4 py-2.5">
+							<Text className="font-ndot-caps text-xs tracking-wider text-foreground uppercase">
 								RESPONSES ({comments.length})
 							</Text>
+							<View className="flex-row overflow-hidden border-2 border-border bg-surface">
+								{(["top", "new", "old"] as CommentSort[]).map(
+									(sortKey, idx) => {
+										const active = commentSort === sortKey;
+										return (
+											<Pressable
+												key={sortKey}
+												accessibilityRole="tab"
+												accessibilityState={{
+													selected: active,
+												}}
+												onPress={() => {
+													triggerHaptic();
+													setCommentSort(sortKey);
+												}}
+												className={`px-2.5 py-1 ${
+													idx < 2
+														? "border-r-2 border-border"
+														: ""
+												} ${
+													active
+														? "bg-primary"
+														: "bg-surface active:bg-secondary"
+												}`}>
+												<Text
+													className={`font-bold text-3xs tracking-widest uppercase ${
+														active
+															? "text-primary-foreground"
+															: "text-foreground"
+													}`}>
+													{sortKey}
+												</Text>
+											</Pressable>
+										);
+									},
+								)}
+							</View>
 						</View>
 
 						{/* Comments Tree */}
@@ -1493,22 +1674,24 @@ export default function PostDetailScreen() {
 					<View
 						style={{
 							paddingBottom: isKeyboardVisible
-								? 12
-								: Math.max(insets.bottom, 12),
+								? 10
+								: Math.max(insets.bottom, 10),
 						}}
-						className="border-t-2 border-border bg-card p-3 shadow-neo-top-sm">
+						className="border-t-2 border-border bg-surface px-3 pt-2.5">
 						{replyingTo && (
-							<View className="mb-2 flex-row items-center justify-between border border-border bg-secondary px-2.5 py-1">
+							<View className="mb-2 flex-row items-center justify-between border-2 border-border bg-card px-2.5 py-1.5">
 								<View className="flex-row items-center gap-1.5">
 									<CornerDownRight
 										size={12}
 										color="#000000"
 									/>
-									<Text className="font-bold text-xs text-foreground">
+									<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
 										Replying to @{replyingTo.username}
 									</Text>
 								</View>
 								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Cancel reply"
 									onPress={() => {
 										triggerHaptic();
 										setReplyingTo(null);
@@ -1524,33 +1707,80 @@ export default function PostDetailScreen() {
 							</View>
 						)}
 
-						<View className="flex-row items-center gap-2">
+						<MentionAutocomplete
+							text={replyText}
+							cursorIndex={replyCursor}
+							onSelectText={(next) => {
+								setReplyText(next);
+								setReplyCursor(undefined);
+							}}
+							className="mb-2"
+						/>
+
+						<View className="flex-row items-end gap-2">
 							<TextInput
 								value={replyText}
-								onChangeText={setReplyText}
+								onChangeText={(next) => {
+									setReplyCursor((prev) =>
+										prev !== undefined
+											? Math.max(
+													0,
+													prev +
+														(next.length -
+															replyText.length),
+												)
+											: undefined,
+									);
+									setReplyText(next);
+								}}
+								onSelectionChange={(e) => {
+									const pos = e.nativeEvent.selection.end;
+									setReplyCursor(
+										pos < replyText.length
+											? pos
+											: undefined,
+									);
+								}}
 								placeholder={
 									user
-										? "Transmit response..."
+										? "Write a response... (@ to mention)"
 										: "Sign in to write a response..."
 								}
 								placeholderTextColor="rgba(0, 0, 0, 0.4)"
 								multiline
 								editable={Boolean(user)}
 								style={{ minHeight: 40 }}
-								className="max-h-24 flex-1 border-2 border-border bg-card px-3 py-2 font-mono text-xs text-foreground focus:border-border"
+								className="max-h-24 flex-1 border-2 border-border bg-card px-3 py-2 font-sans text-xs text-foreground"
 							/>
-							<NeoButton
-								variant="primary"
-								size="sm"
-								loading={isSubmittingReply}
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel="Send response"
 								disabled={
 									isSubmittingReply ||
 									!replyText.trim() ||
 									!user
 								}
-								onPress={handleSendReply}>
-								<Send size={15} color="#faf9f5" />
-							</NeoButton>
+								onPress={handleSendReply}
+								className={`size-10 items-center justify-center border-2 border-border shadow-neo-xs active:translate-x-px active:translate-y-px ${
+									isSubmittingReply ||
+									!replyText.trim() ||
+									!user
+										? "bg-secondary opacity-50"
+										: "bg-neo-green"
+								}`}>
+								{isSubmittingReply ? (
+									<ActivityIndicator
+										size="small"
+										color="#000000"
+									/>
+								) : (
+									<Send
+										size={15}
+										color="#000000"
+										strokeWidth={2.5}
+									/>
+								)}
+							</Pressable>
 						</View>
 					</View>
 				</View>
@@ -1707,7 +1937,10 @@ export default function PostDetailScreen() {
 								open={isEditOpen}
 								onOpenChange={setIsEditOpen}
 								editingPost={post}
-								onPostUpdated={(updated) => setPost(updated)}
+								onPostUpdated={(updated) => {
+									setPost(updated);
+									replacePostInFeedCaches(updated);
+								}}
 							/>
 
 							<MobileAlertSheet

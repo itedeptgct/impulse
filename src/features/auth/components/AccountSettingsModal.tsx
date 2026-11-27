@@ -1,18 +1,22 @@
 import { changePassword, changeUsername, requestEmailChange } from "@auth/api";
 import { useAuthStore } from "@auth/store";
 import type { Profile } from "@auth/types";
+import * as Haptics from "expo-haptics";
 import {
 	AlertCircle,
+	ArrowLeft,
 	AtSign,
 	CheckCircle2,
 	Lock,
 	Mail,
+	ShieldAlert,
 	ShieldCheck,
 	Trash2,
 	X,
 } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
+	ActivityIndicator,
 	KeyboardAvoidingView,
 	Modal,
 	Platform,
@@ -23,9 +27,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { NeoButton, NeoInput } from "@/components/ui";
+import { NeoInput } from "@/components/ui";
 
 import { PasswordRequirementsList } from "./PasswordRequirementsList";
+
+const triggerHaptic = () => {
+	if (Platform.OS !== "web") {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+	}
+};
 
 export interface AccountSettingsModalProps {
 	open: boolean;
@@ -238,6 +248,19 @@ export function AccountSettingsModal({
 		}
 	};
 
+	const isUsernameDisabled =
+		isSubmittingUsername ||
+		!newUsername.trim() ||
+		newUsername.trim().toLowerCase() ===
+			(profile?.username || "").toLowerCase();
+	const isEmailDisabled =
+		isSubmittingEmail || !newEmail.trim() || !emailCurrentPassword;
+	const isPasswordDisabled =
+		isSubmittingPassword ||
+		!currentPassword ||
+		!newPassword ||
+		!confirmPassword;
+
 	return (
 		<Modal
 			visible={open}
@@ -252,50 +275,29 @@ export function AccountSettingsModal({
 					style={{ backgroundColor: "#faf9f5", flex: 1 }}
 					className="flex-1 bg-background"
 					edges={["top", "bottom"]}>
-					{/* Modal Header */}
-					<View className="relative flex-row items-center justify-between border-b-2 border-border bg-card px-4 py-3 shadow-neo-sm">
-						<NeoButton
-							variant="secondary"
-							size="sm"
-							onPress={() => onOpenChange(false)}>
-							CLOSE
-						</NeoButton>
+					{/* Clean Non-Overlapping Header */}
+					<View className="flex-row items-center justify-between border-b-2 border-border bg-background px-4 py-3">
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Close account settings"
+							hitSlop={8}
+							onPress={() => {
+								triggerHaptic();
+								onOpenChange(false);
+							}}
+							className="size-9 items-center justify-center border-2 border-border bg-surface shadow-neo-xs active:translate-x-px active:translate-y-px">
+							<ArrowLeft
+								size={16}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						</Pressable>
 
-						<Text className="absolute inset-x-0 text-center font-display text-base tracking-tight text-foreground uppercase">
+						<Text className="font-ndot-caps text-base tracking-wider text-foreground uppercase">
 							ACCOUNT SETTINGS
 						</Text>
-					</View>
 
-					{/* Tab Navigation */}
-					<View className="flex-row border-b-2 border-border bg-card px-4 py-2.5 shadow-neo-xs">
-						{(
-							[
-								{ id: "username", label: "USERNAME" },
-								{ id: "email", label: "EMAIL" },
-								{ id: "password", label: "PASSWORD" },
-							] as const
-						).map((tab) => {
-							const isSelected = activeTab === tab.id;
-							return (
-								<Pressable
-									key={tab.id}
-									onPress={() => setActiveTab(tab.id)}
-									className={`flex-1 items-center justify-center rounded-none border-2 py-2 shadow-neo-xs active:translate-x-px active:translate-y-px ${
-										isSelected
-											? "border-border bg-primary"
-											: "border-border bg-card"
-									}`}>
-									<Text
-										className={`font-bold text-xs uppercase ${
-											isSelected
-												? "text-primary-foreground"
-												: "text-foreground"
-										}`}>
-										{tab.label}
-									</Text>
-								</Pressable>
-							);
-						})}
+						<View className="size-9" />
 					</View>
 
 					<KeyboardAvoidingView
@@ -304,442 +306,700 @@ export function AccountSettingsModal({
 						<ScrollView
 							contentContainerStyle={{
 								flexGrow: 1,
-								paddingBottom: 32,
+								paddingBottom: 36,
 							}}
 							showsVerticalScrollIndicator={false}
 							keyboardShouldPersistTaps="handled"
 							className="flex-1 px-4 pt-4">
-							{/* USERNAME TAB */}
-							{activeTab === "username" && (
-								<View className="gap-4">
-									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
-										<View className="mb-2 flex-row items-center gap-2">
-											<AtSign
-												size={16}
-												color="#000000"
-												strokeWidth={2.2}
-											/>
-											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-												CURRENT USERNAME
-											</Text>
-										</View>
-										<Text className="font-bold text-base text-foreground">
-											@{profile?.username || "student"}
-										</Text>
+							<View className="mx-auto w-full max-w-xl gap-5">
+								{/* Unified Segmented Tab Bar */}
+								<View className="bg-surface shadow-neo-sm">
+									<View className="flex-row items-stretch overflow-hidden border-2 border-border bg-surface">
+										{(
+											[
+												{
+													id: "username",
+													label: "HANDLE",
+													icon: AtSign,
+												},
+												{
+													id: "email",
+													label: "EMAIL",
+													icon: Mail,
+												},
+												{
+													id: "password",
+													label: "PASSWORD",
+													icon: Lock,
+												},
+											] as const
+										).map((tab, idx) => {
+											const isSelected =
+												activeTab === tab.id;
+											const Icon = tab.icon;
+											return (
+												<Pressable
+													key={tab.id}
+													accessibilityRole="tab"
+													accessibilityState={{
+														selected: isSelected,
+													}}
+													onPress={() => {
+														triggerHaptic();
+														setActiveTab(tab.id);
+													}}
+													className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 ${
+														idx < 2
+															? "border-r-2 border-border"
+															: ""
+													} ${
+														isSelected
+															? "bg-primary"
+															: "bg-surface active:bg-secondary"
+													}`}>
+													<Icon
+														size={13}
+														color={
+															isSelected
+																? "#faf9f5"
+																: "#000000"
+														}
+														strokeWidth={2.4}
+													/>
+													<Text
+														className={`font-bold text-2xs tracking-widest uppercase ${
+															isSelected
+																? "text-primary-foreground"
+																: "text-foreground"
+														}`}>
+														{tab.label}
+													</Text>
+												</Pressable>
+											);
+										})}
 									</View>
+								</View>
 
-									{usernameError && (
-										<View className="flex-row items-center gap-2 rounded-none border-2 border-destructive bg-destructive/10 p-3">
-											<AlertCircle
-												size={16}
-												color="#ff2a00"
-											/>
-											<Text className="flex-1 font-mono text-xs text-destructive">
-												{usernameError}
-											</Text>
-											<Pressable
-												onPress={() =>
-													setUsernameError(null)
-												}
-												hitSlop={8}>
-												<X size={14} color="#ff2a00" />
-											</Pressable>
-										</View>
-									)}
-
-									{usernameSuccess && (
-										<View className="flex-row items-center gap-2 rounded-none border-2 border-border bg-[#00ff66]/20 p-3 shadow-neo-sm">
-											<CheckCircle2
-												size={16}
-												color="#000000"
-												strokeWidth={2.5}
-											/>
-											<Text className="flex-1 font-bold text-xs text-foreground">
-												{usernameSuccess}
-											</Text>
-											<Pressable
-												onPress={() =>
-													setUsernameSuccess(null)
-												}
-												hitSlop={8}>
-												<X size={14} color="#000000" />
-											</Pressable>
-										</View>
-									)}
-
-									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
-										<Text className="mb-1 font-bold text-xs text-foreground uppercase">
-											CHANGE USERNAME
-										</Text>
-										<Text className="mb-4 font-mono text-xs text-muted-foreground">
-											Usernames must be 1 to 20 characters
-											and contain only letters, numbers,
-											and underscores.
-										</Text>
-
-										<NeoInput
-											label="NEW USERNAME"
-											value={newUsername}
-											onChangeText={(text) => {
-												const clean = text
-													.toLowerCase()
-													.replace(/[^a-z0-9_]/g, "");
-												setNewUsername(clean);
-												setUsernameError(null);
-												setUsernameSuccess(null);
-											}}
-											placeholder="new_username"
-											maxLength={20}
-											autoCapitalize="none"
-											autoCorrect={false}
-											startContent={
-												<AtSign
-													size={15}
-													color="#000000"
-													strokeWidth={2.2}
+								{/* USERNAME TAB */}
+								{activeTab === "username" && (
+									<View className="gap-4">
+										{usernameError && (
+											<View className="flex-row items-center gap-2.5 border-2 border-destructive bg-destructive/10 p-3">
+												<AlertCircle
+													size={16}
+													color="#ff2a00"
+													strokeWidth={2.4}
 												/>
-											}
-											helperText={`${newUsername.length}/20 characters`}
-										/>
-
-										<View className="mt-4">
-											<NeoButton
-												variant="primary"
-												size="md"
-												loading={isSubmittingUsername}
-												disabled={
-													isSubmittingUsername ||
-													!newUsername.trim() ||
-													newUsername
-														.trim()
-														.toLowerCase() ===
-														(
-															profile?.username ||
-															""
-														).toLowerCase()
-												}
-												onPress={handleUpdateUsername}
-												className="w-full">
-												UPDATE USERNAME
-											</NeoButton>
-										</View>
-									</View>
-								</View>
-							)}
-
-							{/* EMAIL TAB */}
-							{activeTab === "email" && (
-								<View className="gap-4">
-									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
-										<View className="mb-2 flex-row items-center gap-2">
-											<Mail
-												size={16}
-												color="#000000"
-												strokeWidth={2.2}
-											/>
-											<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-												CURRENT EMAIL
-											</Text>
-										</View>
-										<Text className="font-bold text-sm text-foreground">
-											{currentEmail ||
-												"No email available"}
-										</Text>
-									</View>
-
-									{emailError && (
-										<View className="flex-row items-center gap-2 rounded-none border-2 border-destructive bg-destructive/10 p-3">
-											<AlertCircle
-												size={16}
-												color="#ff2a00"
-											/>
-											<Text className="flex-1 font-mono text-xs text-destructive">
-												{emailError}
-											</Text>
-											<Pressable
-												onPress={() =>
-													setEmailError(null)
-												}
-												hitSlop={8}>
-												<X size={14} color="#ff2a00" />
-											</Pressable>
-										</View>
-									)}
-
-									{emailSuccess && (
-										<View className="flex-row items-start gap-2 rounded-none border-2 border-border bg-[#00ff66]/20 p-3.5 shadow-neo-sm">
-											<CheckCircle2
-												size={18}
-												color="#000000"
-												strokeWidth={2.5}
-												className="mt-0.5"
-											/>
-											<View className="flex-1">
-												<Text className="font-bold text-xs text-foreground uppercase">
-													CONFIRMATION EMAIL SENT
+												<Text className="flex-1 font-mono text-xs text-destructive">
+													{usernameError}
 												</Text>
-												<Text className="mt-1 font-mono text-xs text-foreground">
-													{emailSuccess}
-												</Text>
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel="Dismiss error"
+													onPress={() =>
+														setUsernameError(null)
+													}
+													hitSlop={8}>
+													<X
+														size={14}
+														color="#ff2a00"
+													/>
+												</Pressable>
 											</View>
-											<Pressable
-												onPress={() =>
-													setEmailSuccess(null)
-												}
-												hitSlop={8}>
-												<X size={14} color="#000000" />
-											</Pressable>
-										</View>
-									)}
+										)}
 
-									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
-										<Text className="mb-1 font-bold text-xs text-foreground uppercase">
-											REQUEST EMAIL CHANGE
-										</Text>
-										<Text className="mb-4 font-mono text-xs text-muted-foreground">
-											For security, re-authenticate with
-											your current password. A
-											verification email will be sent to
-											your new email address to finalize
-											the update.
-										</Text>
-
-										<View className="gap-3.5">
-											<NeoInput
-												label="NEW EMAIL ADDRESS"
-												value={newEmail}
-												onChangeText={(text) => {
-													setNewEmail(text);
-													setEmailError(null);
-													setEmailSuccess(null);
-												}}
-												placeholder="new.email@example.com"
-												autoCapitalize="none"
-												autoCorrect={false}
-												keyboardType="email-address"
-												startContent={
-													<Mail
-														size={15}
+										{usernameSuccess && (
+											<View className="bg-surface shadow-neo-xs">
+												<View className="flex-row items-center gap-2.5 border-2 border-border bg-neo-green/25 p-3">
+													<CheckCircle2
+														size={16}
 														color="#000000"
-														strokeWidth={2.2}
+														strokeWidth={2.5}
 													/>
-												}
-											/>
+													<Text className="flex-1 font-bold text-xs text-foreground">
+														{usernameSuccess}
+													</Text>
+													<Pressable
+														accessibilityRole="button"
+														accessibilityLabel="Dismiss success message"
+														onPress={() =>
+															setUsernameSuccess(
+																null,
+															)
+														}
+														hitSlop={8}>
+														<X
+															size={14}
+															color="#000000"
+														/>
+													</Pressable>
+												</View>
+											</View>
+										)}
 
-											<NeoInput
-												label="CURRENT PASSWORD"
-												value={emailCurrentPassword}
-												onChangeText={(text) => {
-													setEmailCurrentPassword(
-														text,
-													);
-													setEmailError(null);
-												}}
-												placeholder="Enter current password"
-												secureTextEntry
-												startContent={
-													<Lock
-														size={15}
-														color="#000000"
-														strokeWidth={2.2}
+										<View className="bg-card shadow-neo">
+											<View className="overflow-hidden border-2 border-border bg-card">
+												{/* Current Handle Header Strip */}
+												<View className="flex-row items-center justify-between border-b-2 border-border bg-surface px-4 py-3">
+													<View className="flex-row items-center gap-2">
+														<AtSign
+															size={15}
+															color="#000000"
+															strokeWidth={2.4}
+														/>
+														<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+															CURRENT HANDLE
+														</Text>
+													</View>
+													<Text className="font-bold text-xs text-foreground">
+														@
+														{profile?.username ||
+															"student"}
+													</Text>
+												</View>
+
+												{/* Form Body */}
+												<View className="bg-card p-4">
+													<Text className="font-ndot-caps text-base tracking-wide text-foreground uppercase">
+														CHANGE USERNAME
+													</Text>
+													<Text className="mt-1 mb-4 font-mono text-xs leading-relaxed text-muted-foreground">
+														1–20 characters.
+														Letters, numbers, and
+														underscores only.
+													</Text>
+
+													<NeoInput
+														label="NEW USERNAME"
+														value={newUsername}
+														onChangeText={(
+															text,
+														) => {
+															const clean = text
+																.toLowerCase()
+																.replace(
+																	/[^a-z0-9_]/g,
+																	"",
+																);
+															setNewUsername(
+																clean,
+															);
+															setUsernameError(
+																null,
+															);
+															setUsernameSuccess(
+																null,
+															);
+														}}
+														placeholder="new_username"
+														maxLength={20}
+														autoCapitalize="none"
+														autoCorrect={false}
+														startContent={
+															<AtSign
+																size={15}
+																color="#000000"
+																strokeWidth={
+																	2.2
+																}
+															/>
+														}
+														helperText={`${newUsername.length}/20 characters`}
 													/>
-												}
-											/>
+												</View>
 
-											<View className="mt-2">
-												<NeoButton
-													variant="primary"
-													size="md"
-													loading={isSubmittingEmail}
+												{/* Docked Action Footer */}
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel="Update username"
 													disabled={
-														isSubmittingEmail ||
-														!newEmail.trim() ||
-														!emailCurrentPassword
+														isUsernameDisabled
 													}
-													onPress={
-														handleRequestEmailChange
-													}
-													className="w-full">
-													REQUEST EMAIL CHANGE
-												</NeoButton>
+													onPress={() => {
+														triggerHaptic();
+														void handleUpdateUsername();
+													}}
+													className={`h-12 flex-row items-center justify-center border-t-2 border-border px-4 active:opacity-85 ${
+														isUsernameDisabled
+															? "bg-secondary"
+															: "bg-primary"
+													}`}>
+													{isSubmittingUsername ? (
+														<ActivityIndicator
+															size="small"
+															color="#faf9f5"
+														/>
+													) : (
+														<Text
+															className={`font-bold text-xs tracking-widest uppercase ${
+																isUsernameDisabled
+																	? "text-muted-foreground"
+																	: "text-primary-foreground"
+															}`}>
+															UPDATE USERNAME
+														</Text>
+													)}
+												</Pressable>
 											</View>
 										</View>
 									</View>
-								</View>
-							)}
+								)}
 
-							{/* PASSWORD TAB */}
-							{activeTab === "password" && (
-								<View className="gap-4">
-									{passwordError && (
-										<View className="flex-row items-center gap-2 rounded-none border-2 border-destructive bg-destructive/10 p-3">
-											<AlertCircle
-												size={16}
-												color="#ff2a00"
-											/>
-											<Text className="flex-1 font-mono text-xs text-destructive">
-												{passwordError}
-											</Text>
-											<Pressable
-												onPress={() =>
-													setPasswordError(null)
-												}
-												hitSlop={8}>
-												<X size={14} color="#ff2a00" />
-											</Pressable>
-										</View>
-									)}
-
-									{passwordSuccess && (
-										<View className="flex-row items-center gap-2 rounded-none border-2 border-border bg-[#00ff66]/20 p-3 shadow-neo-sm">
-											<CheckCircle2
-												size={16}
-												color="#000000"
-												strokeWidth={2.5}
-											/>
-											<Text className="flex-1 font-bold text-xs text-foreground">
-												{passwordSuccess}
-											</Text>
-											<Pressable
-												onPress={() =>
-													setPasswordSuccess(null)
-												}
-												hitSlop={8}>
-												<X size={14} color="#000000" />
-											</Pressable>
-										</View>
-									)}
-
-									<View className="rounded-none border-2 border-border bg-card p-4 shadow-neo-sm">
-										<View className="mb-1 flex-row items-center gap-2">
-											<ShieldCheck
-												size={16}
-												color="#000000"
-												strokeWidth={2.2}
-											/>
-											<Text className="font-bold text-xs text-foreground uppercase">
-												UPDATE PASSWORD
-											</Text>
-										</View>
-										<Text className="mb-4 font-mono text-xs text-muted-foreground">
-											Enter your current password and
-											choose a strong new password.
-										</Text>
-
-										<View className="gap-3.5">
-											<NeoInput
-												label="CURRENT PASSWORD"
-												value={currentPassword}
-												onChangeText={(text) => {
-													setCurrentPassword(text);
-													setPasswordError(null);
-												}}
-												placeholder="Enter current password"
-												secureTextEntry
-												startContent={
-													<Lock
-														size={15}
-														color="#000000"
-														strokeWidth={2.2}
-													/>
-												}
-											/>
-
-											<NeoInput
-												label="NEW PASSWORD"
-												value={newPassword}
-												onChangeText={(text) => {
-													setNewPassword(text);
-													setPasswordError(null);
-												}}
-												placeholder="Enter new password"
-												secureTextEntry
-												startContent={
-													<Lock
-														size={15}
-														color="#000000"
-														strokeWidth={2.2}
-													/>
-												}
-											/>
-
-											{newPassword.length > 0 && (
-												<PasswordRequirementsList
-													password={newPassword}
+								{/* EMAIL TAB */}
+								{activeTab === "email" && (
+									<View className="gap-4">
+										{emailError && (
+											<View className="flex-row items-center gap-2.5 border-2 border-destructive bg-destructive/10 p-3">
+												<AlertCircle
+													size={16}
+													color="#ff2a00"
+													strokeWidth={2.4}
 												/>
-											)}
-
-											<NeoInput
-												label="CONFIRM NEW PASSWORD"
-												value={confirmPassword}
-												onChangeText={(text) => {
-													setConfirmPassword(text);
-													setPasswordError(null);
-												}}
-												placeholder="Confirm new password"
-												secureTextEntry
-												startContent={
-													<Lock
-														size={15}
-														color="#000000"
-														strokeWidth={2.2}
+												<Text className="flex-1 font-mono text-xs text-destructive">
+													{emailError}
+												</Text>
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel="Dismiss error"
+													onPress={() =>
+														setEmailError(null)
+													}
+													hitSlop={8}>
+													<X
+														size={14}
+														color="#ff2a00"
 													/>
-												}
-											/>
+												</Pressable>
+											</View>
+										)}
 
-											<View className="mt-2">
-												<NeoButton
-													variant="primary"
-													size="md"
-													loading={
-														isSubmittingPassword
-													}
-													disabled={
-														isSubmittingPassword ||
-														!currentPassword ||
-														!newPassword ||
-														!confirmPassword
-													}
-													onPress={
-														handleUpdatePassword
-													}
-													className="w-full">
-													UPDATE PASSWORD
-												</NeoButton>
+										{emailSuccess && (
+											<View className="bg-surface shadow-neo-xs">
+												<View className="flex-row items-start gap-2.5 border-2 border-border bg-neo-green/25 p-3.5">
+													<CheckCircle2
+														size={17}
+														color="#000000"
+														strokeWidth={2.5}
+													/>
+													<View className="flex-1">
+														<Text className="font-bold text-xs text-foreground uppercase">
+															CONFIRMATION EMAIL
+															SENT
+														</Text>
+														<Text className="mt-1 font-mono text-xs leading-relaxed text-foreground">
+															{emailSuccess}
+														</Text>
+													</View>
+													<Pressable
+														accessibilityRole="button"
+														accessibilityLabel="Dismiss success message"
+														onPress={() =>
+															setEmailSuccess(
+																null,
+															)
+														}
+														hitSlop={8}>
+														<X
+															size={14}
+															color="#000000"
+														/>
+													</Pressable>
+												</View>
+											</View>
+										)}
+
+										<View className="bg-card shadow-neo">
+											<View className="overflow-hidden border-2 border-border bg-card">
+												{/* Current Email Strip */}
+												<View className="border-b-2 border-border bg-surface px-4 py-3">
+													<View className="flex-row items-center gap-2">
+														<Mail
+															size={14}
+															color="#000000"
+															strokeWidth={2.4}
+														/>
+														<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+															CURRENT EMAIL
+														</Text>
+													</View>
+													<Text
+														numberOfLines={1}
+														className="mt-1 font-bold text-xs text-foreground">
+														{currentEmail ||
+															"No email available"}
+													</Text>
+												</View>
+
+												{/* Form Body */}
+												<View className="bg-card p-4">
+													<Text className="font-ndot-caps text-base tracking-wide text-foreground uppercase">
+														REQUEST EMAIL CHANGE
+													</Text>
+													<Text className="mt-1 mb-4 font-mono text-xs leading-relaxed text-muted-foreground">
+														Confirm with your
+														current password. A
+														verification link will
+														be sent to your new
+														address.
+													</Text>
+
+													<View className="gap-3.5">
+														<NeoInput
+															label="NEW EMAIL ADDRESS"
+															value={newEmail}
+															onChangeText={(
+																text,
+															) => {
+																setNewEmail(
+																	text,
+																);
+																setEmailError(
+																	null,
+																);
+																setEmailSuccess(
+																	null,
+																);
+															}}
+															placeholder="new.email@example.com"
+															autoCapitalize="none"
+															autoCorrect={false}
+															keyboardType="email-address"
+															startContent={
+																<Mail
+																	size={15}
+																	color="#000000"
+																	strokeWidth={
+																		2.2
+																	}
+																/>
+															}
+														/>
+
+														<NeoInput
+															label="CURRENT PASSWORD"
+															value={
+																emailCurrentPassword
+															}
+															onChangeText={(
+																text,
+															) => {
+																setEmailCurrentPassword(
+																	text,
+																);
+																setEmailError(
+																	null,
+																);
+															}}
+															placeholder="Enter current password"
+															secureTextEntry
+															startContent={
+																<Lock
+																	size={15}
+																	color="#000000"
+																	strokeWidth={
+																		2.2
+																	}
+																/>
+															}
+														/>
+													</View>
+												</View>
+
+												{/* Docked Action Footer */}
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel="Request email change"
+													disabled={isEmailDisabled}
+													onPress={() => {
+														triggerHaptic();
+														void handleRequestEmailChange();
+													}}
+													className={`h-12 flex-row items-center justify-center border-t-2 border-border px-4 active:opacity-85 ${
+														isEmailDisabled
+															? "bg-secondary"
+															: "bg-primary"
+													}`}>
+													{isSubmittingEmail ? (
+														<ActivityIndicator
+															size="small"
+															color="#faf9f5"
+														/>
+													) : (
+														<Text
+															className={`font-bold text-xs tracking-widest uppercase ${
+																isEmailDisabled
+																	? "text-muted-foreground"
+																	: "text-primary-foreground"
+															}`}>
+															REQUEST EMAIL CHANGE
+														</Text>
+													)}
+												</Pressable>
 											</View>
 										</View>
 									</View>
-								</View>
-							)}
+								)}
 
-							{onDeleteAccountPress && (
-								<View className="mt-6 rounded-none border-2 border-destructive bg-card p-4 shadow-neo-sm">
-									<Text className="font-bold text-xs text-destructive uppercase">
-										DANGER ZONE
-									</Text>
-									<Text className="mt-1 font-mono text-xs text-muted-foreground">
-										Permanently delete your account and all
-										associated data. This action cannot be
-										undone.
-									</Text>
-									<View className="mt-3">
-										<NeoButton
-											size="md"
-											variant="destructive"
-											className="w-full"
-											startContent={
+								{/* PASSWORD TAB */}
+								{activeTab === "password" && (
+									<View className="gap-4">
+										{passwordError && (
+											<View className="flex-row items-center gap-2.5 border-2 border-destructive bg-destructive/10 p-3">
+												<AlertCircle
+													size={16}
+													color="#ff2a00"
+													strokeWidth={2.4}
+												/>
+												<Text className="flex-1 font-mono text-xs text-destructive">
+													{passwordError}
+												</Text>
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel="Dismiss error"
+													onPress={() =>
+														setPasswordError(null)
+													}
+													hitSlop={8}>
+													<X
+														size={14}
+														color="#ff2a00"
+													/>
+												</Pressable>
+											</View>
+										)}
+
+										{passwordSuccess && (
+											<View className="bg-surface shadow-neo-xs">
+												<View className="flex-row items-center gap-2.5 border-2 border-border bg-neo-green/25 p-3">
+													<CheckCircle2
+														size={16}
+														color="#000000"
+														strokeWidth={2.5}
+													/>
+													<Text className="flex-1 font-bold text-xs text-foreground">
+														{passwordSuccess}
+													</Text>
+													<Pressable
+														accessibilityRole="button"
+														accessibilityLabel="Dismiss success message"
+														onPress={() =>
+															setPasswordSuccess(
+																null,
+															)
+														}
+														hitSlop={8}>
+														<X
+															size={14}
+															color="#000000"
+														/>
+													</Pressable>
+												</View>
+											</View>
+										)}
+
+										<View className="bg-card shadow-neo">
+											<View className="overflow-hidden border-2 border-border bg-card">
+												{/* Security Strip */}
+												<View className="flex-row items-center gap-2 border-b-2 border-border bg-surface px-4 py-3">
+													<ShieldCheck
+														size={15}
+														color="#000000"
+														strokeWidth={2.4}
+													/>
+													<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+														CREDENTIALS &amp;
+														SECURITY
+													</Text>
+												</View>
+
+												{/* Form Body */}
+												<View className="bg-card p-4">
+													<Text className="font-ndot-caps text-base tracking-wide text-foreground uppercase">
+														UPDATE PASSWORD
+													</Text>
+													<Text className="mt-1 mb-4 font-mono text-xs leading-relaxed text-muted-foreground">
+														Verify your current
+														password before setting
+														a new one.
+													</Text>
+
+													<View className="gap-3.5">
+														<NeoInput
+															label="CURRENT PASSWORD"
+															value={
+																currentPassword
+															}
+															onChangeText={(
+																text,
+															) => {
+																setCurrentPassword(
+																	text,
+																);
+																setPasswordError(
+																	null,
+																);
+															}}
+															placeholder="Enter current password"
+															secureTextEntry
+															startContent={
+																<Lock
+																	size={15}
+																	color="#000000"
+																	strokeWidth={
+																		2.2
+																	}
+																/>
+															}
+														/>
+
+														<NeoInput
+															label="NEW PASSWORD"
+															value={newPassword}
+															onChangeText={(
+																text,
+															) => {
+																setNewPassword(
+																	text,
+																);
+																setPasswordError(
+																	null,
+																);
+															}}
+															placeholder="Enter new password"
+															secureTextEntry
+															startContent={
+																<Lock
+																	size={15}
+																	color="#000000"
+																	strokeWidth={
+																		2.2
+																	}
+																/>
+															}
+														/>
+
+														{newPassword.length >
+															0 && (
+															<PasswordRequirementsList
+																password={
+																	newPassword
+																}
+															/>
+														)}
+
+														<NeoInput
+															label="CONFIRM NEW PASSWORD"
+															value={
+																confirmPassword
+															}
+															onChangeText={(
+																text,
+															) => {
+																setConfirmPassword(
+																	text,
+																);
+																setPasswordError(
+																	null,
+																);
+															}}
+															placeholder="Confirm new password"
+															secureTextEntry
+															startContent={
+																<Lock
+																	size={15}
+																	color="#000000"
+																	strokeWidth={
+																		2.2
+																	}
+																/>
+															}
+														/>
+													</View>
+												</View>
+
+												{/* Docked Action Footer */}
+												<Pressable
+													accessibilityRole="button"
+													accessibilityLabel="Update password"
+													disabled={
+														isPasswordDisabled
+													}
+													onPress={() => {
+														triggerHaptic();
+														void handleUpdatePassword();
+													}}
+													className={`h-12 flex-row items-center justify-center border-t-2 border-border px-4 active:opacity-85 ${
+														isPasswordDisabled
+															? "bg-secondary"
+															: "bg-primary"
+													}`}>
+													{isSubmittingPassword ? (
+														<ActivityIndicator
+															size="small"
+															color="#faf9f5"
+														/>
+													) : (
+														<Text
+															className={`font-bold text-xs tracking-widest uppercase ${
+																isPasswordDisabled
+																	? "text-muted-foreground"
+																	: "text-primary-foreground"
+															}`}>
+															UPDATE PASSWORD
+														</Text>
+													)}
+												</Pressable>
+											</View>
+										</View>
+									</View>
+								)}
+
+								{/* Danger Zone */}
+								{onDeleteAccountPress && (
+									<View className="mt-2 bg-card shadow-neo-sm">
+										<View className="overflow-hidden border-2 border-destructive bg-card">
+											<View className="flex-row items-center gap-2 border-b-2 border-destructive bg-destructive/10 px-4 py-2.5">
+												<ShieldAlert
+													size={14}
+													color="#ff2a00"
+													strokeWidth={2.5}
+												/>
+												<Text className="font-bold text-2xs tracking-widest text-destructive uppercase">
+													DANGER ZONE
+												</Text>
+											</View>
+
+											<View className="bg-card px-4 py-3.5">
+												<Text className="font-mono text-xs leading-relaxed text-muted-foreground">
+													Permanently delete your
+													account and all associated
+													posts, comments, and
+													messages. This action cannot
+													be undone.
+												</Text>
+											</View>
+
+											<Pressable
+												accessibilityRole="button"
+												accessibilityLabel="Delete account"
+												onPress={() => {
+													triggerHaptic();
+													onDeleteAccountPress();
+												}}
+												className="h-12 flex-row items-center justify-center gap-2 border-t-2 border-destructive bg-destructive px-4 active:opacity-85">
 												<Trash2
 													size={15}
-													color="#ffffff"
-													strokeWidth={2.2}
+													color="#faf9f5"
+													strokeWidth={2.4}
 												/>
-											}
-											onPress={onDeleteAccountPress}>
-											DELETE ACCOUNT
-										</NeoButton>
+												<Text className="font-bold text-xs tracking-widest text-primary-foreground uppercase">
+													DELETE ACCOUNT
+												</Text>
+											</Pressable>
+										</View>
 									</View>
-								</View>
-							)}
+								)}
+							</View>
 						</ScrollView>
 					</KeyboardAvoidingView>
 				</SafeAreaView>

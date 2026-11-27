@@ -12,11 +12,14 @@ import { sortConversationsByLatest } from "./utils";
 interface MessagesState {
 	conversations: DirectConversationSummary[];
 	activeMessages: Record<string, OptimisticMessage[]>;
+	drafts: Record<string, string>;
 	isLoadingConversations: boolean;
 	isLoadingMessages: boolean;
 	error: string | null;
 
 	// Actions
+	setDraft: (conversationId: string, text: string) => void;
+	clearDraft: (conversationId: string) => void;
 	setConversations: (conversations: DirectConversationSummary[]) => void;
 	upsertConversation: (conversation: DirectConversationSummary) => void;
 	setMessages: (
@@ -79,9 +82,34 @@ interface MessagesState {
 export const useMessagesStore = create<MessagesState>((set, get) => ({
 	conversations: [],
 	activeMessages: {},
+	drafts: {},
 	isLoadingConversations: false,
 	isLoadingMessages: false,
 	error: null,
+
+	setDraft: (conversationId, text) => {
+		set((state) => {
+			if (!text) {
+				if (!(conversationId in state.drafts)) return state;
+				const { [conversationId]: _removed, ...rest } = state.drafts;
+				return { drafts: rest };
+			}
+			return {
+				drafts: {
+					...state.drafts,
+					[conversationId]: text,
+				},
+			};
+		});
+	},
+
+	clearDraft: (conversationId) => {
+		set((state) => {
+			if (!(conversationId in state.drafts)) return state;
+			const { [conversationId]: _removed, ...rest } = state.drafts;
+			return { drafts: rest };
+		});
+	},
 
 	setConversations: (conversations) => {
 		set({ conversations: sortConversationsByLatest(conversations) });
@@ -227,6 +255,9 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
 							is_pinned: Boolean(message.is_pinned),
 							pinned_by: message.pinned_by ?? null,
 							unsent_at: message.unsent_at ?? null,
+							...(message.reactions !== undefined
+								? { reactions: message.reactions }
+								: {}),
 							...(message.unsent_at
 								? { shared_post: undefined }
 								: {}),
@@ -316,11 +347,14 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
 		set((state) => {
 			const { [conversationId]: _removed, ...restMessages } =
 				state.activeMessages;
+			const { [conversationId]: _removedDraft, ...restDrafts } =
+				state.drafts;
 			return {
 				conversations: state.conversations.filter(
 					(c) => c.id !== conversationId,
 				),
 				activeMessages: restMessages,
+				drafts: restDrafts,
 			};
 		});
 	},

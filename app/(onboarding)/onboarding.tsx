@@ -39,7 +39,6 @@ export default function OnboardingScreen() {
 					))}
 					<View className="flex-1" />
 				</View>
-				<View className="absolute top-1/4 left-1/2 size-3 bg-destructive" />
 			</View>
 			<ScrollView
 				contentContainerStyle={{
@@ -49,7 +48,7 @@ export default function OnboardingScreen() {
 				}}
 				showsVerticalScrollIndicator={false}>
 				<View className="items-center pt-48">
-					<Text className="text-center font-display text-6xl tracking-tight text-foreground uppercase sm:text-7xl">
+					<Text className="text-center font-ndot-caps text-6xl tracking-tight text-foreground uppercase sm:text-7xl">
 						IMPULSE<Text className="text-destructive">.</Text>
 					</Text>
 

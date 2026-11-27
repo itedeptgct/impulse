@@ -35,6 +35,14 @@ export interface MessageAttachment {
 	size?: number;
 }
 
+export interface MessageReplyPreview {
+	id: string;
+	sender_id: string;
+	sender_name?: string;
+	content: string | null;
+	has_media?: boolean;
+}
+
 export interface Message {
 	id: string;
 	conversation_id: string;
@@ -43,6 +51,9 @@ export interface Message {
 	media_urls: string[];
 	attachments?: MessageAttachment[] | null;
 	shared_post_id: string | null;
+	reply_to_id?: string | null;
+	reply_to?: MessageReplyPreview | null;
+	reactions?: Record<string, string[]>;
 	message_type?: MessageType;
 	edited_at?: string | null;
 	is_pinned?: boolean;
@@ -80,5 +91,6 @@ export interface SendMessagePayload {
 	mediaUrls?: string[];
 	attachments?: MessageAttachment[];
 	sharedPostId?: string;
+	replyToId?: string | null;
 	messageType?: MessageType;
 }

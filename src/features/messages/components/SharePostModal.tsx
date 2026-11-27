@@ -1,5 +1,6 @@
 import { useAuthStore } from "@auth/store";
-import { Check, Send, Share2, Users } from "lucide-react-native";
+import Clipboard from "@react-native-clipboard/clipboard";
+import { Check, Link2, Send, Share2, Users } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
 	ActivityIndicator,
@@ -11,7 +12,11 @@ import {
 
 import { MobileSheet, NeoButton } from "@/components/ui";
 import type { Post } from "@/features/posts/types";
-import { sharePost } from "@/features/posts/utils/share";
+import {
+	generatePostSharePayload,
+	sharePost,
+} from "@/features/posts/utils/share";
+import { toast } from "@/lib/toast";
 
 import { fetchConversations, sendMessage } from "../api";
 import { useMessagesStore } from "../store";
@@ -71,9 +76,19 @@ export function SharePostModal({
 				buildSharedPostMessagePayload(post.id),
 			);
 			setSentIds((prev) => ({ ...prev, [conversationId]: true }));
+		} catch (err: unknown) {
+			const e = err as Error;
+			toast.error(e?.message || "Failed to send post to chat.");
 		} finally {
 			setSendingId(null);
 		}
+	};
+
+	const handleCopyLink = () => {
+		const payload = generatePostSharePayload(post);
+		Clipboard.setString(payload.url);
+		onOpenChange(false);
+		toast.success("Link copied");
 	};
 
 	const handleExternalShare = async () => {
@@ -178,10 +193,25 @@ export function SharePostModal({
 					/>
 				)}
 
-				<View className="border-t-2 border-border pt-3">
+				<View className="flex-row gap-2 border-t-2 border-border pt-3">
+					<NeoButton
+						variant="secondary"
+						size="md"
+						className="flex-1"
+						startContent={
+							<Link2
+								size={15}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+						}
+						onPress={handleCopyLink}>
+						COPY LINK
+					</NeoButton>
 					<NeoButton
 						variant="outline"
 						size="md"
+						className="flex-1"
 						startContent={
 							<Share2
 								size={15}
@@ -190,7 +220,7 @@ export function SharePostModal({
 							/>
 						}
 						onPress={handleExternalShare}>
-						SHARE EXTERNALLY
+						SHARE
 					</NeoButton>
 				</View>
 			</View>

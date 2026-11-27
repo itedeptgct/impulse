@@ -1,3 +1,4 @@
+import type { NeoBadgeVariant } from "@/components/ui";
 import type { UserRole } from "@/features/auth/types";
 import type { GuildId } from "@/features/guilds/types";
 
@@ -11,7 +12,7 @@ export type BadgeTierId =
 export interface UserBadgeInfo {
 	id: BadgeTierId;
 	label: string;
-	variant: "primary" | "default" | "outline";
+	variant: NeoBadgeVariant;
 	colorHex: string;
 	iconName: "ShieldCheck" | "Shield" | "Award" | "CheckCircle2" | "Building2";
 }
@@ -25,15 +26,16 @@ export interface BadgeResolverParams {
 interface HouseBadgeMetadata {
 	label: string;
 	colorHex: string;
+	variant: NeoBadgeVariant;
 }
 
 const HOUSE_METADATA: Record<string, HouseBadgeMetadata> = {
-	octagram: { label: "0x", colorHex: "#00FF66" },
-	octogram: { label: "0x", colorHex: "#00FF66" },
-	chameleon: { label: "★", colorHex: "#FF007A" },
-	blue_jays: { label: "BJ", colorHex: "#00E5FF" },
-	"blue-jays": { label: "BJ", colorHex: "#00E5FF" },
-	bluejays: { label: "BJ", colorHex: "#00E5FF" },
+	octagram: { label: "0x", colorHex: "#FFFFFF", variant: "primary" },
+	octogram: { label: "0x", colorHex: "#FFFFFF", variant: "primary" },
+	chameleon: { label: "RGB", colorHex: "#000000", variant: "green" },
+	blue_jays: { label: "PRESS", colorHex: "#000000", variant: "cyan" },
+	"blue-jays": { label: "PRESS", colorHex: "#000000", variant: "cyan" },
+	bluejays: { label: "PRESS", colorHex: "#000000", variant: "cyan" },
 };
 
 function normalizeGuild(guild: string): string {
@@ -94,12 +96,13 @@ export function getAllBadges(params: BadgeResolverParams): UserBadgeInfo[] {
 		const metadata = HOUSE_METADATA[normalized] ?? {
 			label: String(params.guild).toUpperCase(),
 			colorHex: "#000000",
+			variant: "outline" as const,
 		};
 
 		badges.push({
 			id: "house_member",
 			label: metadata.label,
-			variant: "outline",
+			variant: metadata.variant,
 			colorHex: metadata.colorHex,
 			iconName: "Building2",
 		});

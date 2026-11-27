@@ -7,6 +7,7 @@ import {
 } from "@auth/api";
 import { AccountSettingsModal } from "@auth/components/AccountSettingsModal";
 import { EditProfileModal } from "@auth/components/EditProfileModal";
+import { ProfileSurfaceEffect } from "@auth/components/ProfileSurfaceEffect";
 import { useAuthStore } from "@auth/store";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -16,15 +17,14 @@ import { StatusBar } from "expo-status-bar";
 import {
 	AlertCircle,
 	ArrowUpRight,
+	Bookmark,
 	BookOpen,
 	Calendar,
 	CheckCircle2,
 	Clock,
 	Code2,
 	FileText,
-	Flame,
 	LogOut,
-	MessageSquare,
 	PenSquare,
 	Plus,
 	Settings,
@@ -52,12 +52,19 @@ import {
 	NeoButton,
 	NeoCard,
 } from "@/components/ui";
-import { GuildBadge } from "@/features/guilds/components/GuildBadge";
+import { getGuildInfo } from "@/features/guilds/constants";
 import { fetchUserPosts, votePost } from "@/features/posts/api";
+import { useBookmarksStore } from "@/features/posts/bookmarks";
 import { PostCard } from "@/features/posts/components/PostCard";
 import { PostComposerModal } from "@/features/posts/components/PostComposerModal";
+import {
+	patchPostInFeedCaches,
+	removePostFromFeedCaches,
+	replacePostInFeedCaches,
+} from "@/features/posts/queries";
 import type { Post } from "@/features/posts/types";
 import { ActiveDot } from "@/features/presence";
+import { toast } from "@/lib/toast";
 
 export default function ProfileScreen() {
 	const insets = useSafeAreaInsets();
@@ -88,6 +95,15 @@ export default function ProfileScreen() {
 	const [isAccountSettingsOpen, setIsAccountSettingsOpen] = useState(false);
 
 	const [myPosts, setMyPosts] = useState<Post[]>([]);
+	const [profileTab, setProfileTab] = useState<"posts" | "saved">("posts");
+	const savedPosts = useBookmarksStore((s) => s.savedPosts);
+	const loadBookmarks = useBookmarksStore((s) => s.loadBookmarks);
+
+	useEffect(() => {
+		if (user?.id) {
+			void loadBookmarks(user.id);
+		}
+	}, [user?.id, loadBookmarks]);
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
 
 	const [isResubmitOpen, setIsResubmitOpen] = useState(false);
@@ -198,7 +214,6 @@ export default function ProfileScreen() {
 		user?.email?.split("@")[0] ||
 		"Impulse User";
 
-	const email = profile?.email || user?.email || "No email available";
 	const role = profile?.role || "user";
 	const verificationStatus = verification?.status || "pending";
 	const isAdmin = role === "admin";
@@ -299,10 +314,20 @@ export default function ProfileScreen() {
 				upvotes_count: newUp,
 				downvotes_count: newDown,
 			});
+			patchPostInFeedCaches(post.id, {
+				user_vote: nextVote,
+				upvotes_count: newUp,
+				downvotes_count: newDown,
+			});
 
 			try {
 				const res = await votePost(post.id, currentUserId, targetVote);
 				patchMyPost(post.id, {
+					user_vote: res.user_vote,
+					upvotes_count: res.upvotes_count,
+					downvotes_count: res.downvotes_count,
+				});
+				patchPostInFeedCaches(post.id, {
 					user_vote: res.user_vote,
 					upvotes_count: res.upvotes_count,
 					downvotes_count: res.downvotes_count,
@@ -314,6 +339,12 @@ export default function ProfileScreen() {
 					upvotes_count: post.upvotes_count,
 					downvotes_count: post.downvotes_count,
 				});
+				patchPostInFeedCaches(post.id, {
+					user_vote: currentVote,
+					upvotes_count: post.upvotes_count,
+					downvotes_count: post.downvotes_count,
+				});
+				toast.error("Failed to update vote. Please try again.");
 			}
 		},
 		[user?.id, patchMyPost, refreshUserData],
@@ -327,10 +358,12 @@ export default function ProfileScreen() {
 		setMyPosts((prev) =>
 			prev.map((p) => (p.id === updated.id ? updated : p)),
 		);
+		replacePostInFeedCaches(updated);
 	}, []);
 
 	const handlePostDeleted = useCallback((deletedId: string) => {
 		setMyPosts((prev) => prev.filter((p) => p.id !== deletedId));
+		removePostFromFeedCaches(deletedId);
 	}, []);
 
 	const renderItem = useCallback(
@@ -363,6 +396,14 @@ export default function ProfileScreen() {
 		: "Recent";
 
 	const totalComments = myPosts.reduce((acc, p) => acc + p.comments_count, 0);
+	const guildData = getGuildInfo(profile?.guild);
+	const academicLabel = [
+		profile?.course,
+		profile?.year_level ? `YEAR ${profile.year_level}` : null,
+		!profile?.course && !profile?.year_level ? profile?.major : null,
+	]
+		.filter(Boolean)
+		.join(" · ");
 
 	if (!profile) {
 		return (
@@ -383,209 +424,194 @@ export default function ProfileScreen() {
 			/>
 
 			<FlatList
-				data={myPosts}
+				data={profileTab === "saved" ? savedPosts : myPosts}
 				keyExtractor={(item) => item.id}
 				renderItem={renderItem}
 				ListHeaderComponent={
 					<View className="mx-auto w-full max-w-2xl px-4 sm:px-6">
-						<View className="mb-4 flex-row items-center justify-between">
-							<View>
-								<Text className="font-display text-2xl tracking-tight text-foreground uppercase">
-									YOUR PROFILE
-								</Text>
-							</View>
-
-							<View className="flex-row items-center gap-2">
-								<NeoButton
-									variant="outline"
-									size="sm"
-									onPress={() =>
-										setIsAccountActionsOpen(true)
-									}
-									className="px-2.5">
-									<Settings
-										size={16}
-										color="#000000"
-										strokeWidth={2.2}
+						{/* Unified Operator Dossier Card */}
+						<View className="mb-5 bg-card shadow-neo">
+							<View className="overflow-hidden border-2 border-border bg-card">
+								{/* Animated Surface Effect Cover */}
+								<View className="relative h-28 w-full bg-[#0A0A0A]">
+									<ProfileSurfaceEffect
+										guild={profile.guild}
+										height={112}
 									/>
-								</NeoButton>
-							</View>
-						</View>
 
-						<NeoCard
-							variant="default"
-							className="mb-5 p-5 shadow-neo">
-							<View className="flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-								<View className="relative size-17 shrink-0 self-start">
-									{profile.avatar_url &&
-									profile.avatar_url.startsWith("http") ? (
-										<Image
-											source={{ uri: profile.avatar_url }}
-											style={{
-												width: 68,
-												height: 68,
-												borderRadius: 0,
-												borderWidth: 2,
-												borderColor: "#000000",
-											}}
-											contentFit="cover"
-										/>
-									) : (
-										<View className="size-17 items-center justify-center rounded-none border-2 border-border bg-muted shadow-neo-sm">
-											<Text className="font-bold text-2xl text-foreground">
-												{initials}
-											</Text>
-										</View>
-									)}
-									<ActiveDot
-										userId={profile.id}
-										targetShowActiveStatus={
-											profile.show_active_status
-										}
-										size="md"
-										className="absolute -right-1 -bottom-1"
-									/>
-								</View>
-
-								<View className="min-w-0 flex-1">
-									<View className="flex-row flex-wrap items-center gap-2">
-										<Text
-											className="font-display text-lg tracking-tight text-foreground sm:text-xl"
-											numberOfLines={1}>
-											{displayName}
-										</Text>
-
-										{verificationStatus === "approved" && (
-											<NeoBadge
-												variant="primary"
-												size="sm"
-												startContent={
-													<CheckCircle2
-														size={11}
-														color="#faf9f5"
-														strokeWidth={2.5}
-													/>
-												}>
-												VERIFIED
-											</NeoBadge>
-										)}
-
-										{verificationStatus === "pending" && (
-											<NeoBadge
-												variant="default"
-												size="sm"
-												startContent={
-													<Clock
-														size={11}
-														color="#000000"
-														strokeWidth={2.5}
-													/>
-												}>
-												PENDING
-											</NeoBadge>
-										)}
-
-										{verificationStatus === "rejected" && (
-											<NeoBadge
-												variant="default"
-												size="sm"
-												className="border-destructive bg-destructive"
-												textClassName="text-primary-foreground"
-												startContent={
-													<ShieldAlert
-														size={11}
-														color="#faf9f5"
-														strokeWidth={2.5}
-													/>
-												}>
-												UNVERIFIED
-											</NeoBadge>
-										)}
-
-										{isAdmin && (
-											<NeoBadge
-												variant="primary"
-												size="sm"
-												startContent={
-													<ShieldCheck
-														size={11}
-														color="#faf9f5"
-														strokeWidth={2.5}
-													/>
-												}>
-												ADMIN
-											</NeoBadge>
-										)}
-									</View>
-
-									<Text className="mt-0.5 font-mono text-xs text-muted-foreground">
-										@{profile.username || "student"}
-									</Text>
-
-									<View className="mt-2.5 flex-row flex-wrap items-center gap-2">
-										{profile.guild ? (
-											<GuildBadge
-												guildId={profile.guild}
-												size="sm"
-												className="shadow-neo-sm"
-											/>
+									{/* Top Banner Stamps */}
+									<View className="absolute inset-x-3 top-3 flex-row items-center justify-between gap-2">
+										{guildData ? (
+											<View className="flex-row items-center gap-1.5 border border-white/30 bg-black/80 px-2 py-1">
+												<Text className="font-bold text-2xs tracking-widest text-white uppercase">
+													{guildData.houseSymbol} ·{" "}
+													{guildData.name}
+												</Text>
+											</View>
 										) : verificationStatus === "pending" &&
 										  !isAdmin ? (
-											<View className="h-6 flex-row items-center gap-1.5 border-2 border-border bg-secondary px-2 shadow-neo-xs">
+											<View className="flex-row items-center gap-1 border border-white/30 bg-black/80 px-2 py-1">
 												<Clock
-													size={11}
-													color="#000000"
-													strokeWidth={2.2}
+													size={10}
+													color="#FFE600"
+													strokeWidth={2.5}
 												/>
-												<Text className="font-mono text-[10px] text-muted-foreground uppercase">
-													House: Pending Verification
+												<Text className="font-mono text-2xs tracking-wider text-white/85 uppercase">
+													HOUSE LOCKED
 												</Text>
 											</View>
 										) : (
-											<NeoButton
-												variant="outline"
-												size="sm"
+											<Pressable
+												accessibilityRole="button"
+												accessibilityLabel="Choose House"
 												onPress={() =>
 													router.push(
 														"/(tabs)/guilds",
 													)
 												}
-												className="h-6 px-2">
-												<Text className="font-mono text-[10px] text-muted-foreground uppercase">
-													+ Choose House
+												className="flex-row items-center gap-1 border border-white/40 bg-black/85 px-2.5 py-1 active:bg-neo-green">
+												<Plus
+													size={10}
+													color="#00FF66"
+													strokeWidth={3}
+												/>
+												<Text className="font-bold text-2xs tracking-widest text-white uppercase">
+													CHOOSE HOUSE
 												</Text>
-											</NeoButton>
+											</Pressable>
 										)}
 
-										{(profile.course ||
-											profile.year_level ||
-											profile.major) && (
-											<View className="flex-row items-center gap-1.5 rounded-none border-2 border-border bg-secondary px-2 py-0.5 shadow-neo-sm">
-												<BookOpen
-													size={11}
-													color="#000000"
-													strokeWidth={2.2}
+										<View className="flex-row items-center gap-1.5">
+											{verificationStatus ===
+												"approved" && (
+												<View className="flex-row items-center gap-1 border-2 border-border bg-neo-green px-2 py-0.5">
+													<CheckCircle2
+														size={11}
+														color="#000000"
+														strokeWidth={2.6}
+													/>
+													<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+														VERIFIED
+													</Text>
+												</View>
+											)}
+
+											{verificationStatus ===
+												"pending" && (
+												<View className="flex-row items-center gap-1 border-2 border-border bg-neo-yellow px-2 py-0.5">
+													<Clock
+														size={11}
+														color="#000000"
+														strokeWidth={2.6}
+													/>
+													<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+														PENDING
+													</Text>
+												</View>
+											)}
+
+											{verificationStatus ===
+												"rejected" && (
+												<View className="flex-row items-center gap-1 border-2 border-border bg-destructive px-2 py-0.5">
+													<ShieldAlert
+														size={11}
+														color="#faf9f5"
+														strokeWidth={2.6}
+													/>
+													<Text className="font-bold text-2xs tracking-widest text-primary-foreground uppercase">
+														UNVERIFIED
+													</Text>
+												</View>
+											)}
+
+											{isAdmin && (
+												<View className="flex-row items-center gap-1 border border-white/40 bg-black/85 px-2 py-0.5">
+													<ShieldCheck
+														size={11}
+														color="#00FF66"
+														strokeWidth={2.6}
+													/>
+													<Text className="font-bold text-2xs tracking-widest text-white uppercase">
+														ADMIN
+													</Text>
+												</View>
+											)}
+										</View>
+									</View>
+								</View>
+
+								{/* Avatar Seam & Identity */}
+								<View className="border-t-2 border-border bg-card px-4 pb-4">
+									<View className="flex-row items-end justify-between">
+										<View className="relative -mt-9">
+											{profile.avatar_url &&
+											profile.avatar_url.startsWith(
+												"http",
+											) ? (
+												<Image
+													source={{
+														uri: profile.avatar_url,
+													}}
+													style={{
+														width: 72,
+														height: 72,
+														borderWidth: 2,
+														borderColor: "#000000",
+														backgroundColor:
+															"#f4f4f0",
+													}}
+													contentFit="cover"
 												/>
-												<Text className="font-bold text-[10px] text-foreground uppercase">
-													{[
-														profile.course,
-														profile.year_level
-															? `YEAR ${profile.year_level}`
-															: null,
-														!profile.course &&
-														!profile.year_level
-															? profile.major
-															: null,
-													]
-														.filter(Boolean)
-														.join(" • ")}
-												</Text>
-											</View>
-										)}
+											) : (
+												<View className="size-18 items-center justify-center border-2 border-border bg-surface">
+													<Text className="font-display text-2xl text-foreground uppercase">
+														{initials}
+													</Text>
+												</View>
+											)}
+											<ActiveDot
+												userId={profile.id}
+												targetShowActiveStatus={
+													profile.show_active_status
+												}
+												size="md"
+												className="absolute -right-1 -bottom-1"
+											/>
+										</View>
+
+										<Pressable
+											accessibilityRole="button"
+											accessibilityLabel="Account and settings menu"
+											onPress={() =>
+												setIsAccountActionsOpen(true)
+											}
+											className="mt-2.5 flex-row items-center gap-1.5 border-2 border-border bg-surface px-3 py-1.5 active:bg-secondary">
+											<Settings
+												size={13}
+												color="#000000"
+												strokeWidth={2.3}
+											/>
+											<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+												MENU
+											</Text>
+										</Pressable>
 									</View>
 
+									{/* Name & Handle */}
+									<View className="mt-3">
+										<Text
+											numberOfLines={1}
+											className="font-ndot-caps text-2xl leading-none tracking-wide text-foreground uppercase">
+											{displayName}
+										</Text>
+										<Text className="mt-1 font-mono text-xs text-muted-foreground">
+											@{profile.username || "student"}
+										</Text>
+									</View>
+
+									{/* Bio */}
 									{profile.bio ? (
-										<Text className="mt-3 font-sans text-xs leading-relaxed text-muted-foreground">
+										<Text className="mt-3 font-sans text-[13px] leading-relaxed text-foreground">
 											{profile.bio}
 										</Text>
 									) : (
@@ -595,204 +621,261 @@ export default function ProfileScreen() {
 										</Text>
 									)}
 
-									<View className="mt-2.5 flex-row items-center gap-1.5">
-										<Calendar
-											size={12}
-											color="#71717a"
-											strokeWidth={2}
-										/>
-										<Text className="font-mono text-xs text-muted-foreground">
-											Member since {memberSinceDate}
+									{/* Academic & Joined Metadata */}
+									<View className="mt-3 flex-row flex-wrap items-center gap-x-4 gap-y-1.5">
+										{academicLabel ? (
+											<View className="flex-row items-center gap-1.5">
+												<BookOpen
+													size={12}
+													color="#000000"
+													strokeWidth={2.2}
+												/>
+												<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
+													{academicLabel}
+												</Text>
+											</View>
+										) : null}
+										<View className="flex-row items-center gap-1.5">
+											<Calendar
+												size={12}
+												color="#4c4546"
+												strokeWidth={2.2}
+											/>
+											<Text className="font-mono text-2xs tracking-wider text-muted-foreground uppercase">
+												JOINED {memberSinceDate}
+											</Text>
+										</View>
+									</View>
+								</View>
+
+								{/* Docked 3-Column Telemetry Strip */}
+								<View className="flex-row border-t-2 border-border bg-surface">
+									<View className="flex-1 items-center justify-center border-r-2 border-border py-3">
+										<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+											POSTS
+										</Text>
+										<Text className="mt-1 font-display text-2xl leading-none text-foreground tabular-nums">
+											{myPosts.length}
+										</Text>
+									</View>
+
+									<View className="flex-1 items-center justify-center border-r-2 border-border py-3">
+										<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+											KARMA
+										</Text>
+										<Text className="mt-1 font-display text-2xl leading-none text-destructive tabular-nums">
+											{profile?.karma ?? 0}
+										</Text>
+									</View>
+
+									<View className="flex-1 items-center justify-center py-3">
+										<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+											REPLIES
+										</Text>
+										<Text className="mt-1 font-display text-2xl leading-none text-foreground tabular-nums">
+											{totalComments}
 										</Text>
 									</View>
 								</View>
-							</View>
 
-							<View className="mt-4 flex-row flex-wrap gap-2.5 border-t-2 border-border pt-4">
-								<NeoButton
-									size="sm"
-									variant="outline"
-									className="flex-1"
-									startContent={
+								{/* Docked 2-Column Action Footer */}
+								<View className="flex-row border-t-2 border-border bg-surface">
+									<Pressable
+										accessibilityRole="button"
+										accessibilityLabel="Edit profile"
+										onPress={() =>
+											setIsEditProfileOpen(true)
+										}
+										className="h-11 flex-1 flex-row items-center justify-center gap-1.5 border-r-2 border-border active:bg-secondary">
 										<PenSquare
 											size={13}
 											color="#000000"
-											strokeWidth={2.2}
+											strokeWidth={2.3}
 										/>
-									}
-									onPress={() => setIsEditProfileOpen(true)}>
-									EDIT PROFILE
-								</NeoButton>
-								<NeoButton
-									size="sm"
-									variant="outline"
-									className="flex-1"
-									startContent={
+										<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+											EDIT PROFILE
+										</Text>
+									</Pressable>
+
+									<Pressable
+										accessibilityRole="button"
+										accessibilityLabel="Account settings"
+										onPress={() =>
+											setIsAccountSettingsOpen(true)
+										}
+										className="h-11 flex-1 flex-row items-center justify-center gap-1.5 active:bg-secondary">
 										<Settings
 											size={13}
 											color="#000000"
-											strokeWidth={2.2}
+											strokeWidth={2.3}
 										/>
-									}
-									onPress={() =>
-										setIsAccountSettingsOpen(true)
-									}>
-									ACCOUNT SETTINGS
-								</NeoButton>
+										<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+											ACCOUNT SETTINGS
+										</Text>
+									</Pressable>
+								</View>
 							</View>
-						</NeoCard>
-
-						<View className="mb-6 flex-row gap-3">
-							<NeoCard
-								variant="default"
-								className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
-								<View className="flex-row items-center gap-1.5">
-									<PenSquare
-										size={12}
-										color="#000000"
-										strokeWidth={2.2}
-									/>
-									<Text className="font-bold text-[10px] tracking-wider text-muted-foreground uppercase">
-										POSTS
-									</Text>
-								</View>
-								<Text className="mt-1 font-display text-2xl tracking-tight text-foreground">
-									{myPosts.length}
-								</Text>
-							</NeoCard>
-
-							<NeoCard
-								variant="default"
-								className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
-								<View className="flex-row items-center gap-1.5">
-									<Flame
-										size={12}
-										color="#ff2a00"
-										strokeWidth={2.2}
-									/>
-									<Text className="font-bold text-[10px] tracking-wider text-muted-foreground uppercase">
-										KARMA
-									</Text>
-								</View>
-								<Text className="mt-1 font-display text-2xl tracking-tight text-destructive">
-									{profile?.karma ?? 0}
-								</Text>
-							</NeoCard>
-
-							<NeoCard
-								variant="default"
-								className="flex-1 items-center justify-center p-3.5 shadow-neo-sm">
-								<View className="flex-row items-center gap-1.5">
-									<MessageSquare
-										size={12}
-										color="#000000"
-										strokeWidth={2.2}
-									/>
-									<Text className="font-bold text-[10px] tracking-wider text-muted-foreground uppercase">
-										DISCUSSIONS
-									</Text>
-								</View>
-								<Text className="mt-1 font-display text-2xl tracking-tight text-foreground">
-									{totalComments}
-								</Text>
-							</NeoCard>
 						</View>
 
 						{verificationStatus === "rejected" && (
-							<NeoCard
-								variant="default"
-								className="mb-6 border-destructive bg-destructive/10 p-4 shadow-neo-sm">
-								<View className="flex-row items-start gap-3">
-									<AlertCircle
-										size={18}
-										color="#ff5c5c"
-										strokeWidth={2.2}
-										className="mt-0.5"
-									/>
-									<View className="flex-1">
-										<Text className="font-display text-sm text-red-400 uppercase">
-											STUDENT ID RESUBMISSION REQUIRED
-										</Text>
-										<Text className="mt-1 font-mono text-xs text-muted-foreground">
-											{verification?.rejection_reason ||
-												"Your student credentials could not be verified. Please provide a clear, valid student ID."}
-										</Text>
-										<NeoButton
-											size="sm"
-											variant="destructive"
-											className="mt-3 self-start"
-											startContent={
-												<UploadCloud
-													size={14}
-													color="#ffffff"
-													strokeWidth={2.2}
-												/>
-											}
-											onPress={() => {
-												setResubmitAsset(null);
-												setResubmitError(null);
-												setIsResubmitOpen(true);
-											}}>
-											UPLOAD NEW ID
-										</NeoButton>
+							<View className="mb-5 bg-destructive/10 shadow-neo-sm">
+								<View className="border-2 border-destructive bg-card p-4">
+									<View className="flex-row items-start gap-3">
+										<AlertCircle
+											size={18}
+											color="#ff2a00"
+											strokeWidth={2.4}
+											className="mt-0.5"
+										/>
+										<View className="flex-1">
+											<Text className="font-ndot-caps text-sm text-destructive uppercase">
+												STUDENT ID RESUBMISSION REQUIRED
+											</Text>
+											<Text className="mt-1 font-mono text-xs leading-relaxed text-foreground">
+												{verification?.rejection_reason ||
+													"Your student credentials could not be verified. Please provide a clear, valid student ID."}
+											</Text>
+											<NeoButton
+												size="sm"
+												variant="destructive"
+												className="mt-3 self-start"
+												startContent={
+													<UploadCloud
+														size={14}
+														color="#ffffff"
+														strokeWidth={2.2}
+													/>
+												}
+												onPress={() => {
+													setResubmitAsset(null);
+													setResubmitError(null);
+													setIsResubmitOpen(true);
+												}}>
+												UPLOAD NEW ID
+											</NeoButton>
+										</View>
 									</View>
 								</View>
-							</NeoCard>
+							</View>
 						)}
 
-						<View className="mb-8">
-							<View className="flex-row items-center justify-between border-b-2 border-border pb-3.5">
-								<View className="flex-row items-center gap-2">
-									<Text className="font-mono text-xs tracking-wider text-muted-foreground uppercase">
-										POST ARCHIVE
+						{/* Unified Segmented Tabs & New Post Bar */}
+						<View className="mb-5 bg-surface shadow-neo-sm">
+							<View className="flex-row items-stretch overflow-hidden border-2 border-border bg-surface">
+								<Pressable
+									accessibilityRole="tab"
+									accessibilityState={{
+										selected: profileTab === "posts",
+									}}
+									onPress={() => setProfileTab("posts")}
+									className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 border-r-2 border-border ${
+										profileTab === "posts"
+											? "bg-primary"
+											: "bg-surface active:bg-secondary"
+									}`}>
+									<Text
+										className={`font-bold text-2xs tracking-widest uppercase ${
+											profileTab === "posts"
+												? "text-primary-foreground"
+												: "text-foreground"
+										}`}>
+										POSTS ({myPosts.length})
 									</Text>
-									<NeoBadge variant="default" size="sm">
-										{myPosts.length}
-									</NeoBadge>
-								</View>
-								<NeoButton
-									size="sm"
-									variant="primary"
-									startContent={
-										<Plus
-											size={14}
-											color="#faf9f5"
-											strokeWidth={3}
-										/>
-									}
-									onPress={() => setIsComposerOpen(true)}>
-									NEW POST
-								</NeoButton>
+								</Pressable>
+
+								<Pressable
+									accessibilityRole="tab"
+									accessibilityState={{
+										selected: profileTab === "saved",
+									}}
+									onPress={() => setProfileTab("saved")}
+									className={`h-11 flex-1 flex-row items-center justify-center gap-1.5 border-r-2 border-border ${
+										profileTab === "saved"
+											? "bg-neo-yellow"
+											: "bg-surface active:bg-secondary"
+									}`}>
+									<Bookmark
+										size={12}
+										color="#000000"
+										fill={
+											profileTab === "saved"
+												? "#000000"
+												: "none"
+										}
+										strokeWidth={2.4}
+									/>
+									<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+										SAVED ({savedPosts.length})
+									</Text>
+								</Pressable>
+
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Create new post"
+									onPress={() => setIsComposerOpen(true)}
+									className="h-11 flex-row items-center justify-center gap-1.5 bg-neo-green px-3.5 active:opacity-85">
+									<Plus
+										size={14}
+										color="#000000"
+										strokeWidth={3}
+									/>
+									<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+										POST
+									</Text>
+								</Pressable>
 							</View>
 						</View>
 					</View>
 				}
 				ListEmptyComponent={
 					<View className="mx-auto w-full max-w-2xl px-4 sm:px-6">
-						<NeoCard
-							variant="default"
-							className="mt-4 items-center justify-center p-8 text-center shadow-neo">
-							<PenSquare
-								size={28}
-								color="#000000"
-								strokeWidth={2.2}
-								className="mb-2"
-							/>
-							<Text className="font-display text-sm text-foreground uppercase">
-								NO POSTS PUBLISHED YET
-							</Text>
-							<Text className="mt-1 max-w-sm text-center font-mono text-xs text-muted-foreground">
-								Share code snippets, architectural ideas, or UI
-								designs with your peers.
-							</Text>
-							<NeoButton
-								size="sm"
-								variant="outline"
-								className="mt-4"
-								onPress={() => setIsComposerOpen(true)}>
-								CREATE FIRST POST
-							</NeoButton>
-						</NeoCard>
+						<View className="bg-card shadow-neo">
+							<View className="items-center justify-center border-2 border-border bg-card p-8">
+								{profileTab === "saved" ? (
+									<>
+										<Bookmark
+											size={26}
+											color="#000000"
+											strokeWidth={2.2}
+											className="mb-2.5"
+										/>
+										<Text className="font-ndot-caps text-base text-foreground uppercase">
+											NO SAVED POSTS YET
+										</Text>
+										<Text className="mt-1 max-w-sm text-center font-mono text-xs text-muted-foreground">
+											Tap the bookmark icon on any post to
+											save code snippets and notes here.
+										</Text>
+									</>
+								) : (
+									<>
+										<PenSquare
+											size={26}
+											color="#000000"
+											strokeWidth={2.2}
+											className="mb-2.5"
+										/>
+										<Text className="font-ndot-caps text-base text-foreground uppercase">
+											NO POSTS PUBLISHED YET
+										</Text>
+										<Text className="mt-1 max-w-sm text-center font-mono text-xs text-muted-foreground">
+											Share code snippets, architectural
+											ideas, or UI designs with your
+											peers.
+										</Text>
+										<NeoButton
+											size="sm"
+											variant="primary"
+											className="mt-4"
+											onPress={() =>
+												setIsComposerOpen(true)
+											}>
+											CREATE FIRST POST
+										</NeoButton>
+									</>
+								)}
+							</View>
+						</View>
 					</View>
 				}
 				ListFooterComponent={

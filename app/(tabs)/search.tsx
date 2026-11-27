@@ -1,10 +1,21 @@
 import { searchUsers } from "@auth/api";
 import { useAuthStore } from "@auth/store";
 import type { Profile } from "@auth/types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image as ExpoImage } from "expo-image";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { CheckCircle2, FileText, Search, Users, X } from "lucide-react-native";
+import {
+	CheckCircle2,
+	Clock,
+	Code2,
+	FileText,
+	Image as ImageIcon,
+	Search,
+	Shield,
+	Users,
+	X,
+} from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
@@ -19,12 +30,20 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MobileTopBar, NetworkErrorCard } from "@/components/ui";
 import { GuildBadge } from "@/features/guilds/components/GuildBadge";
-import { searchPosts, votePost } from "@/features/posts/api";
+import {
+	normalizePostMedia,
+	searchPosts,
+	votePost,
+} from "@/features/posts/api";
 import { PostCard } from "@/features/posts/components/PostCard";
 import type { Post } from "@/features/posts/types";
 import { ActiveDot } from "@/features/presence";
+import { toast } from "@/lib/toast";
 
 type SearchFilterTab = "all" | "posts" | "users";
+
+const RECENT_SEARCHES_KEY = "impulse_recent_searches_v1";
+const MAX_RECENT_SEARCHES = 8;
 
 const QUICK_TOPICS = [
 	"#SIRBOOGS",
@@ -47,6 +66,8 @@ type SearchRow =
 
 export default function SearchScreen() {
 	const insets = useSafeAreaInsets();
+	const params = useLocalSearchParams<{ q?: string | string[] }>();
+	const incomingQuery = Array.isArray(params.q) ? params.q[0] : params.q;
 	const user = useAuthStore((state) => state.user);
 	const profile = useAuthStore((state) => state.profile);
 
@@ -62,9 +83,67 @@ export default function SearchScreen() {
 	const [hasSearched, setHasSearched] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [isRetrying, setIsRetrying] = useState(false);
+	const [recentSearches, setRecentSearches] = useState<string[]>([]);
+	const [filterHasCode, setFilterHasCode] = useState(false);
+	const [filterHasMedia, setFilterHasMedia] = useState(false);
+	const [filterMyHouse, setFilterMyHouse] = useState(false);
 
 	const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const searchSeqRef = useRef(0);
+
+	useEffect(() => {
+		let cancelled = false;
+		void AsyncStorage.getItem(RECENT_SEARCHES_KEY)
+			.then((raw) => {
+				if (cancelled || !raw) return;
+				const parsed = JSON.parse(raw);
+				if (Array.isArray(parsed)) {
+					setRecentSearches(
+						parsed
+							.filter((x): x is string => typeof x === "string")
+							.slice(0, MAX_RECENT_SEARCHES),
+					);
+				}
+			})
+			.catch(() => {});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	const saveRecentSearch = useCallback((term: string) => {
+		const trimmed = term.trim();
+		if (trimmed.length < 2) return;
+		setRecentSearches((prev) => {
+			const next = [
+				trimmed,
+				...prev.filter(
+					(item) => item.toLowerCase() !== trimmed.toLowerCase(),
+				),
+			].slice(0, MAX_RECENT_SEARCHES);
+			void AsyncStorage.setItem(
+				RECENT_SEARCHES_KEY,
+				JSON.stringify(next),
+			).catch(() => {});
+			return next;
+		});
+	}, []);
+
+	const removeRecentSearch = useCallback((term: string) => {
+		setRecentSearches((prev) => {
+			const next = prev.filter((item) => item !== term);
+			void AsyncStorage.setItem(
+				RECENT_SEARCHES_KEY,
+				JSON.stringify(next),
+			).catch(() => {});
+			return next;
+		});
+	}, []);
+
+	const clearRecentSearches = useCallback(() => {
+		setRecentSearches([]);
+		void AsyncStorage.removeItem(RECENT_SEARCHES_KEY).catch(() => {});
+	}, []);
 
 	useEffect(() => {
 		return () => {
@@ -114,6 +193,7 @@ export default function SearchScreen() {
 
 				if (shouldFetchPosts) setPostResults(posts);
 				if (shouldFetchUsers) setUserResults(users);
+				saveRecentSearch(trimmed);
 			} catch (err: unknown) {
 				if (seq === searchSeqRef.current) {
 					const e = err as Error;
@@ -130,7 +210,7 @@ export default function SearchScreen() {
 				}
 			}
 		},
-		[activeTab, userId, userGuild, isAdmin],
+		[activeTab, userId, userGuild, isAdmin, saveRecentSearch],
 	);
 
 	const handleRetry = useCallback(async () => {
@@ -142,6 +222,29 @@ export default function SearchScreen() {
 			setIsRetrying(false);
 		}
 	}, [query, activeTab, executeSearch]);
+
+	const executeSearchRef = useRef(executeSearch);
+	useEffect(() => {
+		executeSearchRef.current = executeSearch;
+	}, [executeSearch]);
+
+	useEffect(() => {
+		const trimmed = incomingQuery?.trim();
+		if (!trimmed) return;
+		if (debounceTimerRef.current) {
+			clearTimeout(debounceTimerRef.current);
+			debounceTimerRef.current = null;
+		}
+		const targetTab: SearchFilterTab = trimmed.startsWith("#")
+			? "posts"
+			: "all";
+		queueMicrotask(() => {
+			setQuery(trimmed);
+			setActiveTab(targetTab);
+			void executeSearchRef.current(trimmed, targetTab);
+			router.setParams({ q: undefined } as any);
+		});
+	}, [incomingQuery]);
 
 	const handleQueryChange = (text: string) => {
 		setQuery(text);
@@ -233,6 +336,7 @@ export default function SearchScreen() {
 					downvotes_count: post.downvotes_count,
 					user_vote: currentVote,
 				});
+				toast.error("Failed to update vote. Please try again.");
 			}
 		},
 		[user?.id, patchPostResult],
@@ -252,13 +356,26 @@ export default function SearchScreen() {
 		setPostResults((prev) => prev.filter((it) => it.id !== deletedId));
 	}, []);
 
+	const filteredPostResults = useMemo(() => {
+		return postResults.filter((p) => {
+			if (filterHasCode && !p.code_snippet?.trim()) return false;
+			if (filterHasMedia && normalizePostMedia(p).length === 0)
+				return false;
+			if (filterMyHouse && userGuild) {
+				const postGuild = p.guild || p.author?.guild;
+				if (postGuild !== userGuild) return false;
+			}
+			return true;
+		});
+	}, [postResults, filterHasCode, filterHasMedia, filterMyHouse, userGuild]);
+
 	const showPosts = activeTab === "all" || activeTab === "posts";
 	const showUsers = activeTab === "all" || activeTab === "users";
 	const hasTabResults =
 		activeTab === "all"
-			? postResults.length > 0 || userResults.length > 0
+			? filteredPostResults.length > 0 || userResults.length > 0
 			: activeTab === "posts"
-				? postResults.length > 0
+				? filteredPostResults.length > 0
 				: userResults.length > 0;
 
 	const renderItem = useCallback(
@@ -409,17 +526,17 @@ export default function SearchScreen() {
 				});
 			}
 		}
-		if (showPosts && postResults.length > 0) {
+		if (showPosts && filteredPostResults.length > 0) {
 			if (activeTab === "all") {
 				rows.push({
 					type: "header",
 					id: "header-posts",
 					title: "POSTS",
-					count: postResults.length,
+					count: filteredPostResults.length,
 					icon: "posts",
 				});
 			}
-			for (const p of postResults) {
+			for (const p of filteredPostResults) {
 				rows.push({
 					type: "post",
 					id: p.id,
@@ -428,7 +545,7 @@ export default function SearchScreen() {
 			}
 		}
 		return rows;
-	}, [showUsers, userResults, showPosts, postResults, activeTab]);
+	}, [showUsers, userResults, showPosts, filteredPostResults, activeTab]);
 
 	return (
 		<View
@@ -474,7 +591,7 @@ export default function SearchScreen() {
 								tab === "all"
 									? "ALL RESULTS"
 									: tab === "posts"
-										? `POSTS (${postResults.length})`
+										? `POSTS (${filteredPostResults.length})`
 										: `USERS (${userResults.length})`;
 
 							return (
@@ -499,6 +616,71 @@ export default function SearchScreen() {
 						},
 					)}
 				</View>
+
+				{activeTab !== "users" ? (
+					<ScrollView
+						horizontal
+						showsHorizontalScrollIndicator={false}
+						className="mt-2.5"
+						contentContainerStyle={{ gap: 8 }}>
+						<Pressable
+							accessibilityRole="button"
+							accessibilityState={{ selected: filterHasCode }}
+							onPress={() => setFilterHasCode((prev) => !prev)}
+							className={`flex-row items-center gap-1.5 border-2 border-border px-2.5 py-1 shadow-neo-xs ${
+								filterHasCode ? "bg-neo-green" : "bg-surface"
+							}`}>
+							<Code2
+								size={12}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+							<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
+								HAS CODE
+							</Text>
+						</Pressable>
+
+						<Pressable
+							accessibilityRole="button"
+							accessibilityState={{ selected: filterHasMedia }}
+							onPress={() => setFilterHasMedia((prev) => !prev)}
+							className={`flex-row items-center gap-1.5 border-2 border-border px-2.5 py-1 shadow-neo-xs ${
+								filterHasMedia ? "bg-neo-yellow" : "bg-surface"
+							}`}>
+							<ImageIcon
+								size={12}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+							<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
+								HAS MEDIA
+							</Text>
+						</Pressable>
+
+						{userGuild ? (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityState={{
+									selected: filterMyHouse,
+								}}
+								onPress={() =>
+									setFilterMyHouse((prev) => !prev)
+								}
+								className={`flex-row items-center gap-1.5 border-2 border-border px-2.5 py-1 shadow-neo-xs ${
+									filterMyHouse ? "bg-neo-cyan" : "bg-surface"
+								}`}>
+								<Shield
+									size={12}
+									color="#000000"
+									strokeWidth={2.5}
+								/>
+								<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
+									MY HOUSE
+								</Text>
+							</Pressable>
+						) : null}
+					</ScrollView>
+				) : null}
 			</View>
 
 			{isSearching ? (
@@ -530,6 +712,62 @@ export default function SearchScreen() {
 						paddingBottom: insets.bottom + 32,
 					}}
 					keyboardShouldPersistTaps="handled">
+					{recentSearches.length > 0 ? (
+						<View className="mt-2 mb-4 rounded-none border-2 border-border bg-surface p-4 shadow-neo-sm">
+							<View className="mb-2.5 flex-row items-center justify-between">
+								<View className="flex-row items-center gap-1.5">
+									<Clock
+										size={12}
+										color="#000000"
+										strokeWidth={2.5}
+									/>
+									<Text className="font-bold text-[10px] tracking-wider text-foreground uppercase">
+										// RECENT_SEARCHES
+									</Text>
+								</View>
+								<Pressable
+									accessibilityRole="button"
+									accessibilityLabel="Clear recent searches"
+									onPress={clearRecentSearches}
+									hitSlop={8}>
+									<Text className="font-bold text-3xs tracking-wider text-destructive uppercase">
+										CLEAR ALL
+									</Text>
+								</Pressable>
+							</View>
+							<View className="flex-row flex-wrap gap-2">
+								{recentSearches.map((term) => (
+									<View
+										key={term}
+										className="flex-row items-center border-2 border-border bg-card shadow-neo-xs">
+										<Pressable
+											onPress={() =>
+												handleQueryChange(term)
+											}
+											className="px-2.5 py-1.5 active:bg-neo-green">
+											<Text className="font-mono text-xs text-foreground">
+												{term}
+											</Text>
+										</Pressable>
+										<Pressable
+											accessibilityRole="button"
+											accessibilityLabel={`Remove ${term} from recent searches`}
+											onPress={() =>
+												removeRecentSearch(term)
+											}
+											className="border-l border-border px-1.5 py-1.5 active:bg-secondary">
+											<X
+												size={11}
+												color="#000000"
+												strokeWidth={2.5}
+											/>
+										</Pressable>
+									</View>
+								))}
+							</View>
+						</View>
+					) : null}
+
 					<View className="mt-2 rounded-none border-2 border-border bg-surface p-4 shadow-neo-sm">
 						<Text className="mb-1.5 font-bold text-[10px] tracking-wider text-foreground uppercase">
 							// QUICK_FREQUENCY_TAGS

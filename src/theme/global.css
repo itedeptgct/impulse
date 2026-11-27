@@ -12,6 +12,8 @@
 
 	@variant ios {
 		--font-display: Anton_400Regular;
+		--font-ndot: Ndot57;
+		--font-ndot-caps: Ndot57Caps;
 		--font-sans: CourierPrime_400Regular;
 		--font-mono: CourierPrime_400Regular;
 		--font-code: JetBrainsMono_400Regular;
@@ -23,6 +25,8 @@
 	}
 	@variant android {
 		--font-display: Anton_400Regular;
+		--font-ndot: Ndot57;
+		--font-ndot-caps: Ndot57Caps;
 		--font-sans: CourierPrime_400Regular;
 		--font-mono: CourierPrime_400Regular;
 		--font-code: JetBrainsMono_400Regular;
@@ -33,6 +37,8 @@
 		--font-semibold-italic: CourierPrime_700Bold_Italic;
 	}
 	--font-display: Anton_400Regular;
+	--font-ndot: Ndot57;
+	--font-ndot-caps: Ndot57Caps;
 	--font-sans: CourierPrime_400Regular;
 	--font-mono: CourierPrime_400Regular;
 	--font-code: JetBrainsMono_400Regular;
@@ -49,6 +55,8 @@
 
 @theme inline {
 	--font-display: var(--font-display);
+	--font-ndot: var(--font-ndot);
+	--font-ndot-caps: var(--font-ndot-caps);
 	--font-sans: var(--font-sans);
 	--font-mono: var(--font-mono);
 	--font-code: var(--font-code);

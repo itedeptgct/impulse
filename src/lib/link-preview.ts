@@ -544,11 +544,19 @@ function extractMetaTag(html: string, keys: string[]): string | null {
 		const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 		const patterns = [
 			new RegExp(
-				`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content=["']([^"']+)["']`,
+				`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content="([^"]+)"`,
 				"i",
 			),
 			new RegExp(
-				`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${escaped}["']`,
+				`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]+content='([^']+)'`,
+				"i",
+			),
+			new RegExp(
+				`<meta[^>]+content="([^"]+)"[^>]+(?:property|name)=["']${escaped}["']`,
+				"i",
+			),
+			new RegExp(
+				`<meta[^>]+content='([^']+)'[^>]+(?:property|name)=["']${escaped}["']`,
 				"i",
 			),
 		];
@@ -843,8 +851,10 @@ async function fetchDirectHtmlMetadata(
 		const response = await fetch(link.href, {
 			method: "GET",
 			headers: {
-				Accept: "text/html,application/xhtml+xml",
-				"User-Agent": "Mozilla/5.0 (compatible; ImpulseBot/1.0)",
+				Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+				"Accept-Language": "en-US,en;q=0.9",
+				"User-Agent":
+					"Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
 			},
 			signal,
 		});
@@ -861,7 +871,7 @@ async function fetchDirectHtmlMetadata(
 
 		const finalUrl = response.url || link.href;
 		const rawHtml = await response.text();
-		const headChunk = rawHtml.slice(0, 120_000);
+		const headChunk = rawHtml.slice(0, 160_000);
 
 		const title =
 			extractMetaTag(headChunk, ["og:title", "twitter:title"]) ||
@@ -873,7 +883,12 @@ async function fetchDirectHtmlMetadata(
 		]);
 		const siteName = extractMetaTag(headChunk, ["og:site_name"]);
 		const imageUrl = resolveHttpUrl(
-			extractMetaTag(headChunk, ["og:image", "twitter:image"]),
+			extractMetaTag(headChunk, [
+				"og:image:secure_url",
+				"og:image",
+				"twitter:image:src",
+				"twitter:image",
+			]),
 			finalUrl,
 		);
 		const logoUrl = extractBestIconUrl(headChunk, finalUrl);
@@ -893,7 +908,7 @@ async function fetchDirectHtmlMetadata(
 			logoUrl,
 			siteName,
 		};
-	}, 4500);
+	}, 5500);
 }
 
 export async function fetchLinkPreviewMetadata(
@@ -915,24 +930,41 @@ export async function fetchLinkPreviewMetadata(
 		return fallback;
 	}
 
-	const isBrowserEnv = typeof document !== "undefined";
-
-	if (!isBrowserEnv) {
-		const direct = await fetchDirectHtmlMetadata(link);
-		if (direct) {
-			return mergeMetadata(fallback, direct);
-		}
-	}
-
+	// Fast structured APIs first (YouTube oEmbed, GitHub repos API)
 	const special = await fetchFromSpecialPublicApi(link);
 	if (special?.title) {
 		return mergeMetadata(fallback, special);
 	}
 
+	const isBrowserEnv = typeof document !== "undefined";
+	let direct: PartialRemoteMetadata | null = null;
+
+	if (!isBrowserEnv) {
+		direct = await fetchDirectHtmlMetadata(link);
+		if (direct && (direct.imageUrl || direct.description)) {
+			return mergeMetadata(fallback, direct);
+		}
+	}
+
 	const microlink = await fetchFromMicrolink(link.href);
 	if (microlink) {
-		return mergeMetadata(fallback, microlink);
+		return mergeMetadata(fallback, {
+			title: microlink.title || direct?.title,
+			description: microlink.description || direct?.description,
+			imageUrl: microlink.imageUrl || direct?.imageUrl,
+			logoUrl: microlink.logoUrl || direct?.logoUrl,
+			siteName: microlink.siteName || direct?.siteName,
+		});
+	}
+
+	if (direct) {
+		return mergeMetadata(fallback, direct);
 	}
 
 	return fallback;
+}
+
+export function shouldShowLinkPreview(text: string, hasMedia = false): boolean {
+	if (hasMedia) return false;
+	return extractLinksFromText(text).length === 1;
 }

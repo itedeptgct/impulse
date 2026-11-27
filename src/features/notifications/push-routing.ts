@@ -45,6 +45,10 @@ export function resolveNotificationRoute(
 		}
 	}
 
+	if (type === "moderation") {
+		return "/notifications";
+	}
+
 	if (type === "profile") {
 		const rawUsername = payload.username ?? (payload as any).actor_username;
 		const username =

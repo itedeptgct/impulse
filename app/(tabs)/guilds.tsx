@@ -1,9 +1,10 @@
 import { useAuthStore } from "@auth/store";
 import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { ArrowRight, Clock, Lock } from "lucide-react-native";
+import { ArrowRight, Check, Clock, Lock } from "lucide-react-native";
 import { useEffect, useState } from "react";
 import {
 	ActivityIndicator,
@@ -14,7 +15,7 @@ import {
 	View,
 } from "react-native";
 
-import { MobileAlertSheet, MobileTopBar, NeoBadge } from "@/components/ui";
+import { MobileAlertSheet, MobileTopBar } from "@/components/ui";
 import { updateUserProfile } from "@/features/auth/api";
 import { canSwitchGuild } from "@/features/auth/permissions";
 import { fetchGuildMetrics } from "@/features/guilds/api";
@@ -120,7 +121,7 @@ export default function GuildsScreen() {
 
 	const renderGuildHeader = () => (
 		<View className="mb-5 pt-2">
-			<Text className="mb-2 font-display text-3xl leading-none tracking-tight text-foreground uppercase sm:text-4xl">
+			<Text className="mb-2 font-ndot-caps text-3xl leading-none tracking-tight text-foreground uppercase sm:text-4xl">
 				HOUSE DIRECTORY
 			</Text>
 			<Text className="font-mono text-xs leading-relaxed tracking-wide text-foreground/75 uppercase">
@@ -165,151 +166,172 @@ export default function GuildsScreen() {
 		const isUpdating = updatingGuildId === guild.id;
 		const { HeroIcon } = guild;
 		const counts = guildCounts[guild.id];
+		const isActionLocked = isPending || (isSwitchLocked && !isMember);
+		const cleanAction = guild.actionLabel.replace(/^\[ | \]$/g, "");
 
 		return (
-			<View className="mb-6 border-2 border-border bg-surface p-4 shadow-neo">
-				<View className="mb-3 flex-row flex-wrap items-center justify-between gap-2 border border-border/25 bg-secondary p-2">
-					<Text
-						className={`flex-1 bg-linear-to-r from-primary via-accent to-primary/60 bg-clip-text font-display text-xl tracking-[0.12em] text-transparent uppercase`}>
-						{guild.name.toUpperCase()}
-					</Text>
-
-					<View className="border border-border bg-primary px-2 py-1">
-						<Text className="trackisng-widest font-bold text-[10px] text-primary-foreground uppercase">
-							[HOUSE // {guild.houseNumber || "01"}]
-						</Text>
-					</View>
-				</View>
-
-				<View className="mb-3 overflow-hidden border-2 border-border bg-primary">
-					<View className="relative h-34 items-center justify-center bg-primary p-3">
-						<View className="absolute inset-0 flex-row flex-wrap opacity-20" />
-
-						{guild.banner ? (
-							<ExpoImage
-								source={guild.banner}
-								style={{ width: "100%", height: "100%" }}
-								contentFit="cover"
-							/>
-						) : (
-							<View className="flex-row items-center gap-4">
-								<View
-									style={{ borderColor: guild.accentColor }}
-									className="size-16 items-center justify-center border-2 bg-primary p-2 shadow-neo-sm">
-									{guild.logo ? (
-										<ExpoImage
-											source={guild.logo}
-											style={{ width: 42, height: 42 }}
-											contentFit="contain"
-										/>
-									) : (
-										<HeroIcon
-											size={36}
-											color={guild.accentColor}
-											strokeWidth={1.8}
-										/>
-									)}
-								</View>
+			<View className="mb-6 overflow-hidden border-2 border-border bg-card shadow-neo">
+				{/* Full-bleed House Banner */}
+				<View className="relative h-52 w-full bg-primary">
+					{guild.banner ? (
+						<ExpoImage
+							source={guild.banner}
+							style={{ width: "100%", height: "100%" }}
+							contentFit="cover"
+						/>
+					) : (
+						<View className="flex-1 items-center justify-center bg-primary">
+							<View
+								style={{ borderColor: guild.accentColor }}
+								className="size-16 items-center justify-center border-2 bg-primary p-2">
+								{guild.logo ? (
+									<ExpoImage
+										source={guild.logo}
+										style={{ width: 42, height: 42 }}
+										contentFit="contain"
+									/>
+								) : (
+									<HeroIcon
+										size={36}
+										color={guild.accentColor}
+										strokeWidth={1.8}
+									/>
+								)}
 							</View>
-						)}
+						</View>
+					)}
 
-						<View className="absolute bottom-2 left-2 border border-white/40 bg-primary px-2.5 py-0.5">
-							<Text className="font-bold text-[10px] tracking-widest text-primary-foreground uppercase">
-								SECTOR: {guild.sector || guild.tagline}
+					<LinearGradient
+						colors={[
+							"rgba(0,0,0,0.32)",
+							"rgba(0,0,0,0)",
+							"rgba(0,0,0,0.72)",
+							"rgba(0,0,0,0.95)",
+						]}
+						locations={[0, 0.3, 0.72, 1]}
+						style={{
+							position: "absolute",
+							inset: 0,
+						}}
+						pointerEvents="none"
+					/>
+
+					{/* Top Corner Stamps */}
+					<View className="absolute inset-x-3 top-3 flex-row items-center justify-between">
+						<View className="flex-row items-center gap-1.5 border border-white/30 bg-black/80 px-2 py-1">
+							<Text className="font-mono text-2xs tracking-widest text-white/75 uppercase">
+								{guild.houseNumber || "01"}
+							</Text>
+							<Text className="font-mono text-2xs text-white/40">
+								/
+							</Text>
+							<Text className="font-bold text-2xs tracking-widest text-white uppercase">
+								{guild.houseSymbol || guild.tagline}
 							</Text>
 						</View>
+
+						{isMember && (
+							<View className="flex-row items-center gap-1 border-2 border-border bg-neo-green px-2 py-0.5">
+								<Check
+									size={11}
+									color="#000000"
+									strokeWidth={3}
+								/>
+								<Text className="font-bold text-2xs tracking-widest text-foreground uppercase">
+									ALIGNED
+								</Text>
+							</View>
+						)}
+					</View>
+
+					{/* Bottom Anchored Title & Sector */}
+					<View className="absolute inset-x-4 bottom-3.5">
+						<Text className="font-ndot-caps text-3xl leading-none tracking-wide text-white uppercase">
+							{guild.name}
+						</Text>
+						<Text
+							numberOfLines={1}
+							className="mt-1.5 font-mono text-[10px] tracking-widest text-white/80 uppercase">
+							{guild.sector || guild.tagline}
+						</Text>
 					</View>
 				</View>
 
-				<View className="mb-3 border border-border/30 bg-secondary p-3">
-					<Text className="font-bold text-xs leading-relaxed text-foreground">
-						"{guild.manifesto}"
+				{/* Manifesto */}
+				<View className="border-t-2 border-border bg-card px-4 py-3.5">
+					<Text className="font-sans text-[13px] leading-relaxed text-foreground">
+						{guild.manifesto}
 					</Text>
 				</View>
 
-				<View className="mb-3.5 flex-row border-2 border-border bg-card">
-					<View className="flex-1 border-r border-border p-2.5">
-						<Text className="font-mono text-2xs tracking-wider text-foreground/60 uppercase">
-							USERS
+				{/* Telemetry Strip */}
+				<View className="flex-row border-t-2 border-border bg-surface">
+					<View className="flex-1 flex-row items-baseline justify-between border-r-2 border-border px-4 py-2.5">
+						<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
+							MEMBERS
 						</Text>
-						<Text className="my-0.5 font-display text-lg text-foreground tabular-nums">
+						<Text className="font-display text-xl leading-none text-foreground tabular-nums">
 							{counts ? counts.users.toLocaleString() : "—"}
-						</Text>
-						<Text className="font-bold text-2xs text-foreground/70 uppercase">
-							IN HOUSE
 						</Text>
 					</View>
 
-					<View className="flex-1 border-r border-border p-2.5">
-						<Text className="font-mono text-2xs tracking-wider text-foreground/60 uppercase">
+					<View className="flex-1 flex-row items-baseline justify-between px-4 py-2.5">
+						<Text className="font-mono text-2xs tracking-widest text-muted-foreground uppercase">
 							POSTS
 						</Text>
-						<Text className="my-0.5 font-display text-lg text-foreground tabular-nums">
+						<Text className="font-display text-xl leading-none text-foreground tabular-nums">
 							{counts ? counts.posts.toLocaleString() : "—"}
-						</Text>
-						<Text className="font-bold text-2xs text-foreground/70 uppercase">
-							TOTAL POSTS
 						</Text>
 					</View>
 				</View>
 
-				{isSwitchLocked && !isMember && (
-					<View className="mb-3 self-start">
-						<NeoBadge
-							variant="outline"
-							size="sm"
-							className="border-2 border-destructive bg-destructive/10"
-							textClassName="text-destructive font-mono"
-							startContent={
-								<Lock
-									size={12}
-									color="#ff2a00"
-									strokeWidth={2.5}
-								/>
-							}>
-							HOUSE MOD STATUS ACTIVE - ALIGNMENT LOCKED
-						</NeoBadge>
-					</View>
-				)}
-
+				{/* Edge-to-Edge Action Footer */}
 				<Pressable
 					accessibilityRole="button"
-					accessibilityLabel={`${guild.actionLabel} for ${guild.name}`}
+					accessibilityLabel={`${cleanAction} for ${guild.name}`}
 					onPress={() => handleJoinGuild(guild)}
-					disabled={
-						isUpdating || isPending || (isSwitchLocked && !isMember)
-					}
-					className={`min-h-12 flex-row items-center justify-between border-2 border-border px-4 py-3 shadow-neo-sm active:translate-x-0.5 active:translate-y-0.5 ${
-						isPending || (isSwitchLocked && !isMember)
-							? "border-border/50 bg-secondary"
-							: "bg-primary"
+					disabled={isUpdating || isActionLocked}
+					className={`min-h-13 flex-row items-center justify-between border-t-2 border-border px-4 py-3.5 active:opacity-85 ${
+						isActionLocked
+							? "bg-secondary"
+							: isMember
+								? "bg-neo-green"
+								: "bg-primary"
 					}`}>
 					{isUpdating ? (
-						<ActivityIndicator size={16} color="#FFFFFF" />
+						<ActivityIndicator
+							size={16}
+							color={isMember ? "#000000" : "#FAF9F5"}
+						/>
 					) : isPending ? (
 						<View className="flex-row items-center gap-2">
-							<Lock size={15} color="#000000" strokeWidth={2.2} />
+							<Lock size={14} color="#000000" strokeWidth={2.4} />
 							<Text className="font-bold text-xs tracking-widest text-foreground uppercase">
-								[ LOCKED // VERIFICATION PENDING ]
+								LOCKED // VERIFICATION PENDING
 							</Text>
 						</View>
 					) : isSwitchLocked && !isMember ? (
 						<View className="flex-row items-center gap-2">
-							<Lock size={15} color="#ff2a00" strokeWidth={2.2} />
+							<Lock size={14} color="#ff2a00" strokeWidth={2.4} />
 							<Text className="font-bold text-xs tracking-widest text-destructive uppercase">
-								[ LOCKED // HOUSE MOD STATUS ACTIVE ]
+								LOCKED // HOUSE MOD ALIGNMENT
 							</Text>
 						</View>
 					) : (
 						<>
-							<Text className="font-bold text-xs tracking-widest text-primary-foreground uppercase">
+							<Text
+								className={`font-bold text-xs tracking-widest uppercase ${
+									isMember
+										? "text-foreground"
+										: "text-primary-foreground"
+								}`}>
 								{isMember
-									? `[ ALIGNED // ${guild.actionLabel.replace(/^\[ | \]$/g, "")} ]`
-									: guild.actionLabel}
+									? `OPEN ${guild.name} FEED`
+									: cleanAction}
 							</Text>
 							<ArrowRight
 								size={16}
-								color="#FFFFFF"
+								color={isMember ? "#000000" : "#FAF9F5"}
 								strokeWidth={2.5}
 							/>
 						</>

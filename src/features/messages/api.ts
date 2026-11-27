@@ -210,93 +210,173 @@ export async function createGroupConversation(
 	return data as string;
 }
 
+const BASE_MESSAGE_SELECT = `
+	id,
+	conversation_id,
+	sender_id,
+	content,
+	media_urls,
+	attachments,
+	shared_post_id,
+	message_type,
+	edited_at,
+	is_pinned,
+	pinned_by,
+	unsent_at,
+	created_at,
+	sender:sender_id (
+		id,
+		username,
+		display_name,
+		avatar_url,
+		guild
+	),
+	shared_post:shared_post_id (
+		id,
+		title,
+		content,
+		post_type,
+		guild,
+		event_date,
+		event_location,
+		created_at,
+		author:author_id (
+			id,
+			username,
+			display_name,
+			avatar_url,
+			guild
+		)
+	)
+`;
+
+const EXTENDED_MESSAGE_SELECT = `
+	id,
+	conversation_id,
+	sender_id,
+	content,
+	media_urls,
+	attachments,
+	shared_post_id,
+	reply_to_id,
+	reactions,
+	message_type,
+	edited_at,
+	is_pinned,
+	pinned_by,
+	unsent_at,
+	created_at,
+	sender:sender_id (
+		id,
+		username,
+		display_name,
+		avatar_url,
+		guild
+	),
+	shared_post:shared_post_id (
+		id,
+		title,
+		content,
+		post_type,
+		guild,
+		event_date,
+		event_location,
+		created_at,
+		author:author_id (
+			id,
+			username,
+			display_name,
+			avatar_url,
+			guild
+		)
+	)
+`;
+
+function isMissingColumnError(err: unknown): boolean {
+	const e = err as { code?: string; message?: string } | null;
+	if (!e) return false;
+	return (
+		e.code === "42703" ||
+		e.code === "PGRST204" ||
+		Boolean(e.message?.includes("reply_to_id")) ||
+		Boolean(e.message?.includes("reactions"))
+	);
+}
+
+function normalizeReactions(raw: unknown): Record<string, string[]> {
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+	const out: Record<string, string[]> = {};
+	for (const [emoji, users] of Object.entries(
+		raw as Record<string, unknown>,
+	)) {
+		if (Array.isArray(users)) {
+			const clean = users.filter(
+				(u): u is string => typeof u === "string",
+			);
+			if (clean.length > 0) {
+				out[emoji] = clean;
+			}
+		}
+	}
+	return out;
+}
+
+function mapMessageRow(row: any): Message {
+	const rawSender = Array.isArray(row.sender) ? row.sender[0] : row.sender;
+	const rawPost = Array.isArray(row.shared_post)
+		? row.shared_post[0]
+		: row.shared_post;
+
+	return {
+		id: row.id,
+		conversation_id: row.conversation_id,
+		sender_id: row.sender_id,
+		content: row.content,
+		media_urls: row.media_urls || [],
+		attachments: Array.isArray(row.attachments)
+			? row.attachments
+			: undefined,
+		shared_post_id: row.shared_post_id,
+		reply_to_id: row.reply_to_id ?? null,
+		reactions: normalizeReactions(row.reactions),
+		message_type: row.message_type ?? "text",
+		edited_at: row.edited_at ?? null,
+		is_pinned: Boolean(row.is_pinned),
+		pinned_by: row.pinned_by ?? null,
+		unsent_at: row.unsent_at ?? null,
+		created_at: row.created_at,
+		sender: rawSender as unknown as Profile,
+		shared_post: rawPost as unknown as Message["shared_post"],
+	};
+}
+
 export async function fetchMessages(
 	conversationId: string,
 	limit = 50,
 	before?: string,
 ): Promise<Message[]> {
-	let query = supabase
-		.from("messages")
-		.select(
-			`
-			id,
-			conversation_id,
-			sender_id,
-			content,
-			media_urls,
-			attachments,
-			shared_post_id,
-			message_type,
-			edited_at,
-			is_pinned,
-			pinned_by,
-			unsent_at,
-			created_at,
-			sender:sender_id (
-				id,
-				username,
-				display_name,
-				avatar_url,
-				guild
-			),
-			shared_post:shared_post_id (
-				id,
-				title,
-				content,
-				post_type,
-				guild,
-				event_date,
-				event_location,
-				created_at,
-				author:author_id (
-					id,
-					username,
-					display_name,
-					avatar_url,
-					guild
-				)
-			)
-		`,
-		)
-		.eq("conversation_id", conversationId)
-		.order("created_at", { ascending: false })
-		.limit(limit);
+	const runQuery = (selectCols: string) => {
+		let q = supabase
+			.from("messages")
+			.select(selectCols)
+			.eq("conversation_id", conversationId)
+			.order("created_at", { ascending: false })
+			.limit(limit);
+		if (before) {
+			q = q.lt("created_at", before);
+		}
+		return q;
+	};
 
-	if (before) {
-		query = query.lt("created_at", before);
+	let { data, error } = await runQuery(EXTENDED_MESSAGE_SELECT);
+	if (error && isMissingColumnError(error)) {
+		const fallback = await runQuery(BASE_MESSAGE_SELECT);
+		data = fallback.data;
+		error = fallback.error;
 	}
-
-	const { data, error } = await query;
 	if (error) throw error;
 
-	return (data || []).map((row: any) => {
-		const rawSender = Array.isArray(row.sender)
-			? row.sender[0]
-			: row.sender;
-		const rawPost = Array.isArray(row.shared_post)
-			? row.shared_post[0]
-			: row.shared_post;
-
-		return {
-			id: row.id,
-			conversation_id: row.conversation_id,
-			sender_id: row.sender_id,
-			content: row.content,
-			media_urls: row.media_urls || [],
-			attachments: Array.isArray(row.attachments)
-				? row.attachments
-				: undefined,
-			shared_post_id: row.shared_post_id,
-			message_type: row.message_type ?? "text",
-			edited_at: row.edited_at ?? null,
-			is_pinned: Boolean(row.is_pinned),
-			pinned_by: row.pinned_by ?? null,
-			unsent_at: row.unsent_at ?? null,
-			created_at: row.created_at,
-			sender: rawSender as unknown as Profile,
-			shared_post: rawPost as unknown as Message["shared_post"],
-		};
-	});
+	return (data || []).map(mapMessageRow);
 }
 
 export async function sendMessage(
@@ -304,82 +384,80 @@ export async function sendMessage(
 	senderId: string,
 	payload: SendMessagePayload,
 ): Promise<Message> {
-	const { data, error } = await supabase
+	const baseInsert = {
+		conversation_id: conversationId,
+		sender_id: senderId,
+		content: payload.content?.trim() || null,
+		media_urls: payload.mediaUrls || [],
+		attachments: payload.attachments || [],
+		shared_post_id: payload.sharedPostId || null,
+		message_type: payload.messageType || "text",
+	};
+
+	const extendedInsert = payload.replyToId
+		? { ...baseInsert, reply_to_id: payload.replyToId }
+		: baseInsert;
+
+	const first = await supabase
 		.from("messages")
-		.insert({
-			conversation_id: conversationId,
-			sender_id: senderId,
-			content: payload.content?.trim() || null,
-			media_urls: payload.mediaUrls || [],
-			attachments: payload.attachments || [],
-			shared_post_id: payload.sharedPostId || null,
-			message_type: payload.messageType || "text",
-		})
-		.select(
-			`
-			id,
-			conversation_id,
-			sender_id,
-			content,
-			media_urls,
-			attachments,
-			shared_post_id,
-			message_type,
-			edited_at,
-			is_pinned,
-			pinned_by,
-			unsent_at,
-			created_at,
-			sender:sender_id (
-				id,
-				username,
-				display_name,
-				avatar_url,
-				guild
-			),
-			shared_post:shared_post_id (
-				id,
-				title,
-				content,
-				post_type,
-				guild,
-				event_date,
-				event_location,
-				created_at,
-				author:author_id (
-					id,
-					username,
-					display_name,
-					avatar_url,
-					guild
-				)
-			)
-		`,
-		)
+		.insert(extendedInsert)
+		.select(EXTENDED_MESSAGE_SELECT)
 		.single();
 
+	let data: any = first.data;
+	let error = first.error;
+
+	if (error && isMissingColumnError(error)) {
+		const fallback = await supabase
+			.from("messages")
+			.insert(baseInsert)
+			.select(BASE_MESSAGE_SELECT)
+			.single();
+		data = fallback.data;
+		error = fallback.error;
+	}
+
 	if (error) throw error;
+	return mapMessageRow(data);
+}
 
-	const rawSender = Array.isArray(data.sender) ? data.sender[0] : data.sender;
-	const rawPost = Array.isArray(data.shared_post)
-		? data.shared_post[0]
-		: data.shared_post;
+export function applyReactionToggle(
+	current: Record<string, string[]> | undefined,
+	emoji: string,
+	userId: string,
+): Record<string, string[]> {
+	const next: Record<string, string[]> = { ...(current ?? {}) };
+	const existing = next[emoji] ?? [];
+	if (existing.includes(userId)) {
+		const remaining = existing.filter((id) => id !== userId);
+		if (remaining.length === 0) {
+			delete next[emoji];
+		} else {
+			next[emoji] = remaining;
+		}
+	} else {
+		next[emoji] = [...existing, userId];
+	}
+	return next;
+}
 
-	return {
-		id: data.id,
-		conversation_id: data.conversation_id,
-		sender_id: data.sender_id,
-		content: data.content,
-		media_urls: data.media_urls || [],
-		attachments: Array.isArray(data.attachments)
-			? data.attachments
-			: undefined,
-		shared_post_id: data.shared_post_id,
-		message_type: data.message_type ?? "text",
-		created_at: data.created_at,
-		sender: rawSender as unknown as Profile,
-		shared_post: rawPost as unknown as Message["shared_post"],
-	};
+export async function toggleMessageReaction(
+	messageId: string,
+	emoji: string,
+	userId: string,
+	currentReactions?: Record<string, string[]>,
+): Promise<Record<string, string[]>> {
+	const nextReactions = applyReactionToggle(currentReactions, emoji, userId);
+	const { error } = await supabase
+		.from("messages")
+		.update({ reactions: nextReactions })
+		.eq("id", messageId);
+
+	if (error && !isMissingColumnError(error)) {
+		throw error;
+	}
+
+	return nextReactions;
 }
 
 export async function markConversationRead(

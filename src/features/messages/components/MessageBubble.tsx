@@ -1,7 +1,9 @@
+import * as Haptics from "expo-haptics";
 import { Image as ExpoImage } from "expo-image";
-import { AlertCircle, Pin, RefreshCw } from "lucide-react-native";
-import { memo } from "react";
-import { Pressable, Text, View } from "react-native";
+import { AlertCircle, Pin, RefreshCw, Reply } from "lucide-react-native";
+import { memo, useMemo } from "react";
+import { Platform, Pressable, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 import type {
 	ConversationParticipant,
@@ -20,11 +22,16 @@ import { SharedPostEmbedCard } from "./SharedPostEmbedCard";
 interface MessageBubbleProps {
 	message: OptimisticMessage;
 	isOwnMessage: boolean;
+	currentUserId?: string;
 	conversationType: ConversationType;
 	participants?: ConversationParticipant[];
 	previousSenderId?: string | null;
+	replyToMessage?: OptimisticMessage | null;
 	onRetry?: (message: OptimisticMessage) => void;
 	onLongPress?: (message: OptimisticMessage) => void;
+	onSwipeReply?: (message: OptimisticMessage) => void;
+	onJumpToReply?: (messageId: string) => void;
+	onToggleReaction?: (message: OptimisticMessage, emoji: string) => void;
 	onMediaPress?: (urls: string[], index: number) => void;
 }
 
@@ -116,11 +123,16 @@ function MediaCollage({
 export const MessageBubble = memo(function MessageBubble({
 	message,
 	isOwnMessage,
+	currentUserId,
 	conversationType,
 	participants,
 	previousSenderId,
+	replyToMessage,
 	onRetry,
 	onLongPress,
+	onSwipeReply,
+	onJumpToReply,
+	onToggleReaction,
 	onMediaPress,
 }: MessageBubbleProps) {
 	const showSender = shouldShowSenderHeader(
@@ -141,11 +153,75 @@ export const MessageBubble = memo(function MessageBubble({
 	const timeStr = formatMessageTime(message.created_at);
 	const isUnsent = Boolean(message.unsent_at);
 	const isSystem = message.message_type === "system" && !isUnsent;
-	const mediaOnly = isMediaOnlyMessage(message);
+	const mediaOnly =
+		isMediaOnlyMessage(message) && !replyToMessage && !message.reply_to;
 	const mediaUrls =
 		message.attachments && message.attachments.length > 0
 			? message.attachments.map((a) => a.url)
 			: (message.media_urls ?? []);
+
+	const swipeGesture = useMemo(() => {
+		return Gesture.Pan()
+			.runOnJS(true)
+			.activeOffsetX([18, 1000])
+			.failOffsetY([-12, 12])
+			.onEnd((e) => {
+				if (
+					!isUnsent &&
+					!isSystem &&
+					message.status !== "sending" &&
+					e.translationX > 40 &&
+					onSwipeReply
+				) {
+					if (Platform.OS !== "web") {
+						void Haptics.impactAsync(
+							Haptics.ImpactFeedbackStyle.Light,
+						).catch(() => {});
+					}
+					onSwipeReply(message);
+				}
+			});
+	}, [isUnsent, isSystem, message, onSwipeReply]);
+
+	const reactionEntries = useMemo(() => {
+		const map = message.reactions ?? {};
+		return Object.entries(map).filter(([, users]) => users.length > 0);
+	}, [message.reactions]);
+
+	const replyPreview = useMemo(() => {
+		if (replyToMessage) {
+			const rSender = participants
+				? getParticipantDisplayName(
+						participants,
+						replyToMessage.sender_id,
+						replyToMessage.sender,
+					)
+				: replyToMessage.sender?.display_name ||
+					replyToMessage.sender?.username ||
+					"User";
+			const rText = replyToMessage.unsent_at
+				? "Message unsent"
+				: replyToMessage.content?.trim() ||
+					((replyToMessage.media_urls?.length ?? 0) > 0
+						? "[Photo]"
+						: "Message");
+			return {
+				id: replyToMessage.id,
+				senderName: rSender,
+				text: rText,
+			};
+		}
+		if (message.reply_to) {
+			return {
+				id: message.reply_to.id,
+				senderName: message.reply_to.sender_name || "User",
+				text:
+					message.reply_to.content?.trim() ||
+					(message.reply_to.has_media ? "[Photo]" : "Message"),
+			};
+		}
+		return null;
+	}, [replyToMessage, message.reply_to, participants]);
 
 	if (isSystem) {
 		return (
@@ -183,89 +259,147 @@ export const MessageBubble = memo(function MessageBubble({
 	};
 
 	return (
-		<View
-			className={`mb-2.5 max-w-[84%] ${
-				isOwnMessage ? "self-end" : "self-start"
-			}`}>
-			{showSender ? (
-				<Text className="mb-1 ml-1 font-mono text-2xs text-muted-foreground uppercase">
-					{senderName}
-				</Text>
-			) : null}
-
-			{isUnsent ? (
-				<View className="border border-dashed border-border/50 bg-secondary/50 px-3 py-2">
-					<Text className="italic font-mono text-xs text-muted-foreground">
-						{senderName} unsent a message
-					</Text>
-				</View>
-			) : mediaOnly ? (
-				<MediaCollage
-					messageId={message.id}
-					urls={mediaUrls}
-					onMediaPress={onMediaPress}
-					onLongPress={handleLongPress}
-				/>
-			) : (
-				<Pressable
-					onLongPress={handleLongPress}
-					delayLongPress={300}
-					className={`border-2 border-border px-3 py-2 shadow-neo-xs ${
-						isOwnMessage ? "bg-neo-green" : "bg-card"
-					}`}>
-					{mediaUrls.length > 0 ? (
-						<View className="mb-1.5">
-							<MediaCollage
-								messageId={message.id}
-								urls={mediaUrls}
-								onMediaPress={onMediaPress}
-								onLongPress={handleLongPress}
-							/>
-						</View>
-					) : null}
-
-					{message.content ? (
-						<Text className="font-mono text-xs leading-relaxed text-foreground">
-							{message.content}
-						</Text>
-					) : null}
-
-					{message.shared_post_id ? (
-						<SharedPostEmbedCard
-							post={message.shared_post}
-							sharedPostId={message.shared_post_id}
-						/>
-					) : null}
-				</Pressable>
-			)}
-
+		<GestureDetector gesture={swipeGesture}>
 			<View
-				className={`mt-1 flex-row items-center gap-1.5 ${
-					isOwnMessage ? "justify-end" : "justify-start"
+				className={`mb-2.5 max-w-[84%] ${
+					isOwnMessage ? "self-end" : "self-start"
 				}`}>
-				{message.is_pinned && !isUnsent ? (
-					<Pin size={10} color="#000000" strokeWidth={2.5} />
+				{showSender ? (
+					<Text className="mb-1 ml-1 font-mono text-2xs text-muted-foreground uppercase">
+						{senderName}
+					</Text>
 				) : null}
-				<Text className="font-mono text-2xs text-muted-foreground">
-					{timeStr}
-					{message.edited_at && !isUnsent ? " · (edited)" : ""}
-					{isOwnMessage ? ` · ${statusLabel}` : ""}
-				</Text>
 
-				{isOwnMessage && message.status === "failed" && onRetry ? (
-					<Pressable
-						accessibilityRole="button"
-						accessibilityLabel="Retry sending message"
-						onPress={() => onRetry(message)}
-						className="flex-row items-center gap-1 border border-destructive bg-destructive/10 px-1.5 py-0.5">
-						<AlertCircle size={10} color="#ff2a00" />
-						<Text className="font-mono text-2xs text-destructive uppercase">
-							Retry
+				{isUnsent ? (
+					<View className="border border-dashed border-border/50 bg-secondary/50 px-3 py-2">
+						<Text className="italic font-mono text-xs text-muted-foreground">
+							{senderName} unsent a message
 						</Text>
-						<RefreshCw size={10} color="#ff2a00" />
+					</View>
+				) : mediaOnly ? (
+					<MediaCollage
+						messageId={message.id}
+						urls={mediaUrls}
+						onMediaPress={onMediaPress}
+						onLongPress={handleLongPress}
+					/>
+				) : (
+					<Pressable
+						onLongPress={handleLongPress}
+						delayLongPress={300}
+						className={`border-2 border-border px-3 py-2 shadow-neo-xs ${
+							isOwnMessage ? "bg-neo-green" : "bg-card"
+						}`}>
+						{replyPreview ? (
+							<Pressable
+								accessibilityRole="button"
+								accessibilityLabel={`Jump to replied message from ${replyPreview.senderName}`}
+								onPress={() => onJumpToReply?.(replyPreview.id)}
+								className="mb-1.5 border-l-2 border-border bg-background/70 px-2 py-1">
+								<View className="flex-row items-center gap-1">
+									<Reply
+										size={10}
+										color="#000000"
+										strokeWidth={2.5}
+									/>
+									<Text
+										numberOfLines={1}
+										className="font-bold text-3xs tracking-wider text-foreground uppercase">
+										{replyPreview.senderName}
+									</Text>
+								</View>
+								<Text
+									numberOfLines={1}
+									className="font-mono text-2xs text-muted-foreground">
+									{replyPreview.text}
+								</Text>
+							</Pressable>
+						) : null}
+
+						{mediaUrls.length > 0 ? (
+							<View className="mb-1.5">
+								<MediaCollage
+									messageId={message.id}
+									urls={mediaUrls}
+									onMediaPress={onMediaPress}
+									onLongPress={handleLongPress}
+								/>
+							</View>
+						) : null}
+
+						{message.content ? (
+							<Text className="font-mono text-xs leading-relaxed text-foreground">
+								{message.content}
+							</Text>
+						) : null}
+
+						{message.shared_post_id ? (
+							<SharedPostEmbedCard
+								post={message.shared_post}
+								sharedPostId={message.shared_post_id}
+							/>
+						) : null}
 					</Pressable>
+				)}
+
+				{!isUnsent && reactionEntries.length > 0 ? (
+					<View
+						className={`mt-1 flex-row flex-wrap gap-1 ${
+							isOwnMessage ? "justify-end" : "justify-start"
+						}`}>
+						{reactionEntries.map(([emoji, users]) => {
+							const reacted = Boolean(
+								currentUserId && users.includes(currentUserId),
+							);
+							return (
+								<Pressable
+									key={emoji}
+									accessibilityRole="button"
+									accessibilityLabel={`Toggle ${emoji} reaction (${users.length})`}
+									onPress={() =>
+										onToggleReaction?.(message, emoji)
+									}
+									className={`flex-row items-center gap-1 border border-border px-1.5 py-0.5 ${
+										reacted ? "bg-neo-yellow" : "bg-surface"
+									}`}>
+									<Text className="text-[11px]">{emoji}</Text>
+									<Text className="font-bold text-3xs text-foreground tabular-nums">
+										{users.length}
+									</Text>
+								</Pressable>
+							);
+						})}
+					</View>
 				) : null}
+
+				<View
+					className={`mt-1 flex-row items-center gap-1.5 ${
+						isOwnMessage ? "justify-end" : "justify-start"
+					}`}>
+					{message.is_pinned && !isUnsent ? (
+						<Pin size={10} color="#000000" strokeWidth={2.5} />
+					) : null}
+					<Text className="font-mono text-2xs text-muted-foreground">
+						{timeStr}
+						{message.edited_at && !isUnsent ? " · (edited)" : ""}
+						{isOwnMessage ? ` · ${statusLabel}` : ""}
+					</Text>
+
+					{isOwnMessage && message.status === "failed" && onRetry ? (
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Retry sending message"
+							onPress={() => onRetry(message)}
+							className="flex-row items-center gap-1 border border-destructive bg-destructive/10 px-1.5 py-0.5">
+							<AlertCircle size={10} color="#ff2a00" />
+							<Text className="font-mono text-2xs text-destructive uppercase">
+								Retry
+							</Text>
+							<RefreshCw size={10} color="#ff2a00" />
+						</Pressable>
+					) : null}
+				</View>
 			</View>
-		</View>
+		</GestureDetector>
 	);
 });

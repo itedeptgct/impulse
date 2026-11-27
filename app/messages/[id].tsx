@@ -3,9 +3,11 @@ import { Image as ExpoImage } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
+	ArrowDown,
 	ArrowLeft,
 	Edit3,
 	Pin,
+	Reply,
 	Search,
 	Settings,
 	Trash2,
@@ -15,7 +17,6 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	ActivityIndicator,
-	Alert,
 	FlatList,
 	KeyboardAvoidingView,
 	Platform,
@@ -28,18 +29,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { MobileSheet, NeoButton, NetworkErrorCard } from "@/components/ui";
 import {
+	applyReactionToggle,
 	editMessage,
 	fetchConversations,
 	fetchMessages,
 	markConversationRead,
 	sendBatchImageMessage,
 	sendMessage,
+	toggleMessageReaction,
 	togglePinMessage,
 	unsendMessage,
 	uploadChatMediaFromUri,
 } from "@/features/messages/api";
 import {
 	ChatComposer,
+	type ChatReplyTarget,
 	type SelectedChatImage,
 } from "@/features/messages/components/ChatComposer";
 import { ConversationSettingsSheet } from "@/features/messages/components/ConversationSettingsSheet";
@@ -57,6 +61,7 @@ import {
 	validateUploadFileSize,
 } from "@/lib/media-validation";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+import { toast } from "@/lib/toast";
 
 const EMPTY_MESSAGES: OptimisticMessage[] = [];
 
@@ -122,6 +127,53 @@ export default function ChatThreadScreen() {
 		urls: string[];
 		index: number;
 	} | null>(null);
+	const [replyingTo, setReplyingTo] = useState<ChatReplyTarget | null>(null);
+	const [typingUsers, setTypingUsers] = useState<
+		Record<string, { name: string; expiresAt: number }>
+	>({});
+	const [isScrolledUp, setIsScrolledUp] = useState(false);
+	const [unreadWhileScrolled, setUnreadWhileScrolled] = useState(0);
+
+	const isScrolledUpRef = useRef(false);
+	const lastTypingBroadcastRef = useRef(0);
+
+	const QUICK_REACTIONS = ["👍", "❤️", "🔥", "😂", "😮", "👀"];
+
+	const messageById = useMemo(() => {
+		const map = new Map<string, OptimisticMessage>();
+		for (const m of messages) {
+			map.set(m.id, m);
+		}
+		return map;
+	}, [messages]);
+
+	const activeTypingNames = useMemo(
+		() => Object.values(typingUsers).map((u) => u.name),
+		[typingUsers],
+	);
+
+	useEffect(() => {
+		if (Object.keys(typingUsers).length === 0) return;
+		const timer = setInterval(() => {
+			const now = Date.now();
+			setTypingUsers((prev) => {
+				let changed = false;
+				const next: Record<
+					string,
+					{ name: string; expiresAt: number }
+				> = {};
+				for (const [uid, info] of Object.entries(prev)) {
+					if (info.expiresAt > now) {
+						next[uid] = info;
+					} else {
+						changed = true;
+					}
+				}
+				return changed ? next : prev;
+			});
+		}, 1000);
+		return () => clearInterval(timer);
+	}, [typingUsers]);
 
 	const conversation = useMemo(
 		() => conversations.find((c) => c.id === conversationId) ?? null,
@@ -192,6 +244,14 @@ export default function ChatThreadScreen() {
 				if (!newMsg?.id) return;
 				receiveRealtimeMessage(newMsg, userId);
 				if (newMsg.sender_id !== userId) {
+					if (isScrolledUpRef.current) {
+						setUnreadWhileScrolled((c) => c + 1);
+					}
+					setTypingUsers((prev) => {
+						if (!(newMsg.sender_id in prev)) return prev;
+						const { [newMsg.sender_id]: _removed, ...rest } = prev;
+						return rest;
+					});
 					const nowIso = new Date().toISOString();
 					markReadLocally(conversationId);
 					void markConversationRead(conversationId, userId);
@@ -204,6 +264,29 @@ export default function ChatThreadScreen() {
 						},
 					});
 				}
+			})
+			.on("broadcast", { event: "typing" }, ({ payload }) => {
+				const typingUserId = payload?.user_id as string | undefined;
+				const displayName = payload?.display_name as string | undefined;
+				if (!typingUserId || typingUserId === userId) return;
+				setTypingUsers((prev) => ({
+					...prev,
+					[typingUserId]: {
+						name: displayName || "Someone",
+						expiresAt: Date.now() + 3500,
+					},
+				}));
+			})
+			.on("broadcast", { event: "message_reaction" }, ({ payload }) => {
+				const messageId = payload?.message_id as string | undefined;
+				const reactions = payload?.reactions as
+					| Record<string, string[]>
+					| undefined;
+				if (!messageId || !reactions) return;
+				updateMessageInThread(conversationId, messageId, (m) => ({
+					...m,
+					reactions,
+				}));
 			})
 			.on("broadcast", { event: "message_updated" }, ({ payload }) => {
 				const updatedMsg = payload?.message as
@@ -311,6 +394,7 @@ export default function ChatThreadScreen() {
 		userId,
 		receiveRealtimeMessage,
 		handleRealtimeMessageUpdate,
+		updateMessageInThread,
 		updateParticipantLastReadLocally,
 		markReadLocally,
 	]);
@@ -354,6 +438,7 @@ export default function ChatThreadScreen() {
 		content?: string,
 		mediaUrls?: string[],
 		sharedPostId?: string,
+		replyToId?: string | null,
 	) => {
 		if (!conversationId || !userId) return;
 		try {
@@ -361,12 +446,22 @@ export default function ChatThreadScreen() {
 				content,
 				mediaUrls,
 				sharedPostId,
+				replyToId,
 			});
-			resolveOptimisticMessage(conversationId, tempId, "sent", confirmed);
+			const confirmedWithReply =
+				replyToId && !confirmed.reply_to_id
+					? { ...confirmed, reply_to_id: replyToId }
+					: confirmed;
+			resolveOptimisticMessage(
+				conversationId,
+				tempId,
+				"sent",
+				confirmedWithReply,
+			);
 			void channelRef.current?.send({
 				type: "broadcast",
 				event: "new_message",
-				payload: { message: confirmed },
+				payload: { message: confirmedWithReply },
 			});
 		} catch (err: unknown) {
 			const e = err as Error;
@@ -380,20 +475,104 @@ export default function ChatThreadScreen() {
 		}
 	};
 
+	const handleBroadcastTyping = useCallback(() => {
+		if (!userId || !channelRef.current) return;
+		const now = Date.now();
+		if (now - lastTypingBroadcastRef.current < 1500) return;
+		lastTypingBroadcastRef.current = now;
+		const myName = profile?.display_name || profile?.username || "Operator";
+		void channelRef.current.send({
+			type: "broadcast",
+			event: "typing",
+			payload: {
+				user_id: userId,
+				display_name: myName,
+			},
+		});
+	}, [userId, profile?.display_name, profile?.username]);
+
+	const handleSelectReply = useCallback(
+		(msg: OptimisticMessage) => {
+			const senderName = conversation?.participants
+				? conversation.participants.find(
+						(p) => p.user_id === msg.sender_id,
+					)?.nickname ||
+					msg.sender?.display_name ||
+					msg.sender?.username ||
+					"User"
+				: msg.sender?.display_name || msg.sender?.username || "User";
+			const preview =
+				msg.content?.trim() ||
+				((msg.media_urls?.length ?? 0) > 0 ? "[Photo]" : "Message");
+			setReplyingTo({
+				id: msg.id,
+				senderName,
+				preview,
+			});
+			setMessageActionsOpen(false);
+		},
+		[conversation],
+	);
+
+	const handleToggleReaction = useCallback(
+		async (msg: OptimisticMessage, emoji: string) => {
+			if (!conversationId || !userId) return;
+			const previous = msg.reactions ?? {};
+			const optimistic = applyReactionToggle(previous, emoji, userId);
+			updateMessageInThread(conversationId, msg.id, (m) => ({
+				...m,
+				reactions: optimistic,
+			}));
+			setMessageActionsOpen(false);
+			try {
+				const confirmed = await toggleMessageReaction(
+					msg.id,
+					emoji,
+					userId,
+					previous,
+				);
+				void channelRef.current?.send({
+					type: "broadcast",
+					event: "message_reaction",
+					payload: {
+						message_id: msg.id,
+						reactions: confirmed,
+					},
+				});
+			} catch (err: unknown) {
+				updateMessageInThread(conversationId, msg.id, (m) => ({
+					...m,
+					reactions: previous,
+				}));
+				const e = err as Error;
+				toast.error(e?.message || "Failed to update reaction.");
+			}
+		},
+		[conversationId, userId, updateMessageInThread],
+	);
+
+	const handleJumpToLatest = useCallback(() => {
+		flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+		isScrolledUpRef.current = false;
+		setIsScrolledUp(false);
+		setUnreadWhileScrolled(0);
+	}, []);
+
 	const handleSend = async (payload: {
 		content?: string;
 		localImageUri?: string;
 		localImageFileSize?: number | null;
 		localImages?: SelectedChatImage[];
+		replyToId?: string | null;
 	}) => {
 		if (!conversationId || !userId) return;
 
 		if (payload.localImages && payload.localImages.length > 0) {
 			const validation = validateBatchFileSizes(payload.localImages);
 			if (!validation.valid) {
-				Alert.alert(
-					"File Too Large",
+				toast.error(
 					validation.error || "File exceeds the 10 MB size limit.",
+					"FILE TOO LARGE",
 				);
 				return;
 			}
@@ -457,9 +636,9 @@ export default function ChatThreadScreen() {
 				payload.localImageFileSize,
 			);
 			if (!validation.valid) {
-				Alert.alert(
-					"File Too Large",
+				toast.error(
 					validation.error || "File exceeds the 10 MB size limit.",
+					"FILE TOO LARGE",
 				);
 				return;
 			}
@@ -474,6 +653,7 @@ export default function ChatThreadScreen() {
 			content: payload.content ?? null,
 			media_urls: payload.localImageUri ? [payload.localImageUri] : [],
 			shared_post_id: null,
+			reply_to_id: payload.replyToId ?? null,
 			created_at: new Date().toISOString(),
 			sender: profile ?? undefined,
 			status: "sending",
@@ -502,7 +682,13 @@ export default function ChatThreadScreen() {
 			}
 		}
 
-		await dispatchMessage(tempId, payload.content, uploadedUrls);
+		await dispatchMessage(
+			tempId,
+			payload.content,
+			uploadedUrls,
+			undefined,
+			payload.replyToId,
+		);
 	};
 
 	const handleRetry = async (failedMsg: OptimisticMessage) => {
@@ -592,9 +778,10 @@ export default function ChatThreadScreen() {
 			});
 			setEditSheetOpen(false);
 			setSelectedMessage(null);
+			toast.success("Saved");
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to edit message.");
+			toast.error(e?.message || "Failed to edit message.");
 		} finally {
 			setIsSavingEdit(false);
 		}
@@ -640,10 +827,7 @@ export default function ChatThreadScreen() {
 					pinned_by: !nextPinned ? userId : null,
 				}));
 				const e = err as Error;
-				Alert.alert(
-					"Error",
-					e?.message || "Failed to update pinned message.",
-				);
+				toast.error(e?.message || "Failed to update pinned message.");
 			}
 		},
 		[
@@ -677,9 +861,10 @@ export default function ChatThreadScreen() {
 				event: "message_updated",
 				payload: { message: updated },
 			});
+			toast.success("Message unsent");
 		} catch (err: unknown) {
 			const e = err as Error;
-			Alert.alert("Error", e?.message || "Failed to unsend message.");
+			toast.error(e?.message || "Failed to unsend message.");
 			void loadThread();
 		}
 	}, [selectedMessage, conversationId, updateMessageInThread, loadThread]);
@@ -880,61 +1065,128 @@ export default function ChatThreadScreen() {
 					/>
 				</View>
 			) : (
-				<FlatList
-					ref={flatListRef}
-					inverted
-					data={displayedMessages}
-					keyExtractor={(item) => item.tempId ?? item.id}
-					onEndReached={handleLoadMore}
-					onEndReachedThreshold={0.3}
-					onScrollToIndexFailed={() => {}}
-					contentContainerStyle={{
-						paddingHorizontal: 14,
-						paddingVertical: 14,
-						flexGrow: 1,
-						justifyContent: "flex-end",
-					}}
-					ListFooterComponent={
-						isLoadingMore ? (
-							<View className="py-3">
-								<ActivityIndicator
-									size="small"
-									color="#000000"
-								/>
+				<View className="relative flex-1">
+					<FlatList
+						ref={flatListRef}
+						inverted
+						data={displayedMessages}
+						keyExtractor={(item) => item.tempId ?? item.id}
+						onEndReached={handleLoadMore}
+						onEndReachedThreshold={0.3}
+						onScrollToIndexFailed={() => {}}
+						scrollEventThrottle={100}
+						onScroll={(e) => {
+							const offsetY = e.nativeEvent.contentOffset.y;
+							const scrolledUp = offsetY > 220;
+							if (scrolledUp !== isScrolledUpRef.current) {
+								isScrolledUpRef.current = scrolledUp;
+								setIsScrolledUp(scrolledUp);
+							}
+							if (offsetY < 60 && unreadWhileScrolled > 0) {
+								setUnreadWhileScrolled(0);
+							}
+						}}
+						contentContainerStyle={{
+							paddingHorizontal: 14,
+							paddingVertical: 14,
+							flexGrow: 1,
+							justifyContent: "flex-end",
+						}}
+						ListFooterComponent={
+							isLoadingMore ? (
+								<View className="py-3">
+									<ActivityIndicator
+										size="small"
+										color="#000000"
+									/>
+								</View>
+							) : null
+						}
+						ListEmptyComponent={
+							<View className="flex-1 items-center justify-center py-12">
+								<Text className="font-mono text-xs text-muted-foreground uppercase">
+									{searchQuery.trim().length > 0
+										? "NO MATCHING MESSAGES."
+										: "SECURE WIRE ESTABLISHED. SAY HELLO."}
+								</Text>
 							</View>
-						) : null
-					}
-					ListEmptyComponent={
-						<View className="flex-1 items-center justify-center py-12">
-							<Text className="font-mono text-xs text-muted-foreground uppercase">
-								{searchQuery.trim().length > 0
-									? "NO MATCHING MESSAGES."
-									: "SECURE WIRE ESTABLISHED. SAY HELLO."}
-							</Text>
-						</View>
-					}
-					renderItem={({ item, index }) => {
-						const prevMsg = displayedMessages[index + 1];
-						return (
-							<MessageBubble
-								message={item}
-								isOwnMessage={item.sender_id === userId}
-								conversationType={
-									conversation?.type ?? "direct"
-								}
-								participants={conversation?.participants}
-								previousSenderId={prevMsg?.sender_id}
-								onRetry={handleRetry}
-								onLongPress={handleLongPressMessage}
-								onMediaPress={handleMediaPress}
+						}
+						renderItem={({ item, index }) => {
+							const prevMsg = displayedMessages[index + 1];
+							const replyTarget = item.reply_to_id
+								? (messageById.get(item.reply_to_id) ?? null)
+								: null;
+							return (
+								<MessageBubble
+									message={item}
+									isOwnMessage={item.sender_id === userId}
+									currentUserId={userId}
+									conversationType={
+										conversation?.type ?? "direct"
+									}
+									participants={conversation?.participants}
+									previousSenderId={prevMsg?.sender_id}
+									replyToMessage={replyTarget}
+									onRetry={handleRetry}
+									onLongPress={handleLongPressMessage}
+									onSwipeReply={handleSelectReply}
+									onJumpToReply={handleJumpToMessage}
+									onToggleReaction={(m, emoji) =>
+										void handleToggleReaction(m, emoji)
+									}
+									onMediaPress={handleMediaPress}
+								/>
+							);
+						}}
+					/>
+
+					{isScrolledUp ? (
+						<Pressable
+							accessibilityRole="button"
+							accessibilityLabel="Jump to latest messages"
+							onPress={handleJumpToLatest}
+							className="absolute right-4 bottom-4 flex-row items-center gap-1.5 border-2 border-border bg-neo-yellow px-3 py-2 shadow-neo-sm active:translate-x-px active:translate-y-px">
+							<ArrowDown
+								size={15}
+								color="#000000"
+								strokeWidth={2.5}
 							/>
-						);
-					}}
-				/>
+							{unreadWhileScrolled > 0 ? (
+								<View className="border border-border bg-destructive px-1.5 py-0.5">
+									<Text className="font-bold text-3xs text-primary-foreground tabular-nums">
+										{unreadWhileScrolled > 99
+											? "99+"
+											: unreadWhileScrolled}
+									</Text>
+								</View>
+							) : (
+								<Text className="font-bold text-2xs tracking-wider text-foreground uppercase">
+									LATEST
+								</Text>
+							)}
+						</Pressable>
+					) : null}
+				</View>
 			)}
 
+			{activeTypingNames.length > 0 ? (
+				<View className="border-t border-border/20 bg-card px-4 py-1.5">
+					<Text
+						numberOfLines={1}
+						className="font-mono text-2xs text-muted-foreground uppercase">
+						{activeTypingNames.length === 1
+							? `${activeTypingNames[0]} IS TYPING...`
+							: `${activeTypingNames.length} PEOPLE ARE TYPING...`}
+					</Text>
+				</View>
+			) : null}
+
 			<ChatComposer
+				conversationId={conversationId}
 				onSend={handleSend}
+				replyingTo={replyingTo}
+				onCancelReply={() => setReplyingTo(null)}
+				onTyping={handleBroadcastTyping}
 				isGroup={isGroup}
 				disabled={!userId}
 			/>
@@ -960,6 +1212,54 @@ export default function ChatThreadScreen() {
 				onOpenChange={setMessageActionsOpen}
 				title="MESSAGE ACTIONS">
 				<View className="gap-2.5 pb-4">
+					{selectedMessage ? (
+						<View className="mb-1 flex-row items-center justify-between gap-1.5 border-2 border-border bg-surface p-2 shadow-neo-xs">
+							{QUICK_REACTIONS.map((emoji) => {
+								const reacted = Boolean(
+									userId &&
+									selectedMessage.reactions?.[
+										emoji
+									]?.includes(userId),
+								);
+								return (
+									<Pressable
+										key={emoji}
+										accessibilityRole="button"
+										accessibilityLabel={`React with ${emoji}`}
+										onPress={() =>
+											void handleToggleReaction(
+												selectedMessage,
+												emoji,
+											)
+										}
+										className={`size-10 items-center justify-center border border-border ${
+											reacted
+												? "bg-neo-yellow"
+												: "bg-card active:bg-secondary"
+										}`}>
+										<Text className="text-lg">{emoji}</Text>
+									</Pressable>
+								);
+							})}
+						</View>
+					) : null}
+
+					{selectedMessage ? (
+						<Pressable
+							accessibilityRole="button"
+							onPress={() => handleSelectReply(selectedMessage)}
+							className="flex-row items-center gap-3 border-2 border-border bg-card px-4 py-3 shadow-neo-sm active:bg-secondary">
+							<Reply
+								size={18}
+								color="#000000"
+								strokeWidth={2.5}
+							/>
+							<Text className="font-display text-sm text-foreground uppercase">
+								Reply
+							</Text>
+						</Pressable>
+					) : null}
+
 					{selectedMessage?.sender_id === userId &&
 					Boolean(selectedMessage?.content) ? (
 						<Pressable
